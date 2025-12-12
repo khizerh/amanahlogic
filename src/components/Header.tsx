@@ -43,10 +43,10 @@ export default function Header() {
 
   const isDashboard = pathname?.startsWith("/");
   const isOverviewActive = pathname === "/dashboard" || pathname === "/";
-  const isMembersActive = pathname?.startsWith("/members");
-  const isMembershipsActive = pathname?.startsWith("/memberships");
-  const isPaymentsActive = pathname?.startsWith("/payments");
-  const isReportsActive = pathname?.startsWith("/reports");
+  const isMembersActive = pathname === "/members" || pathname?.startsWith("/members/");
+  const isMembershipsActive = pathname === "/memberships" || pathname?.startsWith("/memberships/");
+  const isPaymentsActive = pathname === "/payments" || pathname?.startsWith("/payments/");
+  const isReportsActive = pathname === "/reports" || pathname?.startsWith("/reports/");
 
   return (
     <>
