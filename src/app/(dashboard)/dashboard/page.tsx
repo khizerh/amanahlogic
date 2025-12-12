@@ -11,7 +11,7 @@ import {
   formatCurrency,
   formatDate,
   formatStatus,
-  getStatusColor,
+  getStatusVariant,
 } from "@/lib/mock-data";
 
 export default function DashboardPage() {
@@ -179,7 +179,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="text-right ml-4">
                           {member.membership && (
-                            <Badge className={getStatusColor(member.membership.status)}>
+                            <Badge variant={getStatusVariant(member.membership.status)}>
                               {formatStatus(member.membership.status)}
                             </Badge>
                           )}
@@ -260,7 +260,7 @@ export default function DashboardPage() {
                             </div>
                           </div>
                           <div className="text-right ml-4">
-                            <Badge className="bg-orange-100 text-orange-800">
+                            <Badge variant="withdrawn">
                               {formatStatus(membership.status)}
                             </Badge>
                             {membership.nextPaymentDue && (

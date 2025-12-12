@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
 import { RecordPaymentDialog } from "@/components/payments/record-payment-dialog";
-import { columns } from "./columns";
+import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
+import { createColumns } from "./columns";
+import { PaymentWithDetails } from "@/lib/types";
 import Link from "next/link";
 import {
   getPayments,
@@ -18,7 +20,7 @@ import {
   formatCurrency,
   formatDate,
   formatStatus,
-  getStatusColor,
+  getStatusVariant,
 } from "@/lib/mock-data";
 import {
   AlertCircle,
@@ -31,11 +33,31 @@ import { toast } from "sonner";
 
 export default function PaymentsPage() {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
 
   const payments = getPayments();
   const overdueMembers = getOverdueMembers(100);
   const autoPayMembers = getAutoPayMembers();
   const noAutoPayMembers = getMembersWithoutAutoPay();
+
+  const handleViewDetails = (payment: PaymentWithDetails) => {
+    setSelectedPayment(payment);
+    setDetailsSheetOpen(true);
+  };
+
+  const handleEmailReceipt = (payment: PaymentWithDetails) => {
+    toast.success(`Receipt emailed to ${payment.member.email}`);
+  };
+
+  const columns = useMemo(
+    () =>
+      createColumns({
+        onViewDetails: handleViewDetails,
+        onEmailReceipt: handleEmailReceipt,
+      }),
+    []
+  );
 
   const handleSendReminder = (memberId: string, memberName: string) => {
     toast.success(`Payment reminder sent to ${memberName}`);
@@ -222,7 +244,7 @@ export default function PaymentsPage() {
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <span>{membership.member.email}</span>
                                 <span>•</span>
-                                <Badge className={getStatusColor(membership.status)} variant="secondary">
+                                <Badge variant={getStatusVariant(membership.status)}>
                                   {formatStatus(membership.status)}
                                 </Badge>
                               </div>
@@ -401,6 +423,13 @@ export default function PaymentsPage() {
 
       {/* Record Payment Dialog */}
       <RecordPaymentDialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen} />
+
+      {/* Payment Details Sheet */}
+      <PaymentDetailsSheet
+        payment={selectedPayment}
+        open={detailsSheetOpen}
+        onOpenChange={setDetailsSheetOpen}
+      />
     </>
   );
 }

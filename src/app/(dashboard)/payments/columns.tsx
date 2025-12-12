@@ -4,20 +4,26 @@ import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, CreditCard, Building2, Banknote, FileText, Smartphone } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Eye, Mail, CreditCard, Building2, Banknote, FileText, Smartphone } from "lucide-react";
 import { PaymentWithDetails } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 
 const getPaymentTypeBadge = (type: string) => {
   switch (type) {
     case "enrollment_fee":
-      return <Badge className="bg-indigo-100 text-indigo-800">Enrollment Fee</Badge>;
+      return <Badge variant="refunded">Enrollment Fee</Badge>;
     case "dues":
-      return <Badge className="bg-blue-100 text-blue-800">Dues</Badge>;
+      return <Badge variant="info">Dues</Badge>;
     case "back_dues":
-      return <Badge className="bg-amber-100 text-amber-800">Back Dues</Badge>;
+      return <Badge variant="warning">Back Dues</Badge>;
     default:
-      return <Badge>{type}</Badge>;
+      return <Badge variant="inactive">{type}</Badge>;
   }
 };
 
@@ -58,19 +64,24 @@ const getPaymentMethodLabel = (method: string) => {
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "completed":
-      return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+      return <Badge variant="success">Completed</Badge>;
     case "pending":
-      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      return <Badge variant="warning">Pending</Badge>;
     case "failed":
-      return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+      return <Badge variant="error">Failed</Badge>;
     case "refunded":
-      return <Badge className="bg-purple-100 text-purple-800">Refunded</Badge>;
+      return <Badge variant="refunded">Refunded</Badge>;
     default:
-      return <Badge>{status}</Badge>;
+      return <Badge variant="inactive">{status}</Badge>;
   }
 };
 
-export const columns: ColumnDef<PaymentWithDetails>[] = [
+export interface PaymentColumnActions {
+  onViewDetails: (payment: PaymentWithDetails) => void;
+  onEmailReceipt: (payment: PaymentWithDetails) => void;
+}
+
+export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentWithDetails>[] => [
   {
     accessorFn: (row) => row.paidAt || row.createdAt,
     id: "date",
@@ -160,17 +171,29 @@ export const columns: ColumnDef<PaymentWithDetails>[] = [
   },
   {
     id: "actions",
-    header: () => <div className="text-right">Actions</div>,
+    header: () => <div className="text-right sr-only">Actions</div>,
     cell: ({ row }) => {
       const payment = row.original;
       return (
         <div className="text-right">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/payments/${payment.id}`}>
-              <Eye className="h-4 w-4 mr-1" />
-              View
-            </Link>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => actions.onViewDetails(payment)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => actions.onEmailReceipt(payment)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Email Receipt
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       );
     },

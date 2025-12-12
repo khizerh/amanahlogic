@@ -631,3 +631,16 @@ export function getStatusColor(status: MembershipStatus): string {
   };
   return colors[status];
 }
+
+// Returns Badge variant name for proper styling (avoids CSS specificity issues)
+export function getStatusVariant(status: MembershipStatus): "success" | "info" | "warning" | "error" | "inactive" | "withdrawn" {
+  const variants: Record<MembershipStatus, "success" | "info" | "warning" | "error" | "inactive" | "withdrawn"> = {
+    pending: 'inactive',
+    awaiting_signature: 'warning',
+    waiting_period: 'info',
+    active: 'success',
+    lapsed: 'withdrawn',
+    cancelled: 'error',
+  };
+  return variants[status];
+}

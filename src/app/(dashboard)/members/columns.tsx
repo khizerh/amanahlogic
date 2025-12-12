@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import { MemberWithMembership, PlanType } from "@/lib/types";
-import { formatStatus, getStatusColor } from "@/lib/mock-data";
+import { formatStatus, getStatusVariant } from "@/lib/mock-data";
 
 const getPlanTypeBadge = (type: PlanType) => {
-  const colors = {
-    single: "bg-blue-100 text-blue-800",
-    married: "bg-purple-100 text-purple-800",
-    widow: "bg-amber-100 text-amber-800",
+  const variants: Record<PlanType, "info" | "refunded" | "warning"> = {
+    single: "info",
+    married: "refunded",
+    widow: "warning",
   };
   const labels = {
     single: "Single",
@@ -20,7 +20,7 @@ const getPlanTypeBadge = (type: PlanType) => {
     widow: "Widow",
   };
   return (
-    <Badge className={colors[type]} variant="secondary">
+    <Badge variant={variants[type]}>
       {labels[type]}
     </Badge>
   );
@@ -74,7 +74,7 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
     cell: ({ row }) => {
       const status = row.original.membership?.status;
       return status ? (
-        <Badge className={getStatusColor(status)} variant="secondary">
+        <Badge variant={getStatusVariant(status)}>
           {formatStatus(status)}
         </Badge>
       ) : (

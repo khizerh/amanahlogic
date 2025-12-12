@@ -7,18 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Eye } from "lucide-react";
 import { MembershipWithDetails } from "@/lib/types";
-import { formatCurrency, formatDate, formatStatus, getStatusColor } from "@/lib/mock-data";
+import { formatCurrency, formatDate, formatStatus, getStatusVariant } from "@/lib/mock-data";
 
-const getPlanBadgeColor = (planType: string) => {
+const getPlanBadgeVariant = (planType: string): "info" | "refunded" | "warning" | "inactive" => {
   switch (planType) {
     case "single":
-      return "bg-blue-100 text-blue-800";
+      return "info";
     case "married":
-      return "bg-purple-100 text-purple-800";
+      return "refunded";
     case "widow":
-      return "bg-pink-100 text-pink-800";
+      return "warning";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "inactive";
   }
 };
 
@@ -66,7 +66,7 @@ export const columns: ColumnDef<MembershipWithDetails>[] = [
     cell: ({ row }) => {
       const plan = row.original.plan;
       return (
-        <Badge className={getPlanBadgeColor(plan.type)}>
+        <Badge variant={getPlanBadgeVariant(plan.type)}>
           {plan.name}
         </Badge>
       );
@@ -78,7 +78,7 @@ export const columns: ColumnDef<MembershipWithDetails>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       return (
-        <Badge className={getStatusColor(status)}>
+        <Badge variant={getStatusVariant(status)}>
           {formatStatus(status)}
         </Badge>
       );
@@ -153,7 +153,7 @@ export const columns: ColumnDef<MembershipWithDetails>[] = [
       return (
         <div className="text-right">
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/memberships/${membership.id}`}>
+            <Link href={`/members/${membership.member.id}`}>
               <Eye className="h-4 w-4 mr-1" />
               View
             </Link>
