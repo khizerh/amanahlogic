@@ -44,6 +44,7 @@ Web application for managing burial benefits membership for Muslim communities. 
 - Plan type
 - Billing frequency selected
 - Join date
+- Billing anniversary day (day of month for recurring charges)
 - Agreement status
 - Paid months count
 
@@ -118,12 +119,30 @@ Web application for managing burial benefits membership for Muslim communities. 
 | Fee Type                              | Who Pays | How                                   |
 |---------------------------------------|----------|---------------------------------------|
 | Stripe processing fee (~2.9% + $0.30) | Member   | Added to charge amount                |
-| Platform fee (configurable %)         | Org      | Deducted from payment before transfer |
+| Platform fee (flat $ amount)          | Org      | Deducted from payment before transfer |
 
-**Example:** $40 dues payment
+**Example:** $40 dues payment with $1.00 platform fee
 - Stripe fee (~$1.46) added → Member pays $41.46
-- Platform fee (e.g., 2%) = $0.80 kept by platform
-- Org receives $39.20
+- Platform fee ($1.00) kept by platform
+- Org receives $39.00
+
+> **Note:** Platform fee is configured as a fixed dollar amount per transaction, not a percentage. This simplifies accounting and provides predictable costs for organizations.
+
+### Billing Schedule
+
+**Anniversary Billing Model** — No proration required.
+
+- Billing date is based on signup date (the "anniversary date")
+- If member signs up on December 15th, their billing cycle starts on the 15th
+- Next payment due: January 15th, then February 15th, etc.
+- Same logic applies to bi-annual and annual billing frequencies
+- Simplifies payment logic: no partial month calculations needed
+
+| Signup Date | Frequency  | First Due | Second Due | Third Due  |
+|-------------|------------|-----------|------------|------------|
+| Dec 15      | Monthly    | Jan 15    | Feb 15     | Mar 15     |
+| Dec 15      | Bi-Annual  | Jun 15    | Dec 15     | Jun 15     |
+| Dec 15      | Annual     | Dec 15    | Dec 15     | Dec 15     |
 
 ### Payment Methods Supported
 
@@ -249,7 +268,7 @@ Captured metadata (IP, timestamp, consent checkbox) provides audit trail.
 - Plan management (add/edit/deactivate plans)
 - Eligibility rules (paid months threshold)
 - Email templates customization
-- Admin user management (invite, remove, roles)
+- Admin user management (invite, remove)
 
 ---
 
@@ -329,6 +348,13 @@ Captured metadata (IP, timestamp, consent checkbox) provides audit trail.
 - Row Level Security (RLS) on all tables
 - Org-specific Stripe Connected Accounts
 - Isolated admin user pools per org
+
+### Authorization Model
+
+- **Single admin role** — all admins within an organization have equal access
+- No permission tiers (viewer, editor, owner) required
+- Admins can invite/remove other admins for their organization
+- Audit log tracks all admin actions for accountability
 
 ### Database Tables
 
@@ -595,19 +621,27 @@ Captured metadata (IP, timestamp, consent checkbox) provides audit trail.
 | #   | Question                                                                                         | Impact                |
 |-----|--------------------------------------------------------------------------------------------------|-----------------------|
 | 1   | Grace period before lapsed? How many days after missed payment before status changes to lapsed?  | Status workflow logic |
-| 2   | Proration on signup? If member signs up mid-month, prorate first payment or charge full amount?  | Payment calculation   |
-| 3   | Platform fee percentage? What % does platform keep per transaction?                              | Stripe configuration  |
-| 4   | Agreement template content? Who provides the legal text for the membership agreement?            | E-sign implementation |
-| 5   | Notification preferences? Which emails should members receive? All, or let them opt out of some? | Email system          |
-| 6   | Admin roles? Just one admin level, or need different permission levels (viewer, editor, owner)?  | Auth complexity       |
+| 2   | Notification preferences? Which emails should members receive? All, or let them opt out of some? | Email system          |
+
+### Resolved Questions
+
+| Question | Resolution |
+|----------|------------|
+| Proration on signup? | **No proration.** Anniversary billing model — member signs up on the 15th, bills on the 15th each period. |
+| Platform fee percentage? | **Flat dollar amount**, not percentage. Configured per organization in settings. |
+| Agreement template content? | **Client provides** the legal text for the membership agreement. |
+| Admin roles? | **Single admin level.** All admins have full access, no permission tiers needed. |
 
 ---
 
 ## Assumptions
 
-- Client provides membership agreement legal text
+- Client provides membership agreement legal text ✓ (confirmed)
 - Client has or will create Stripe account for Connect onboarding
 - ~1000 initial members for import
 - English language only (no i18n)
 - US-based organizations only (USD, US tax requirements)
 - Standard Stripe fees apply (~2.9% + $0.30 card, ~0.8% ACH)
+- Anniversary billing with no proration ✓ (confirmed)
+- Platform fee as flat dollar amount ✓ (confirmed)
+- Single admin role per organization ✓ (confirmed)
