@@ -5,8 +5,8 @@
 
 import "server-only";
 
-import { logger } from "@imarah/logger";
-import { calculateAge } from "@imarah/shared-utils";
+import { logger } from "@/lib/logger";
+import { calculateAge } from "@/lib/utils";
 import { getOrCreateStripeCustomer, createSubscriptionCheckoutSession } from "@/lib/stripe";
 import { getOrCreateProgramPrice, updateProgramStripePrice } from "@/lib/stripe/program-prices";
 import { calculateNextBillingDate } from "@/lib/billing/invoice-generator";

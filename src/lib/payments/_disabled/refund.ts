@@ -5,7 +5,7 @@
 
 import "server-only";
 
-import { logger } from "@imarah/logger";
+import { logger } from "@/lib/logger";
 import { getStripeClient } from "@/lib/stripe";
 import { getTodayInOrgTimezone } from "@/lib/utils/timezone";
 import type { PaymentActionResult } from "./types";

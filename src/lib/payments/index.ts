@@ -3,7 +3,13 @@
  * @module lib/payments
  *
  * This module contains the business logic for payment operations.
- * Actions in app/actions/payments.ts should call these functions.
+ *
+ * Note: Advanced payment features (auto-pay, customer portal, payment links, receipts, refunds)
+ * are in _disabled/ folder until supporting modules are built:
+ * - @/lib/stripe (Stripe integration)
+ * - @/lib/billing (billing calculations)
+ * - @/lib/email (email queue)
+ * - @/lib/database (database services)
  */
 
 // Types
@@ -19,48 +25,3 @@ export {
   isStripeConfigurationError,
   isStripeResourceMissingError,
 } from "./utils";
-
-// Refund
-export { processRefund } from "./refund";
-export type { RefundPaymentParams, RefundResult } from "./refund";
-
-// Payment Link
-export {
-  generatePaymentLinkLogic,
-  regeneratePaymentLinkLogic,
-  getPaymentLinkUrlLogic,
-} from "./payment-link";
-export type {
-  GeneratePaymentLinkParams,
-  PaymentLinkResult,
-  RegeneratePaymentLinkParams,
-  GetPaymentLinkUrlParams,
-  GetPaymentLinkUrlResult,
-} from "./payment-link";
-
-// Payment Link Helpers (re-exported for convenience)
-export type { EnrollmentQueryResult } from "./payment-link-helpers";
-
-// Auto-pay
-export { createAutoPayCheckoutLinkLogic } from "./auto-pay";
-export type { CreateAutoPayCheckoutLinkParams, AutoPayCheckoutLinkResult } from "./auto-pay";
-
-// Customer Portal
-export {
-  sendCustomerPortalLinkLogic,
-  generateCustomerPortalLinkLogic,
-  handlePortalError,
-} from "./customer-portal";
-export type {
-  SendCustomerPortalLinkParams,
-  GenerateCustomerPortalLinkParams,
-  CustomerPortalLinkResult,
-} from "./customer-portal";
-
-// Receipt
-export {
-  sendReceiptEmailLogic,
-  queuePaymentReceiptEmail,
-  queueInvoiceEmailForPayment,
-} from "./receipt";
-export type { SendReceiptEmailParams, SendReceiptEmailResult } from "./receipt";

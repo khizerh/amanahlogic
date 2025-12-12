@@ -5,7 +5,7 @@
 
 import "server-only";
 
-import { logger } from "@imarah/logger";
+import { logger } from "@/lib/logger";
 import { PaymentsService } from "@/lib/database/payments";
 import { StripeCheckoutInvitesService } from "@/lib/database/stripe-checkout-invites";
 import { calculateNextBillingDate } from "@/lib/billing/invoice-generator";

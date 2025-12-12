@@ -3,7 +3,7 @@
  * @module lib/payments/utils
  */
 
-import { calculateAge } from "@imarah/shared-utils";
+import { calculateAge } from "@/lib/utils";
 import type { FamilyData, StudentData } from "./types";
 
 /**

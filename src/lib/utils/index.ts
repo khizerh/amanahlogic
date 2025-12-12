@@ -1,3 +1,6 @@
+// Class name utility
+export { cn } from "./cn";
+
 // Country configuration
 export {
   SUPPORTED_COUNTRIES,

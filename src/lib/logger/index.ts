@@ -1,38 +1,34 @@
 /**
- * Server-side logger export
- *
- * This is the default export for server-side usage.
- * It has access to all Node.js APIs and full logging capabilities.
- *
- * @example
- * ```typescript
- * import { logger } from '@imarah/logger';
- *
- * logger.info("User logged in", { userId: "123" }, "auth");
- * logger.error("Failed to save", { error, draftId }, "database");
- *
- * const endTimer = logger.time("Database query", "database");
- * await db.query(...);
- * endTimer();
- * ```
+ * Simple logger for Amanah Logic
  */
 
-import { createLogger } from "./unified-logger";
+type LogLevel = "debug" | "info" | "warn" | "error";
 
-// Create a singleton logger instance for server-side use
-export const logger = createLogger({
-  isClient: false,
-});
+interface LogContext {
+  [key: string]: unknown;
+}
 
-// Export types for consumers
-export type {
-  LogLevel,
-  LogContext,
-  LogMetadata,
-  LogEntry,
-  LoggerOptions,
-  TimerEnd,
-} from "./unified-logger";
+function formatMessage(level: LogLevel, message: string, context?: LogContext): string {
+  const timestamp = new Date().toISOString();
+  const contextStr = context ? ` ${JSON.stringify(context)}` : "";
+  return `[${timestamp}] ${level.toUpperCase()}: ${message}${contextStr}`;
+}
 
-// Export the logger class for custom instances
-export { UnifiedLogger, createLogger } from "./unified-logger";
+export const logger = {
+  debug: (message: string, context?: LogContext) => {
+    if (process.env.NODE_ENV === "development") {
+      console.debug(formatMessage("debug", message, context));
+    }
+  },
+  info: (message: string, context?: LogContext) => {
+    console.info(formatMessage("info", message, context));
+  },
+  warn: (message: string, context?: LogContext) => {
+    console.warn(formatMessage("warn", message, context));
+  },
+  error: (message: string, context?: LogContext) => {
+    console.error(formatMessage("error", message, context));
+  },
+};
+
+export default logger;

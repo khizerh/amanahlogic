@@ -4,10 +4,12 @@ import {
   formatPhoneNumber,
   formatPhoneAsYouType,
   getMaxPhoneDigits,
+} from "@/lib/utils/phone";
+import {
   SUPPORTED_COUNTRIES,
   type SupportedCountry,
-} from "@imarah/shared-utils";
-import { cn } from "../../lib/utils";
+} from "@/lib/utils/countries";
+import { cn } from "@/lib/utils";
 
 export interface PhoneInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,

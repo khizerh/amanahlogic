@@ -5,8 +5,8 @@
 
 import "server-only";
 
-import { logger } from "@imarah/logger";
-import { calculateAge } from "@imarah/shared-utils";
+import { logger } from "@/lib/logger";
+import { calculateAge } from "@/lib/utils";
 import { getOrCreateStripeCustomer, createCustomerPortalSession } from "@/lib/stripe";
 import { cleanFamilyNameForDisplay } from "@/lib/email/context";
 import { queueEmail } from "@/lib/email/queue";

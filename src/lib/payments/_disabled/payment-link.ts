@@ -5,7 +5,7 @@
 
 import "server-only";
 
-import { logger } from "@imarah/logger";
+import { logger } from "@/lib/logger";
 import {
   getOrCreateStripeCustomer,
   createOneTimeCheckoutSession,

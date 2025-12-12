@@ -5,7 +5,7 @@
 
 import "server-only";
 
-import { logger } from "@imarah/logger";
+import { logger } from "@/lib/logger";
 import { PaymentsService } from "@/lib/database/payments";
 import { loadEnrollmentEmailContext, resolveRecipient } from "@/lib/email/context";
 import { queueEmail } from "@/lib/email/queue";
