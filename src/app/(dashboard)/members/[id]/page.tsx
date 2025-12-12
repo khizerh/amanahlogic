@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import Link from "next/link";
 import {
   getMember,
@@ -31,6 +32,7 @@ import {
   getStatusVariant,
   mockPayments,
 } from "@/lib/mock-data";
+import { PaymentWithDetails } from "@/lib/types";
 import {
   CheckCircle2,
   Clock,
@@ -72,11 +74,27 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
 
   const { membership, plan } = memberData;
 
+  // State for payment details sheet
+  const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
+
   // Get recent payments for this member
   const recentPayments = mockPayments
     .filter((p) => p.memberId === id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 10);
+
+  // Transform to PaymentWithDetails for the sheet
+  const handleViewPayment = (payment: typeof recentPayments[0]) => {
+    if (!membership) return;
+    const paymentWithDetails: PaymentWithDetails = {
+      ...payment,
+      member: memberData,
+      membership: membership,
+    };
+    setSelectedPayment(paymentWithDetails);
+    setDetailsSheetOpen(true);
+  };
 
   const progressPercent = membership ? Math.min((membership.paidMonths / 60) * 100, 100) : 0;
   const monthsRemaining = membership ? Math.max(60 - membership.paidMonths, 0) : 60;
@@ -505,7 +523,11 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                     </TableHeader>
                     <TableBody>
                       {recentPayments.map((payment) => (
-                        <TableRow key={payment.id}>
+                        <TableRow
+                          key={payment.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleViewPayment(payment)}
+                        >
                           <TableCell>{formatDate(payment.paidAt || payment.createdAt)}</TableCell>
                           <TableCell>{getPaymentTypeBadge(payment.type)}</TableCell>
                           <TableCell>{getPaymentMethodBadge(payment.method)}</TableCell>
@@ -514,10 +536,16 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                           </TableCell>
                           <TableCell>
                             <Badge
-                              className={
+                              variant={
                                 payment.status === "completed"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-800"
+                                  ? "success"
+                                  : payment.status === "pending"
+                                  ? "warning"
+                                  : payment.status === "failed"
+                                  ? "error"
+                                  : payment.status === "refunded"
+                                  ? "refunded"
+                                  : "inactive"
                               }
                             >
                               {payment.status}
@@ -533,6 +561,13 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
           </Card>
         </div>
       </div>
+
+      {/* Payment Details Sheet */}
+      <PaymentDetailsSheet
+        payment={selectedPayment}
+        open={detailsSheetOpen}
+        onOpenChange={setDetailsSheetOpen}
+      />
     </>
   );
 }

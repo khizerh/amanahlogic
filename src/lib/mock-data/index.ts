@@ -91,11 +91,42 @@ export const mockPlans: Plan[] = [
 ];
 
 // -----------------------------------------------------------------------------
+// Seeded Random Number Generator (for consistent SSR/client rendering)
+// -----------------------------------------------------------------------------
+
+class SeededRandom {
+  private seed: number;
+
+  constructor(seed: number) {
+    this.seed = seed;
+  }
+
+  // Simple mulberry32 PRNG
+  next(): number {
+    let t = (this.seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  nextInt(min: number, max: number): number {
+    return Math.floor(this.next() * (max - min + 1)) + min;
+  }
+
+  choice<T>(arr: T[]): T {
+    return arr[Math.floor(this.next() * arr.length)];
+  }
+}
+
+// Use a fixed seed for deterministic data generation
+const rng = new SeededRandom(12345);
+
+// -----------------------------------------------------------------------------
 // Helper Functions
 // -----------------------------------------------------------------------------
 
 function randomDate(start: Date, end: Date): string {
-  const date = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  const date = new Date(start.getTime() + rng.next() * (end.getTime() - start.getTime()));
   return date.toISOString();
 }
 
@@ -104,11 +135,15 @@ function generateId(prefix: string, index: number): string {
 }
 
 function randomChoice<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return rng.choice(arr);
 }
 
 function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return rng.nextInt(min, max);
+}
+
+function seededId(prefix: string): string {
+  return `${prefix}_${Math.floor(rng.next() * 100000000000000).toString(36)}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -149,7 +184,7 @@ function generateMembers(count: number): Member[] {
     const firstName = randomChoice(firstNames);
     const lastName = randomChoice(lastNames);
     const location = randomChoice(cities);
-    const hasSpouse = Math.random() > 0.3;
+    const hasSpouse = rng.next() > 0.3;
     const childCount = hasSpouse ? randomInt(0, 4) : randomInt(0, 2);
 
     const children: Child[] = [];
@@ -194,7 +229,7 @@ function generateMemberships(members: Member[]): Membership[] {
   const statusWeights = [0.05, 0.05, 0.50, 0.25, 0.10, 0.05]; // Realistic distribution
 
   function weightedStatus(): MembershipStatus {
-    const rand = Math.random();
+    const rand = rng.next();
     let cumulative = 0;
     for (let i = 0; i < statuses.length; i++) {
       cumulative += statusWeights[i];
@@ -206,7 +241,7 @@ function generateMemberships(members: Member[]): Membership[] {
   return members.map((member, idx) => {
     const status = weightedStatus();
     const hasSpouse = member.spouseName !== null;
-    const planType: PlanType = hasSpouse ? (Math.random() > 0.2 ? 'married' : 'widow') : 'single';
+    const planType: PlanType = hasSpouse ? (rng.next() > 0.2 ? 'married' : 'widow') : 'single';
     const plan = mockPlans.find(p => p.type === planType)!;
     const billingFrequency: BillingFrequency = randomChoice(['monthly', 'monthly', 'monthly', 'biannual', 'annual']);
 
@@ -222,7 +257,7 @@ function generateMemberships(members: Member[]): Membership[] {
         break;
       case 'awaiting_signature':
         paidMonths = 0;
-        enrollmentFeePaid = Math.random() > 0.5;
+        enrollmentFeePaid = rng.next() > 0.5;
         break;
       case 'waiting_period':
         paidMonths = randomInt(1, 59);
@@ -250,7 +285,7 @@ function generateMemberships(members: Member[]): Membership[] {
     const billingDay = randomInt(1, 28);
 
     // Auto-pay - about 60% of active/waiting members have it set up
-    const autoPayEnabled = (status === 'active' || status === 'waiting_period') && Math.random() > 0.4;
+    const autoPayEnabled = (status === 'active' || status === 'waiting_period') && rng.next() > 0.4;
 
     return {
       id: generateId('mship', idx + 1),
@@ -276,8 +311,8 @@ function generateMemberships(members: Member[]): Membership[] {
       agreementSignedAt,
       agreementId: agreementSignedAt ? generateId('agr', idx + 1) : null,
       autoPayEnabled,
-      stripeSubscriptionId: autoPayEnabled ? `sub_${Math.random().toString(36).substr(2, 14)}` : null,
-      stripeCustomerId: autoPayEnabled ? `cus_${Math.random().toString(36).substr(2, 14)}` : null,
+      stripeSubscriptionId: autoPayEnabled ? seededId('sub') : null,
+      stripeCustomerId: autoPayEnabled ? seededId('cus') : null,
       createdAt: joinDate,
       updatedAt: randomDate(new Date('2024-06-01'), new Date('2024-12-01')),
     };
@@ -309,7 +344,7 @@ function generatePayments(memberships: Membership[], members: Member[]): Payment
         totalCharged: 514.80,
         netAmount: 499.00,
         monthsCredited: 0,
-        stripePaymentIntentId: `pi_${Math.random().toString(36).substr(2, 24)}`,
+        stripePaymentIntentId: seededId('pi'),
         notes: null,
         recordedBy: null,
         createdAt: membership.joinDate,
@@ -358,7 +393,7 @@ function generatePayments(memberships: Membership[], members: Member[]): Payment
         totalCharged,
         netAmount: amount - 1.00,
         monthsCredited,
-        stripePaymentIntentId: isManual ? null : `pi_${Math.random().toString(36).substr(2, 24)}`,
+        stripePaymentIntentId: isManual ? null : seededId('pi'),
         notes: isManual ? `${method} payment recorded` : null,
         recordedBy: isManual ? 'Admin User' : null,
         createdAt: randomDate(new Date('2024-01-01'), new Date('2024-11-30')),

@@ -28,7 +28,7 @@ export default function DashboardPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold">Dashboard</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Overview of members, memberships, and payments
+              Overview of members and payments
             </p>
           </div>
 
@@ -88,34 +88,18 @@ export default function DashboardPage() {
           {/* Quick Access */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold mb-4">Quick Access</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Link href="/members">
                 <Card className="hover:border-primary transition-colors cursor-pointer h-full">
                   <CardHeader>
                     <CardTitle className="text-base">Members</CardTitle>
                     <CardDescription>
-                      View and manage all members, contact info, and dependents
+                      View and manage all members, plans, eligibility, and payment history
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Button variant="outline" size="sm" className="w-full">
                       View Members
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
-
-              <Link href="/memberships">
-                <Card className="hover:border-primary transition-colors cursor-pointer h-full">
-                  <CardHeader>
-                    <CardTitle className="text-base">Memberships</CardTitle>
-                    <CardDescription>
-                      Manage plans, track paid months, and eligibility status
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button variant="outline" size="sm" className="w-full">
-                      View Memberships
                     </Button>
                   </CardContent>
                 </Card>

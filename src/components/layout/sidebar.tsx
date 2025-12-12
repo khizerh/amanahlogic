@@ -12,14 +12,12 @@ import {
   FileText,
   Settings,
   LogOut,
-  ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Members", href: "/members", icon: Users },
-  { label: "Memberships", href: "/memberships", icon: ClipboardList },
   { label: "Payments", href: "/payments", icon: CreditCard },
   { label: "Reports", href: "/reports", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },
