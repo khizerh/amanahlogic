@@ -149,11 +149,14 @@ export default function Header() {
                   </SheetContent>
                 </Sheet>
 
-                {/* Logo and Org Name */}
-                <Link href="/dashboard" className="flex items-end gap-4">
-                  <h1 className="text-xl font-semibold text-white leading-none">
-                    Amanah Logic
-                  </h1>
+                {/* Logo */}
+                <Link href="/dashboard" className="flex items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logos/logo-white.svg"
+                    alt="Amanah Logic"
+                    className="h-8"
+                  />
                 </Link>
               </div>
 

@@ -40,8 +40,13 @@ export function Sidebar() {
   return (
     <aside className="w-64 border-r bg-card flex flex-col">
       <div className="p-6 border-b">
-        <h1 className="text-xl font-bold text-primary">Amanah Logic</h1>
-        <p className="text-xs text-muted-foreground mt-1">Membership Management</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logos/logo-black.png"
+          alt="Amanah Logic"
+          width={180}
+          height={40}
+        />
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
