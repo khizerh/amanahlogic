@@ -623,25 +623,16 @@ Captured metadata (IP, timestamp, consent checkbox) provides audit trail.
 | 1   | Grace period before lapsed? How many days after missed payment before status changes to lapsed?  | Status workflow logic |
 | 2   | Notification preferences? Which emails should members receive? All, or let them opt out of some? | Email system          |
 
-### Resolved Questions
-
-| Question | Resolution |
-|----------|------------|
-| Proration on signup? | **No proration.** Anniversary billing model — member signs up on the 15th, bills on the 15th each period. |
-| Platform fee percentage? | **Flat dollar amount**, not percentage. Configured per organization in settings. |
-| Agreement template content? | **Client provides** the legal text for the membership agreement. |
-| Admin roles? | **Single admin level.** All admins have full access, no permission tiers needed. |
-
 ---
 
 ## Assumptions
 
-- Client provides membership agreement legal text ✓ (confirmed)
+- Client provides membership agreement legal text
 - Client has or will create Stripe account for Connect onboarding
 - ~1000 initial members for import
 - English language only (no i18n)
 - US-based organizations only (USD, US tax requirements)
 - Standard Stripe fees apply (~2.9% + $0.30 card, ~0.8% ACH)
-- Anniversary billing with no proration ✓ (confirmed)
-- Platform fee as flat dollar amount ✓ (confirmed)
-- Single admin role per organization ✓ (confirmed)
+- Anniversary billing with no proration
+- Platform fee as flat dollar amount per transaction
+- Single admin role per organization (no permission tiers)
