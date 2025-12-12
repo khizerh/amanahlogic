@@ -2,7 +2,16 @@
 
 import { use, useState } from "react";
 import Header from "@/components/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -29,6 +38,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import Link from "next/link";
@@ -48,23 +64,27 @@ import {
   CheckCircle2,
   Clock,
   FileText,
-  Edit,
-  Mail,
-  Phone,
-  MapPin,
-  Users,
   AlertCircle,
-  Calendar,
-  Languages,
-  DollarSign,
   Send,
   XCircle,
   AlertTriangle,
-  CreditCard,
-  Building2,
+  RefreshCw,
   Pause,
   Play,
-  RefreshCw,
+  DollarSign,
+  CreditCard,
+  Calendar,
+  Download,
+  Eye,
+  Shield,
+  Edit,
+  X,
+  Mail,
+  Phone,
+  MapPin,
+  Languages,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -106,6 +126,48 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
   // State for email details sheet
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
   const [emailSheetOpen, setEmailSheetOpen] = useState(false);
+
+  // State for agreement dialog
+  const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
+
+  // State for inline editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    email: memberData.email,
+    phone: memberData.phone,
+    street: memberData.address.street,
+    city: memberData.address.city,
+    state: memberData.address.state,
+    zip: memberData.address.zip,
+    preferredLanguage: memberData.preferredLanguage,
+    emergencyName: memberData.emergencyContact.name,
+    emergencyPhone: memberData.emergencyContact.phone,
+  });
+
+  const handleStartEdit = () => {
+    setEditForm({
+      email: memberData.email,
+      phone: memberData.phone,
+      street: memberData.address.street,
+      city: memberData.address.city,
+      state: memberData.address.state,
+      zip: memberData.address.zip,
+      preferredLanguage: memberData.preferredLanguage,
+      emergencyName: memberData.emergencyContact.name,
+      emergencyPhone: memberData.emergencyContact.phone,
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = () => {
+    // In real app, this would call an API
+    toast.success("Contact information updated");
+    setIsEditing(false);
+  };
 
   // Get recent payments for this member
   const recentPayments = mockPayments
@@ -224,37 +286,6 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
     }
   };
 
-  // Build timeline events
-  const timelineEvents = membership
-    ? [
-        membership.cancelledDate && {
-          date: membership.cancelledDate,
-          title: "Membership Cancelled",
-          icon: "cancelled",
-        },
-        membership.eligibleDate && {
-          date: membership.eligibleDate,
-          title: "Became Eligible for Benefits",
-          icon: "eligible",
-        },
-        membership.agreementSignedAt && {
-          date: membership.agreementSignedAt,
-          title: "Agreement Signed",
-          icon: "agreement",
-        },
-        membership.enrollmentFeePaid && {
-          date: membership.joinDate,
-          title: "Enrollment Fee Paid",
-          icon: "payment",
-        },
-        {
-          date: membership.joinDate,
-          title: "Membership Created",
-          icon: "created",
-        },
-      ].filter(Boolean)
-    : [];
-
   return (
     <>
       <Header />
@@ -281,12 +312,9 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
           <div className="mb-8">
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-3xl font-bold mb-2">
+                <h1 className="text-3xl font-bold">
                   {memberData.firstName} {memberData.lastName}
                 </h1>
-                <p className="text-muted-foreground">
-                  {memberData.email} • {memberData.phone}
-                </p>
               </div>
               <div className="flex items-center gap-3">
                 {membership && (
@@ -298,14 +326,7 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                   </Badge>
                 )}
                 <Button variant="outline" onClick={() => setRecordPaymentOpen(true)}>
-                  <DollarSign className="h-4 w-4 mr-2" />
                   Record Payment
-                </Button>
-                <Button asChild>
-                  <Link href={`/members/${id}/edit`}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Link>
                 </Button>
               </div>
             </div>
@@ -396,11 +417,20 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Agreement</p>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         {membership.agreementSignedAt ? (
                           <>
                             <CheckCircle2 className="h-4 w-4 text-green-600" />
                             <span className="text-sm font-medium text-green-700">Signed</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => setAgreementDialogOpen(true)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              View
+                            </Button>
                           </>
                         ) : (
                           <>
@@ -411,60 +441,193 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Covered Members */}
+                  {(memberData.spouseName || memberData.children.length > 0) && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground mb-2">Covered Members</p>
+                      <div className="space-y-1">
+                        {memberData.spouseName && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium">{memberData.spouseName}</span>
+                            <span className="text-muted-foreground">Spouse</span>
+                          </div>
+                        )}
+                        {memberData.children.map((child) => (
+                          <div key={child.id} className="flex items-center justify-between text-sm">
+                            <span className="font-medium">{child.name}</span>
+                            <span className="text-muted-foreground">Child</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
 
-            {/* Member Information Card */}
+            {/* Contact Information Card - Inline Editable */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle>Contact Information</CardTitle>
+                {!isEditing ? (
+                  <Button variant="ghost" size="icon" onClick={handleStartEdit}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={handleSaveEdit}>
+                      Save
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{memberData.email}</p>
+              <CardContent>
+                {!isEditing ? (
+                  /* View Mode */
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium">{memberData.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Phone className="h-4 w-4 mt-1 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Phone</p>
+                          <p className="font-medium">{memberData.phone}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Languages className="h-4 w-4 mt-1 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Preferred Language</p>
+                          <p className="font-medium">
+                            {memberData.preferredLanguage === "fa" ? "فارسی (Farsi)" : "English"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Address</p>
+                          <p className="font-medium">{memberData.address.street}</p>
+                          <p className="font-medium">
+                            {memberData.address.city}, {memberData.address.state}{" "}
+                            {memberData.address.zip}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-4 w-4 mt-1 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Emergency Contact</p>
+                          <p className="font-medium">{memberData.emergencyContact.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {memberData.emergencyContact.phone}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Phone className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{memberData.phone}</p>
+                ) : (
+                  /* Edit Mode */
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="language">Preferred Language</Label>
+                        <Select
+                          value={editForm.preferredLanguage}
+                          onValueChange={(value) => setEditForm({ ...editForm, preferredLanguage: value as "en" | "fa" })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="fa">فارسی (Farsi)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="street">Street Address</Label>
+                        <Input
+                          id="street"
+                          value={editForm.street}
+                          onChange={(e) => setEditForm({ ...editForm, street: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-2 col-span-1">
+                          <Label htmlFor="city">City</Label>
+                          <Input
+                            id="city"
+                            value={editForm.city}
+                            onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="state">State</Label>
+                          <Input
+                            id="state"
+                            value={editForm.state}
+                            onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="zip">Zip</Label>
+                          <Input
+                            id="zip"
+                            value={editForm.zip}
+                            onChange={(e) => setEditForm({ ...editForm, zip: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Emergency Contact</Label>
+                        <Input
+                          placeholder="Name"
+                          value={editForm.emergencyName}
+                          onChange={(e) => setEditForm({ ...editForm, emergencyName: e.target.value })}
+                          className="mb-2"
+                        />
+                        <Input
+                          placeholder="Phone"
+                          value={editForm.emergencyPhone}
+                          onChange={(e) => setEditForm({ ...editForm, emergencyPhone: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Address</p>
-                    <p className="font-medium">{memberData.address.street}</p>
-                    <p className="font-medium">
-                      {memberData.address.city}, {memberData.address.state}{" "}
-                      {memberData.address.zip}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Emergency Contact</p>
-                    <p className="font-medium">{memberData.emergencyContact.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {memberData.emergencyContact.phone}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Languages className="h-4 w-4 mt-1 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Preferred Language</p>
-                    <p className="font-medium">
-                      {memberData.preferredLanguage === "fa" ? "فارسی (Farsi)" : "English"}
-                    </p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -473,10 +636,7 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
           {membership && plan && (
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Billing & Payments
-                </CardTitle>
+                <CardTitle>Billing & Payments</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -484,36 +644,22 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Payment Method</p>
                     {membership.autoPayEnabled && membership.paymentMethod ? (
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                          {membership.paymentMethod.type === 'card' ? (
-                            <CreditCard className="h-5 w-5" />
-                          ) : (
-                            <Building2 className="h-5 w-5" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {membership.paymentMethod.type === 'card'
-                              ? `${membership.paymentMethod.brand?.toUpperCase()} •••• ${membership.paymentMethod.last4}`
-                              : `${membership.paymentMethod.bankName} •••• ${membership.paymentMethod.last4}`}
+                      <div>
+                        <p className="font-medium">
+                          {membership.paymentMethod.type === 'card'
+                            ? `${membership.paymentMethod.brand?.toUpperCase()} •••• ${membership.paymentMethod.last4}`
+                            : `${membership.paymentMethod.bankName} •••• ${membership.paymentMethod.last4}`}
+                        </p>
+                        {membership.paymentMethod.type === 'card' && membership.paymentMethod.expiryMonth && (
+                          <p className="text-xs text-muted-foreground">
+                            Expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear}
                           </p>
-                          {membership.paymentMethod.type === 'card' && membership.paymentMethod.expiryMonth && (
-                            <p className="text-xs text-muted-foreground">
-                              Expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear}
-                            </p>
-                          )}
-                        </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                          <DollarSign className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Manual Payments</p>
-                          <p className="text-xs text-muted-foreground">Cash, Check, or Zelle</p>
-                        </div>
+                      <div>
+                        <p className="font-medium">Manual Payments</p>
+                        <p className="text-xs text-muted-foreground">Cash, Check, or Zelle</p>
                       </div>
                     )}
                   </div>
@@ -636,94 +782,7 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
             </Card>
           )}
 
-          {/* Family Information */}
-          {(memberData.spouseName || memberData.children.length > 0) && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Family Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 md:grid-cols-2">
-                  {memberData.spouseName && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Spouse</p>
-                      <p className="font-medium">{memberData.spouseName}</p>
-                    </div>
-                  )}
-                  {memberData.children.length > 0 && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Children ({memberData.children.length})
-                      </p>
-                      <div className="space-y-2">
-                        {memberData.children.map((child) => (
-                          <div
-                            key={child.id}
-                            className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg"
-                          >
-                            <span className="font-medium">{child.name}</span>
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(child.dateOfBirth)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Timeline Card */}
-          {membership && timelineEvents.length > 0 && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Timeline</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {timelineEvents.map((event: any, index) => (
-                    <div key={index} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 rounded-full bg-brand-teal/10 flex items-center justify-center">
-                          {event.icon === "eligible" && (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          )}
-                          {event.icon === "agreement" && (
-                            <FileText className="h-4 w-4 text-blue-600" />
-                          )}
-                          {event.icon === "payment" && (
-                            <span className="text-xs font-bold text-brand-teal">$</span>
-                          )}
-                          {event.icon === "created" && (
-                            <span className="text-xs font-bold text-brand-teal">+</span>
-                          )}
-                          {event.icon === "cancelled" && (
-                            <span className="text-xs font-bold text-red-600">✕</span>
-                          )}
-                        </div>
-                        {index < timelineEvents.length - 1 && (
-                          <div
-                            className="w-0.5 h-full bg-gray-200 mt-2"
-                            style={{ minHeight: "20px" }}
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 pb-4">
-                        <p className="font-medium">{event.title}</p>
-                        <p className="text-sm text-muted-foreground">{formatDate(event.date)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Payment History */}
           <Card className="mb-6">
@@ -787,10 +846,7 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
           {/* Email History */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Email History
-              </CardTitle>
+              <CardTitle>Email History</CardTitle>
             </CardHeader>
             <CardContent>
               {memberEmails.length === 0 ? (
@@ -940,6 +996,91 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Agreement Dialog */}
+      <Dialog open={agreementDialogOpen} onOpenChange={setAgreementDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Membership Agreement
+            </DialogTitle>
+            <DialogDescription>
+              Signed by {memberData.firstName} {memberData.lastName}
+            </DialogDescription>
+          </DialogHeader>
+
+          {membership?.agreementSignedAt && (
+            <div className="space-y-6">
+              {/* Signature Preview */}
+              <div className="border rounded-lg p-6 bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-3">Signature</p>
+                <div className="h-24 bg-white border rounded flex items-center justify-center">
+                  <p className="font-signature text-2xl italic text-gray-700">
+                    {memberData.firstName} {memberData.lastName}
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Signed on {formatDate(membership.agreementSignedAt)}
+                </p>
+              </div>
+
+              {/* Agreement Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Agreement ID</p>
+                  <p className="font-mono text-sm">{membership.agreementId}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Template Version</p>
+                  <p className="font-medium">1.0</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Plan at Signing</p>
+                  <p className="font-medium">{plan?.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge variant="success">Valid</Badge>
+                </div>
+              </div>
+
+              {/* Audit Trail */}
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-medium">Audit Trail</p>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1 bg-muted/50 rounded-lg p-3">
+                  <p>IP Address: 192.168.1.xxx</p>
+                  <p>Consent checkbox: Confirmed</p>
+                  <p>User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_0...)</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => toast.info("Download PDF - coming soon")}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => toast.info("Send copy to member - coming soon")}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Email Copy
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
