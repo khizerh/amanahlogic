@@ -146,6 +146,11 @@ export interface Membership {
   agreementSignedAt: string | null;
   agreementId: string | null;
 
+  // Auto-pay / Stripe Subscription
+  autoPayEnabled: boolean;
+  stripeSubscriptionId: string | null;
+  stripeCustomerId: string | null;
+
   createdAt: string;
   updatedAt: string;
 }

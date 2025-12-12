@@ -249,6 +249,9 @@ function generateMemberships(members: Member[]): Membership[] {
     const joinDate = randomDate(new Date('2019-01-01'), new Date('2024-06-01'));
     const billingDay = randomInt(1, 28);
 
+    // Auto-pay - about 60% of active/waiting members have it set up
+    const autoPayEnabled = (status === 'active' || status === 'waiting_period') && Math.random() > 0.4;
+
     return {
       id: generateId('mship', idx + 1),
       organizationId: 'org_1',
@@ -272,6 +275,9 @@ function generateMemberships(members: Member[]): Membership[] {
         : null,
       agreementSignedAt,
       agreementId: agreementSignedAt ? generateId('agr', idx + 1) : null,
+      autoPayEnabled,
+      stripeSubscriptionId: autoPayEnabled ? `sub_${Math.random().toString(36).substr(2, 14)}` : null,
+      stripeCustomerId: autoPayEnabled ? `cus_${Math.random().toString(36).substr(2, 14)}` : null,
       createdAt: joinDate,
       updatedAt: randomDate(new Date('2024-06-01'), new Date('2024-12-01')),
     };
@@ -573,6 +579,19 @@ export function getOverdueMembers(limit: number = 10): MembershipWithDetails[] {
   return getMemberships()
     .filter(m => m.status === 'lapsed' || (m.nextPaymentDue && new Date(m.nextPaymentDue) < now))
     .slice(0, limit);
+}
+
+// Helper to get members with auto-pay enabled
+export function getAutoPayMembers(): MembershipWithDetails[] {
+  return getMemberships().filter(m => m.autoPayEnabled);
+}
+
+// Helper to get members without auto-pay (need to set up)
+export function getMembersWithoutAutoPay(): MembershipWithDetails[] {
+  return getMemberships().filter(m =>
+    !m.autoPayEnabled &&
+    (m.status === 'active' || m.status === 'waiting_period')
+  );
 }
 
 // Format helpers
