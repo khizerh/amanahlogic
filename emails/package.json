@@ -1,0 +1,25 @@
+{
+  "name": "@imarah/emails",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./templates/index.tsx",
+  "types": "./templates/index.tsx",
+  "exports": {
+    "./components/*": "./components/*.tsx",
+    "./templates/*": "./templates/*.tsx"
+  },
+  "scripts": {
+    "dev": "email dev -d .",
+    "type-check": "npx tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-email/components": "^1.0.1",
+    "@react-email/render": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react-email": "^5.0.4",
+    "typescript": "^5.4.5"
+  }
+}
