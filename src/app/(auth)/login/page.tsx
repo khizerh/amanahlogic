@@ -39,28 +39,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 bg-white overflow-hidden">
-      {/* Background gradient blurs */}
-      <div
-        className="pointer-events-none absolute -top-32 left-1/2 ml-[580px] -translate-x-1/2"
-        aria-hidden="true"
-      >
-        <div className="h-80 w-80 rounded-full bg-gradient-to-tr from-emerald-500 opacity-50 blur-[160px]" />
-      </div>
-      <div
-        className="pointer-events-none absolute left-1/2 top-[420px] ml-[380px] -translate-x-1/2"
-        aria-hidden="true"
-      >
-        <div className="h-80 w-80 rounded-full bg-gradient-to-tr from-emerald-500 to-gray-900 opacity-50 blur-[160px]" />
-      </div>
-      <div
-        className="pointer-events-none absolute left-1/2 top-[640px] -ml-[300px] -translate-x-1/2"
-        aria-hidden="true"
-      >
-        <div className="h-80 w-80 rounded-full bg-gradient-to-tr from-emerald-500 to-gray-900 opacity-50 blur-[160px]" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md space-y-8">
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 bg-white">
+      <div className="w-full max-w-md space-y-8">
         {/* Header */}
         <div className="space-y-4 text-center">
           <div className="mx-auto flex justify-center">
