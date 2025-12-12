@@ -1,5 +1,5 @@
 /**
- * Unified Logger for Imarah
+ * Unified Logger
  *
  * Environment-aware logging system with:
  * - Structured logging with metadata

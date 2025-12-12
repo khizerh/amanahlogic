@@ -6,7 +6,6 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
-  transpilePackages: ['@imarah/ui'],
   images: {
     remotePatterns: [
       {
@@ -20,14 +19,12 @@ const nextConfig = {
   // Turbopack config (Next.js 16 default)
   turbopack: {
     resolveAlias: {
-      '@emails': path.resolve(__dirname, '../../emails'),
+      '@emails': path.resolve(__dirname, './emails'),
     },
   },
   // Keep webpack config for backwards compatibility
   webpack: (config) => {
-    config.resolve.alias['@emails'] = path.resolve(__dirname, '../../emails');
-    config.resolve.alias['@/lib'] = path.resolve(__dirname, '../../packages/ui/src/lib');
-    config.resolve.alias['@/components'] = path.resolve(__dirname, '../../packages/ui/src/components');
+    config.resolve.alias['@emails'] = path.resolve(__dirname, './emails');
     return config;
   },
 };

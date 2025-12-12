@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { handleError, withErrorHandling, AppError, ERROR_CODES } from '@imarah/shared-utils';
+ * import { handleError, withErrorHandling, AppError, ERROR_CODES } from '@/lib/utils/error-handling';
  *
  * // Using handleError
  * try {
@@ -238,8 +238,8 @@ export class AppErrorFactory {
 }
 
 /**
- * Logger interface - compatible with @imarah/logger when it exists
- * Falls back to console if logger package is not available
+ * Logger interface - compatible with custom logger implementations
+ * Falls back to console if logger is not available
  */
 interface Logger {
   info(message: string, context?: ErrorContext): void;
@@ -284,18 +284,17 @@ class ConsoleLogger implements Logger {
 
 /**
  * Global logger instance
- * Can be replaced with @imarah/logger when available
+ * Can be replaced with a custom logger via setLogger()
  */
 let globalLogger: Logger = new ConsoleLogger();
 
 /**
  * Set a custom logger instance
- * Use this to integrate with @imarah/logger
  *
  * @example
  * ```typescript
- * import { logger } from '@imarah/logger';
- * import { setLogger } from '@imarah/shared-utils';
+ * import { logger } from '@/lib/logger';
+ * import { setLogger } from '@/lib/utils/error-handling';
  *
  * setLogger(logger);
  * ```

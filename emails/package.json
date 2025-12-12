@@ -1,5 +1,5 @@
 {
-  "name": "@imarah/emails",
+  "name": "@amanahlogic/emails",
   "version": "0.1.0",
   "private": true,
   "main": "./templates/index.tsx",

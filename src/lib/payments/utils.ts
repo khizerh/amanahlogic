@@ -10,7 +10,7 @@ import type { FamilyData, StudentData } from "./types";
  * Get organization-specific base URL using subdomain
  */
 export function getOrgBaseUrl(orgSlug?: string | null): string {
-  const baseDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || "imarah.io";
+  const baseDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || "amanahlogic.com";
 
   if (orgSlug) {
     return `https://${orgSlug}.${baseDomain}`;

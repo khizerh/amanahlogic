@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { logger } from '@imarah/logger/client';
+ * import { logger } from '@/lib/logger/client';
  *
  * logger.info("User clicked button", { buttonId: "submit" }, "ui");
  * logger.error("Failed to submit form", { error }, "forms");
