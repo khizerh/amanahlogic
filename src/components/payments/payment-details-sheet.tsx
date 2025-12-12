@@ -183,6 +183,16 @@ export function PaymentDetailsSheet({
                     Recorded by {payment.recordedBy}
                   </div>
                 )}
+                {payment.checkNumber && (
+                  <div className="text-sm text-muted-foreground">
+                    Check #{payment.checkNumber}
+                  </div>
+                )}
+                {payment.zelleTransactionId && (
+                  <div className="text-xs text-muted-foreground font-mono">
+                    Zelle: {payment.zelleTransactionId}
+                  </div>
+                )}
               </div>
             </div>
           </div>

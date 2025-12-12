@@ -22,6 +22,11 @@ import {
   PaymentType,
   PaymentStatus,
   Child,
+  CommunicationLanguage,
+  EmailTemplate,
+  EmailTemplateType,
+  EmailLog,
+  EmailStatus,
 } from '@/lib/types';
 
 // -----------------------------------------------------------------------------
@@ -196,6 +201,9 @@ function generateMembers(count: number): Member[] {
       });
     }
 
+    // ~30% Farsi speakers
+    const preferredLanguage: CommunicationLanguage = rng.next() > 0.7 ? 'fa' : 'en';
+
     members.push({
       id: generateId('mem', i),
       organizationId: 'org_1',
@@ -215,6 +223,7 @@ function generateMembers(count: number): Member[] {
         name: `${randomChoice(firstNames)} ${randomChoice(lastNames)}`,
         phone: `(713) 555-${String(randomInt(1000, 9999))}`,
       },
+      preferredLanguage,
       createdAt: randomDate(new Date('2019-01-01'), new Date('2024-06-01')),
       updatedAt: randomDate(new Date('2024-01-01'), new Date('2024-12-01')),
     });
@@ -287,6 +296,29 @@ function generateMemberships(members: Member[]): Membership[] {
     // Auto-pay - about 60% of active/waiting members have it set up
     const autoPayEnabled = (status === 'active' || status === 'waiting_period') && rng.next() > 0.4;
 
+    // Generate payment method details for auto-pay members
+    const cardBrands = ['visa', 'mastercard', 'amex', 'discover'];
+    const paymentMethod = autoPayEnabled ? (
+      rng.next() > 0.15 ? {
+        // 85% cards
+        type: 'card' as const,
+        last4: String(1000 + Math.floor(rng.next() * 9000)),
+        brand: cardBrands[Math.floor(rng.next() * cardBrands.length)],
+        expiryMonth: Math.floor(rng.next() * 12) + 1,
+        expiryYear: 2025 + Math.floor(rng.next() * 5),
+      } : {
+        // 15% bank accounts
+        type: 'us_bank_account' as const,
+        last4: String(1000 + Math.floor(rng.next() * 9000)),
+        bankName: ['Chase', 'Bank of America', 'Wells Fargo', 'Citi'][Math.floor(rng.next() * 4)],
+      }
+    ) : null;
+
+    // Subscription status for auto-pay members
+    const subscriptionStatus = autoPayEnabled
+      ? (rng.next() > 0.1 ? 'active' : (rng.next() > 0.5 ? 'paused' : 'past_due')) as 'active' | 'paused' | 'past_due'
+      : null;
+
     return {
       id: generateId('mship', idx + 1),
       organizationId: 'org_1',
@@ -313,6 +345,8 @@ function generateMemberships(members: Member[]): Membership[] {
       autoPayEnabled,
       stripeSubscriptionId: autoPayEnabled ? seededId('sub') : null,
       stripeCustomerId: autoPayEnabled ? seededId('cus') : null,
+      subscriptionStatus,
+      paymentMethod,
       createdAt: joinDate,
       updatedAt: randomDate(new Date('2024-06-01'), new Date('2024-12-01')),
     };
@@ -330,23 +364,27 @@ function generatePayments(memberships: Membership[], members: Member[]): Payment
 
     // Generate enrollment fee payment if paid
     if (membership.enrollmentFeePaid) {
+      const enrollMethod: PaymentMethod = randomChoice(['card', 'card', 'card', 'ach', 'check']);
+      const enrollIsManual = enrollMethod === 'check';
       payments.push({
         id: generateId('pay', paymentIdx++),
         organizationId: 'org_1',
         membershipId: membership.id,
         memberId: membership.memberId,
         type: 'enrollment_fee',
-        method: randomChoice(['card', 'card', 'card', 'ach', 'check'] as PaymentMethod[]),
+        method: enrollMethod,
         status: 'completed',
         amount: 500,
-        stripeFee: 14.80,
+        stripeFee: enrollIsManual ? 0 : 14.80,
         platformFee: 1.00,
-        totalCharged: 514.80,
+        totalCharged: enrollIsManual ? 500 : 514.80,
         netAmount: 499.00,
         monthsCredited: 0,
-        stripePaymentIntentId: seededId('pi'),
-        notes: null,
-        recordedBy: null,
+        stripePaymentIntentId: enrollIsManual ? null : seededId('pi'),
+        checkNumber: enrollIsManual ? `${randomInt(1000, 9999)}` : null,
+        zelleTransactionId: null,
+        notes: enrollIsManual ? 'Enrollment fee - check payment' : null,
+        recordedBy: enrollIsManual ? 'Admin User' : null,
         createdAt: membership.joinDate,
         paidAt: membership.joinDate,
         refundedAt: null,
@@ -394,6 +432,8 @@ function generatePayments(memberships: Membership[], members: Member[]): Payment
         netAmount: amount - 1.00,
         monthsCredited,
         stripePaymentIntentId: isManual ? null : seededId('pi'),
+        checkNumber: method === 'check' ? `${randomInt(1000, 9999)}` : null,
+        zelleTransactionId: method === 'zelle' ? seededId('zelle') : null,
         notes: isManual ? `${method} payment recorded` : null,
         recordedBy: isManual ? 'Admin User' : null,
         createdAt: randomDate(new Date('2024-01-01'), new Date('2024-11-30')),
@@ -676,6 +716,457 @@ export function getStatusVariant(status: MembershipStatus): "success" | "info" |
     active: 'success',
     lapsed: 'withdrawn',
     cancelled: 'error',
+  };
+  return variants[status];
+}
+
+// -----------------------------------------------------------------------------
+// Email Templates
+// -----------------------------------------------------------------------------
+
+export const mockEmailTemplates: EmailTemplate[] = [
+  {
+    id: 'tmpl_welcome',
+    organizationId: 'org_1',
+    type: 'welcome',
+    name: 'Welcome Email',
+    description: 'Sent when a new member signs up',
+    subject: {
+      en: 'Welcome to {{organization_name}} Burial Benefits Program',
+      fa: 'به برنامه مزایای تدفین {{organization_name}} خوش آمدید',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+Welcome to the {{organization_name}} Burial Benefits Program! We are honored to have you as a member of our community.
+
+Your membership details:
+- Plan: {{plan_name}}
+- Monthly dues: {{monthly_amount}}
+
+To complete your enrollment, please sign the membership agreement and ensure your enrollment fee is paid.
+
+If you have any questions, please don't hesitate to contact us.
+
+JazakAllah Khair,
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+به برنامه مزایای تدفین {{organization_name}} خوش آمدید! ما از داشتن شما به عنوان عضوی از جامعه خود مفتخریم.
+
+جزئیات عضویت شما:
+- برنامه: {{plan_name}}
+- حق عضویت ماهانه: {{monthly_amount}}
+
+برای تکمیل ثبت نام، لطفا توافقنامه عضویت را امضا کنید و از پرداخت هزینه ثبت نام اطمینان حاصل کنید.
+
+اگر سوالی دارید، لطفا با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'organization_name', 'plan_name', 'monthly_amount'],
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_payment_receipt',
+    organizationId: 'org_1',
+    type: 'payment_receipt',
+    name: 'Payment Receipt',
+    description: 'Sent after a successful payment',
+    subject: {
+      en: 'Payment Receipt - {{amount}}',
+      fa: 'رسید پرداخت - {{amount}}',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+Thank you for your payment of {{amount}}.
+
+Payment Details:
+- Date: {{payment_date}}
+- Amount: {{amount}}
+- Type: {{payment_type}}
+- Months Credited: {{months_credited}}
+
+Your Progress:
+- Total Paid Months: {{paid_months}}/60
+- Status: {{membership_status}}
+
+Thank you for your continued support.
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+از پرداخت شما به مبلغ {{amount}} متشکریم.
+
+جزئیات پرداخت:
+- تاریخ: {{payment_date}}
+- مبلغ: {{amount}}
+- نوع: {{payment_type}}
+- ماه‌های اعتبار داده شده: {{months_credited}}
+
+پیشرفت شما:
+- کل ماه‌های پرداخت شده: {{paid_months}}/60
+- وضعیت: {{membership_status}}
+
+از حمایت مستمر شما متشکریم.
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'amount', 'payment_date', 'payment_type', 'months_credited', 'paid_months', 'membership_status', 'organization_name'],
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_payment_reminder',
+    organizationId: 'org_1',
+    type: 'payment_reminder',
+    name: 'Payment Reminder',
+    description: 'Sent before payment is due',
+    subject: {
+      en: 'Payment Reminder - Due {{due_date}}',
+      fa: 'یادآوری پرداخت - موعد {{due_date}}',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+This is a friendly reminder that your membership dues of {{amount}} are due on {{due_date}}.
+
+Your current progress: {{paid_months}}/60 months
+
+Please ensure your payment is made on time to maintain your membership status.
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+این یک یادآوری دوستانه است که حق عضویت شما به مبلغ {{amount}} در تاریخ {{due_date}} موعد پرداخت می‌باشد.
+
+پیشرفت فعلی شما: {{paid_months}}/60 ماه
+
+لطفا اطمینان حاصل کنید که پرداخت شما به موقع انجام می‌شود تا وضعیت عضویت شما حفظ شود.
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'amount', 'due_date', 'paid_months', 'organization_name'],
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_payment_failed',
+    organizationId: 'org_1',
+    type: 'payment_failed',
+    name: 'Payment Failed',
+    description: 'Sent when auto-pay fails',
+    subject: {
+      en: 'Payment Failed - Action Required',
+      fa: 'پرداخت ناموفق - نیاز به اقدام',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+We were unable to process your payment of {{amount}} on {{payment_date}}.
+
+Reason: {{failure_reason}}
+
+Please update your payment method or contact us to make alternative arrangements.
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+ما قادر به پردازش پرداخت شما به مبلغ {{amount}} در تاریخ {{payment_date}} نبودیم.
+
+دلیل: {{failure_reason}}
+
+لطفا روش پرداخت خود را به‌روز کنید یا برای ترتیبات جایگزین با ما تماس بگیرید.
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'amount', 'payment_date', 'failure_reason', 'organization_name'],
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_overdue_notice',
+    organizationId: 'org_1',
+    type: 'overdue_notice',
+    name: 'Overdue Notice',
+    description: 'Sent when payment is overdue',
+    subject: {
+      en: 'Overdue Notice - Payment Required',
+      fa: 'اخطار تأخیر - پرداخت لازم است',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+Your membership payment is now overdue. Your last payment was on {{last_payment_date}}.
+
+Amount Due: {{amount}}
+Days Overdue: {{days_overdue}}
+
+Please make your payment as soon as possible to avoid any interruption to your membership benefits.
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+پرداخت عضویت شما اکنون عقب افتاده است. آخرین پرداخت شما در تاریخ {{last_payment_date}} بود.
+
+مبلغ بدهی: {{amount}}
+روزهای تأخیر: {{days_overdue}}
+
+لطفا در اسرع وقت پرداخت خود را انجام دهید تا از هرگونه وقفه در مزایای عضویت خود جلوگیری کنید.
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'amount', 'last_payment_date', 'days_overdue', 'organization_name'],
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_eligibility_reached',
+    organizationId: 'org_1',
+    type: 'eligibility_reached',
+    name: 'Eligibility Reached',
+    description: 'Sent when member reaches 60 paid months',
+    subject: {
+      en: 'Congratulations! You Are Now Eligible for Benefits',
+      fa: 'تبریک! شما اکنون واجد شرایط مزایا هستید',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+Alhamdulillah! We are pleased to inform you that you have completed 60 months of paid membership and are now fully eligible for burial benefits.
+
+Eligibility Date: {{eligibility_date}}
+Total Paid Months: {{paid_months}}
+
+May Allah bless you and your family. Please continue to maintain your membership by making timely payments.
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+الحمدلله! ما خوشحالیم که به شما اطلاع دهیم که شما 60 ماه عضویت پرداخت شده را تکمیل کرده‌اید و اکنون کاملاً واجد شرایط مزایای تدفین هستید.
+
+تاریخ واجد شرایط شدن: {{eligibility_date}}
+کل ماه‌های پرداخت شده: {{paid_months}}
+
+خداوند شما و خانواده‌تان را برکت دهد. لطفا با پرداخت‌های به موقع عضویت خود را حفظ کنید.
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'eligibility_date', 'paid_months', 'organization_name'],
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_agreement_sent',
+    organizationId: 'org_1',
+    type: 'agreement_sent',
+    name: 'Agreement Sent',
+    description: 'Sent when membership agreement is ready to sign',
+    subject: {
+      en: 'Membership Agreement Ready for Signature',
+      fa: 'توافقنامه عضویت آماده امضا است',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+Your membership agreement is ready for your signature. Please review and sign the agreement to complete your enrollment.
+
+Click the link below to sign:
+{{agreement_link}}
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+توافقنامه عضویت شما آماده امضای شماست. لطفا توافقنامه را بررسی و امضا کنید تا ثبت نام شما تکمیل شود.
+
+برای امضا روی لینک زیر کلیک کنید:
+{{agreement_link}}
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'agreement_link', 'organization_name'],
+    isActive: false,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_agreement_signed',
+    organizationId: 'org_1',
+    type: 'agreement_signed',
+    name: 'Agreement Signed',
+    description: 'Confirmation after agreement is signed',
+    subject: {
+      en: 'Membership Agreement Signed Successfully',
+      fa: 'توافقنامه عضویت با موفقیت امضا شد',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+Thank you for signing your membership agreement. Your enrollment is now complete.
+
+Signed Date: {{signed_date}}
+Agreement ID: {{agreement_id}}
+
+A copy of your signed agreement is attached.
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+از امضای توافقنامه عضویت شما متشکریم. ثبت نام شما اکنون تکمیل شده است.
+
+تاریخ امضا: {{signed_date}}
+شناسه توافقنامه: {{agreement_id}}
+
+یک نسخه از توافقنامه امضا شده شما پیوست شده است.
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'signed_date', 'agreement_id', 'organization_name'],
+    isActive: false,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'tmpl_membership_cancelled',
+    organizationId: 'org_1',
+    type: 'membership_cancelled',
+    name: 'Membership Cancelled',
+    description: 'Sent when membership is cancelled',
+    subject: {
+      en: 'Membership Cancellation Confirmation',
+      fa: 'تأیید لغو عضویت',
+    },
+    body: {
+      en: `Dear {{member_name}},
+
+This is to confirm that your membership has been cancelled as of {{cancellation_date}}.
+
+Total months paid: {{paid_months}}
+
+If you believe this was done in error or would like to reinstate your membership, please contact us.
+
+{{organization_name}}`,
+      fa: `{{member_name}} عزیز،
+
+این برای تأیید این است که عضویت شما از تاریخ {{cancellation_date}} لغو شده است.
+
+کل ماه‌های پرداخت شده: {{paid_months}}
+
+اگر فکر می‌کنید این اشتباهی بوده یا می‌خواهید عضویت خود را بازگردانید، لطفا با ما تماس بگیرید.
+
+{{organization_name}}`,
+    },
+    variables: ['member_name', 'cancellation_date', 'paid_months', 'organization_name'],
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+];
+
+// -----------------------------------------------------------------------------
+// Email Log (Sample sent emails)
+// -----------------------------------------------------------------------------
+
+function generateEmailLogs(): EmailLog[] {
+  const logs: EmailLog[] = [];
+  const statuses: EmailStatus[] = ['sent', 'delivered', 'delivered', 'delivered', 'failed'];
+  const templateTypes: EmailTemplateType[] = ['welcome', 'payment_receipt', 'payment_reminder', 'overdue_notice'];
+
+  // Generate sample email logs based on members
+  mockMembers.slice(0, 20).forEach((member, idx) => {
+    const numEmails = randomInt(1, 4);
+    for (let i = 0; i < numEmails; i++) {
+      const templateType = randomChoice(templateTypes);
+      const template = mockEmailTemplates.find(t => t.type === templateType)!;
+      const status = randomChoice(statuses);
+      const lang = member.preferredLanguage;
+      const sentDate = randomDate(new Date('2024-06-01'), new Date('2024-12-10'));
+
+      logs.push({
+        id: `email_${String(idx * 10 + i).padStart(4, '0')}`,
+        organizationId: 'org_1',
+        memberId: member.id,
+        memberName: `${member.firstName} ${member.lastName}`,
+        memberEmail: member.email,
+        templateType,
+        to: member.email,
+        subject: template.subject[lang].replace('{{organization_name}}', 'Masjid Muhajireen').replace('{{amount}}', '$20.00').replace('{{due_date}}', 'Dec 15, 2024'),
+        bodyPreview: template.body[lang].substring(0, 150) + '...',
+        language: lang,
+        status,
+        sentAt: status !== 'queued' ? sentDate : null,
+        deliveredAt: status === 'delivered' ? sentDate : null,
+        failureReason: status === 'failed' ? 'Mailbox not found' : null,
+        resendId: status !== 'queued' ? seededId('re') : null,
+        createdAt: sentDate,
+      });
+    }
+  });
+
+  return logs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export const mockEmailLogs: EmailLog[] = generateEmailLogs();
+
+// Email helper functions
+export function getEmailTemplates(): EmailTemplate[] {
+  return mockEmailTemplates;
+}
+
+export function getEmailTemplate(id: string): EmailTemplate | null {
+  return mockEmailTemplates.find(t => t.id === id) || null;
+}
+
+export function getEmailLogs(filters?: { memberId?: string; templateType?: EmailTemplateType | 'all'; status?: EmailStatus | 'all' }): EmailLog[] {
+  let results = mockEmailLogs;
+
+  if (filters?.memberId) {
+    results = results.filter(e => e.memberId === filters.memberId);
+  }
+
+  if (filters?.templateType && filters.templateType !== 'all') {
+    results = results.filter(e => e.templateType === filters.templateType);
+  }
+
+  if (filters?.status && filters.status !== 'all') {
+    results = results.filter(e => e.status === filters.status);
+  }
+
+  return results;
+}
+
+export function getEmailTemplateTypeLabel(type: EmailTemplateType | 'custom'): string {
+  const labels: Record<EmailTemplateType | 'custom', string> = {
+    welcome: 'Welcome',
+    payment_receipt: 'Payment Receipt',
+    payment_reminder: 'Payment Reminder',
+    payment_failed: 'Payment Failed',
+    overdue_notice: 'Overdue Notice',
+    eligibility_reached: 'Eligibility Reached',
+    agreement_sent: 'Agreement Sent',
+    agreement_signed: 'Agreement Signed',
+    membership_cancelled: 'Membership Cancelled',
+    custom: 'Custom',
+  };
+  return labels[type];
+}
+
+export function getEmailStatusVariant(status: EmailStatus): "success" | "warning" | "error" | "info" | "inactive" {
+  const variants: Record<EmailStatus, "success" | "warning" | "error" | "info" | "inactive"> = {
+    queued: 'inactive',
+    sent: 'info',
+    delivered: 'success',
+    failed: 'error',
+    bounced: 'warning',
   };
   return variants[status];
 }

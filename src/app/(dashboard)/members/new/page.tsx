@@ -26,7 +26,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PlanType, BillingFrequency } from "@/lib/types";
+import { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
 
 interface ChildFormData {
   id: string;
@@ -51,6 +51,7 @@ export default function NewMemberPage() {
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [planType, setPlanType] = useState<PlanType>("single");
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>("monthly");
+  const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
 
   const addChild = () => {
@@ -175,6 +176,24 @@ export default function NewMemberPage() {
                       required
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="preferredLanguage">Preferred Communication Language</Label>
+                  <Select
+                    value={preferredLanguage}
+                    onValueChange={(value) => setPreferredLanguage(value as CommunicationLanguage)}
+                  >
+                    <SelectTrigger id="preferredLanguage" className="w-full md:w-[240px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="fa">فارسی (Farsi)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Emails and notifications will be sent in this language
+                  </p>
                 </div>
               </CardContent>
             </Card>

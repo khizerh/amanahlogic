@@ -27,7 +27,7 @@ import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { getMember } from "@/lib/mock-data";
-import { PlanType, BillingFrequency } from "@/lib/types";
+import { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
 
 interface ChildFormData {
   id: string;
@@ -54,6 +54,7 @@ export default function EditMemberPage() {
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [planType, setPlanType] = useState<PlanType>("single");
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>("monthly");
+  const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,6 +81,8 @@ export default function EditMemberPage() {
       if (memberData.membership) {
         setBillingFrequency(memberData.membership.billingFrequency);
       }
+
+      setPreferredLanguage(memberData.preferredLanguage);
 
       setChildren(
         memberData.children.map((child) => ({
@@ -239,6 +242,24 @@ export default function EditMemberPage() {
                       required
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="preferredLanguage">Preferred Communication Language</Label>
+                  <Select
+                    value={preferredLanguage}
+                    onValueChange={(value) => setPreferredLanguage(value as CommunicationLanguage)}
+                  >
+                    <SelectTrigger id="preferredLanguage" className="w-full md:w-[240px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="fa">فارسی (Farsi)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Emails and notifications will be sent in this language
+                  </p>
                 </div>
               </CardContent>
             </Card>

@@ -24,6 +24,8 @@ export type PaymentType = 'enrollment_fee' | 'dues' | 'back_dues';
 
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 
+export type CommunicationLanguage = 'en' | 'fa'; // English, Farsi
+
 // -----------------------------------------------------------------------------
 // Organization
 // -----------------------------------------------------------------------------
@@ -86,6 +88,9 @@ export interface Member {
   // Emergency
   emergencyContact: EmergencyContact;
 
+  // Communication preferences
+  preferredLanguage: CommunicationLanguage;
+
   // Metadata
   createdAt: string;
   updatedAt: string;
@@ -112,6 +117,23 @@ export interface Plan {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// -----------------------------------------------------------------------------
+// Payment Method (for auto-pay)
+// -----------------------------------------------------------------------------
+
+export type PaymentMethodType = 'card' | 'us_bank_account';
+
+export type SubscriptionStatus = 'active' | 'paused' | 'canceled' | 'past_due';
+
+export interface PaymentMethodDetails {
+  type: PaymentMethodType;
+  last4: string;
+  brand?: string; // For cards: visa, mastercard, amex, etc.
+  bankName?: string; // For bank accounts
+  expiryMonth?: number; // For cards
+  expiryYear?: number; // For cards
 }
 
 // -----------------------------------------------------------------------------
@@ -150,6 +172,8 @@ export interface Membership {
   autoPayEnabled: boolean;
   stripeSubscriptionId: string | null;
   stripeCustomerId: string | null;
+  subscriptionStatus: SubscriptionStatus | null;
+  paymentMethod: PaymentMethodDetails | null;
 
   createdAt: string;
   updatedAt: string;
@@ -184,6 +208,8 @@ export interface Payment {
   stripePaymentIntentId: string | null;
 
   // Manual payment info
+  checkNumber: string | null;        // For check payments
+  zelleTransactionId: string | null; // For Zelle payments
   notes: string | null;
   recordedBy: string | null; // Admin who recorded manual payment
 
@@ -278,4 +304,67 @@ export interface PaymentFilters {
   status?: PaymentStatus | 'all';
   dateFrom?: string;
   dateTo?: string;
+}
+
+// -----------------------------------------------------------------------------
+// Email System
+// -----------------------------------------------------------------------------
+
+export type EmailTemplateType =
+  | 'welcome'
+  | 'payment_receipt'
+  | 'payment_reminder'
+  | 'payment_failed'
+  | 'overdue_notice'
+  | 'eligibility_reached'
+  | 'agreement_sent'
+  | 'agreement_signed'
+  | 'membership_cancelled';
+
+export type EmailStatus = 'queued' | 'sent' | 'delivered' | 'failed' | 'bounced';
+
+export interface LocalizedContent {
+  en: string;
+  fa: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  organizationId: string;
+  type: EmailTemplateType;
+  name: string;
+  description: string;
+  subject: LocalizedContent;
+  body: LocalizedContent;
+  variables: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailLog {
+  id: string;
+  organizationId: string;
+  memberId: string;
+  memberName: string;
+  memberEmail: string;
+  templateType: EmailTemplateType | 'custom';
+
+  to: string;
+  subject: string;
+  bodyPreview: string;
+  language: CommunicationLanguage;
+
+  status: EmailStatus;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  failureReason: string | null;
+
+  resendId: string | null; // Resend message ID
+
+  createdAt: string;
+}
+
+export interface EmailLogWithMember extends EmailLog {
+  member: Member;
 }

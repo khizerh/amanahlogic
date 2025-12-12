@@ -22,7 +22,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
+import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import Link from "next/link";
 import {
   getMember,
@@ -31,8 +39,11 @@ import {
   formatStatus,
   getStatusVariant,
   mockPayments,
+  getEmailLogs,
+  getEmailTemplateTypeLabel,
+  getEmailStatusVariant,
 } from "@/lib/mock-data";
-import { PaymentWithDetails } from "@/lib/types";
+import { PaymentWithDetails, EmailLog } from "@/lib/types";
 import {
   CheckCircle2,
   Clock,
@@ -44,7 +55,18 @@ import {
   Users,
   AlertCircle,
   Calendar,
+  Languages,
+  DollarSign,
+  Send,
+  XCircle,
+  AlertTriangle,
+  CreditCard,
+  Building2,
+  Pause,
+  Play,
+  RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface MemberDetailPageProps {
   params: Promise<{ id: string }>;
@@ -78,6 +100,13 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
 
+  // State for record payment sheet
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+
+  // State for email details sheet
+  const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
+  const [emailSheetOpen, setEmailSheetOpen] = useState(false);
+
   // Get recent payments for this member
   const recentPayments = mockPayments
     .filter((p) => p.memberId === id)
@@ -94,6 +123,31 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
     };
     setSelectedPayment(paymentWithDetails);
     setDetailsSheetOpen(true);
+  };
+
+  // Get email history for this member
+  const memberEmails = getEmailLogs({ memberId: id });
+
+  const handleViewEmail = (email: EmailLog) => {
+    setSelectedEmail(email);
+    setEmailSheetOpen(true);
+  };
+
+  const getEmailStatusIcon = (status: string) => {
+    switch (status) {
+      case "delivered":
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case "sent":
+        return <Send className="h-4 w-4 text-blue-600" />;
+      case "failed":
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case "bounced":
+        return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+      case "queued":
+        return <Clock className="h-4 w-4 text-gray-400" />;
+      default:
+        return null;
+    }
   };
 
   const progressPercent = membership ? Math.min((membership.paidMonths / 60) * 100, 100) : 0;
@@ -119,6 +173,12 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
       default:
         return frequency;
     }
+  };
+
+  const getOrdinalSuffix = (n: number) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
   };
 
   const getPlanBadgeVariant = (planType: string): "info" | "refunded" | "warning" | "inactive" => {
@@ -237,6 +297,10 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                     {formatStatus(membership.status)}
                   </Badge>
                 )}
+                <Button variant="outline" onClick={() => setRecordPaymentOpen(true)}>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Record Payment
+                </Button>
                 <Button asChild>
                   <Link href={`/members/${id}/edit`}>
                     <Edit className="h-4 w-4 mr-2" />
@@ -304,11 +368,11 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
           )}
 
           <div className="grid gap-6 md:grid-cols-2 mb-6">
-            {/* Membership Details Card */}
+            {/* Membership Card - just the membership info */}
             {membership && plan && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Membership Details</CardTitle>
+                  <CardTitle>Membership</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -317,24 +381,8 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                       <Badge variant={getPlanBadgeVariant(plan.type)}>{plan.name}</Badge>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Billing</p>
-                      <p className="font-medium">{getBillingLabel(membership.billingFrequency)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Amount</p>
-                      <p className="font-medium">{formatCurrency(duesAmount)}</p>
-                    </div>
-                    <div>
                       <p className="text-sm text-muted-foreground">Join Date</p>
                       <p className="font-medium">{formatDate(membership.joinDate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Next Payment Due</p>
-                      <p className="font-medium">{formatDate(membership.nextPaymentDue)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Anniversary Day</p>
-                      <p className="font-medium">Day {membership.billingAnniversaryDay}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Enrollment Fee</p>
@@ -347,7 +395,7 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Agreement Status</p>
+                      <p className="text-sm text-muted-foreground">Agreement</p>
                       <div className="flex items-center gap-1">
                         {membership.agreementSignedAt ? (
                           <>
@@ -408,9 +456,185 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                     </p>
                   </div>
                 </div>
+                <div className="flex items-start gap-3">
+                  <Languages className="h-4 w-4 mt-1 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Preferred Language</p>
+                    <p className="font-medium">
+                      {memberData.preferredLanguage === "fa" ? "فارسی (Farsi)" : "English"}
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Billing & Payments */}
+          {membership && plan && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Billing & Payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  {/* Payment Method */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Payment Method</p>
+                    {membership.autoPayEnabled && membership.paymentMethod ? (
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                          {membership.paymentMethod.type === 'card' ? (
+                            <CreditCard className="h-5 w-5" />
+                          ) : (
+                            <Building2 className="h-5 w-5" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {membership.paymentMethod.type === 'card'
+                              ? `${membership.paymentMethod.brand?.toUpperCase()} •••• ${membership.paymentMethod.last4}`
+                              : `${membership.paymentMethod.bankName} •••• ${membership.paymentMethod.last4}`}
+                          </p>
+                          {membership.paymentMethod.type === 'card' && membership.paymentMethod.expiryMonth && (
+                            <p className="text-xs text-muted-foreground">
+                              Expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                          <DollarSign className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Manual Payments</p>
+                          <p className="text-xs text-muted-foreground">Cash, Check, or Zelle</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Billing Frequency & Amount */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Frequency & Amount</p>
+                    <div>
+                      <p className="font-medium">{getBillingLabel(membership.billingFrequency)}</p>
+                      <p className="text-sm text-muted-foreground">{formatCurrency(duesAmount)} per cycle</p>
+                    </div>
+                  </div>
+
+                  {/* Billing Day */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Billing Day</p>
+                    <p className="font-medium">{membership.billingAnniversaryDay}{getOrdinalSuffix(membership.billingAnniversaryDay)} of month</p>
+                  </div>
+
+                  {/* Next Payment Due */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Next Payment Due</p>
+                    <p className="font-medium">{formatDate(membership.nextPaymentDue)}</p>
+                  </div>
+
+                  {/* Subscription Status (for auto-pay) */}
+                  {membership.autoPayEnabled && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Subscription</p>
+                      <div className="flex items-center gap-2">
+                        {membership.subscriptionStatus === 'active' && (
+                          <>
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            <span className="font-medium text-green-700">Active</span>
+                          </>
+                        )}
+                        {membership.subscriptionStatus === 'paused' && (
+                          <>
+                            <div className="h-2 w-2 rounded-full bg-amber-500" />
+                            <span className="font-medium text-amber-700">Paused</span>
+                          </>
+                        )}
+                        {membership.subscriptionStatus === 'past_due' && (
+                          <>
+                            <div className="h-2 w-2 rounded-full bg-red-500" />
+                            <span className="font-medium text-red-700">Past Due</span>
+                          </>
+                        )}
+                        {membership.subscriptionStatus === 'canceled' && (
+                          <>
+                            <div className="h-2 w-2 rounded-full bg-gray-500" />
+                            <span className="font-medium text-gray-700">Canceled</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t">
+                  {membership.autoPayEnabled ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toast.info("Update payment method - Stripe integration coming soon")}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Update Payment Method
+                      </Button>
+                      {membership.subscriptionStatus === 'active' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toast.info("Subscription paused")}
+                        >
+                          <Pause className="h-4 w-4 mr-2" />
+                          Pause Subscription
+                        </Button>
+                      ) : membership.subscriptionStatus === 'paused' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toast.info("Subscription resumed")}
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Resume Subscription
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toast.info("Switched to manual payments")}
+                      >
+                        <DollarSign className="h-4 w-4 mr-2" />
+                        Switch to Manual
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => toast.info("Set up auto-pay - Stripe integration coming soon")}
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Set Up Auto-Pay
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toast.info("Change billing frequency - coming soon")}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Change Frequency
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Family Information */}
           {(memberData.spouseName || memberData.children.length > 0) && (
@@ -502,7 +726,7 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
           )}
 
           {/* Payment History */}
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
               <CardTitle>Payment History</CardTitle>
             </CardHeader>
@@ -559,6 +783,69 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Email History */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Email History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {memberEmails.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No emails sent yet</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Language</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {memberEmails.map((email) => (
+                        <TableRow
+                          key={email.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleViewEmail(email)}
+                        >
+                          <TableCell className="whitespace-nowrap">
+                            {formatDate(email.sentAt || email.createdAt)}
+                          </TableCell>
+                          <TableCell className="max-w-[250px] truncate">
+                            {email.subject}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {getEmailTemplateTypeLabel(email.templateType)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={email.language === "fa" ? "info" : "inactive"}>
+                              {email.language === "fa" ? "فارسی" : "EN"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getEmailStatusIcon(email.status)}
+                              <Badge variant={getEmailStatusVariant(email.status)}>
+                                {email.status}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -568,6 +855,91 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
         open={detailsSheetOpen}
         onOpenChange={setDetailsSheetOpen}
       />
+
+      {/* Record Payment Sheet */}
+      <RecordPaymentSheet
+        member={memberData}
+        plan={plan}
+        open={recordPaymentOpen}
+        onOpenChange={setRecordPaymentOpen}
+      />
+
+      {/* Email Details Sheet */}
+      <Sheet open={emailSheetOpen} onOpenChange={setEmailSheetOpen}>
+        <SheetContent className="sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Email Details</SheetTitle>
+            <SheetDescription>
+              {selectedEmail && formatDate(selectedEmail.sentAt || selectedEmail.createdAt)}
+            </SheetDescription>
+          </SheetHeader>
+
+          {selectedEmail && (
+            <div className="mt-6 space-y-6">
+              {/* Status */}
+              <div className="flex items-center gap-3">
+                {getEmailStatusIcon(selectedEmail.status)}
+                <Badge variant={getEmailStatusVariant(selectedEmail.status)} className="text-sm">
+                  {selectedEmail.status}
+                </Badge>
+                <Badge variant="outline">
+                  {getEmailTemplateTypeLabel(selectedEmail.templateType)}
+                </Badge>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Subject</p>
+                <p className="font-medium">{selectedEmail.subject}</p>
+              </div>
+
+              {/* Language */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Language</p>
+                <Badge variant={selectedEmail.language === "fa" ? "info" : "inactive"}>
+                  {selectedEmail.language === "fa" ? "فارسی (Farsi)" : "English"}
+                </Badge>
+              </div>
+
+              {/* Preview */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Preview</p>
+                <div
+                  className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap"
+                  dir={selectedEmail.language === "fa" ? "rtl" : "ltr"}
+                >
+                  {selectedEmail.bodyPreview}
+                </div>
+              </div>
+
+              {/* Failure Reason */}
+              {selectedEmail.failureReason && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-sm font-medium text-red-800">Failure Reason</p>
+                  <p className="text-sm text-red-600">{selectedEmail.failureReason}</p>
+                </div>
+              )}
+
+              {/* Technical Details */}
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Email ID: {selectedEmail.id}</p>
+                {selectedEmail.resendId && <p>Resend ID: {selectedEmail.resendId}</p>}
+                <p>Created: {formatDate(selectedEmail.createdAt)}</p>
+                {selectedEmail.sentAt && <p>Sent: {formatDate(selectedEmail.sentAt)}</p>}
+                {selectedEmail.deliveredAt && <p>Delivered: {formatDate(selectedEmail.deliveredAt)}</p>}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" disabled>
+                  <Send className="h-4 w-4 mr-2" />
+                  Resend
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
