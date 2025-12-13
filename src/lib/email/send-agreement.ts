@@ -67,15 +67,8 @@ export async function sendAgreementEmail(
       );
     }
 
-    // In development, log the email that would have been sent
+    // In development, skip email and return success so the flow continues
     if (process.env.NODE_ENV === "development") {
-      console.log("=== DEV: Agreement Email ===");
-      console.log("To:", to);
-      console.log("Subject:", subject);
-      console.log("Sign URL:", signUrl);
-      console.log("============================");
-
-      // Return success in dev mode so the flow continues
       return {
         success: true,
         emailLogId: emailLog?.id,

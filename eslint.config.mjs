@@ -1,18 +1,9 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import js from '@eslint/js';
+import nextPlugin from '@next/eslint-plugin-next';
 import tseslint from 'typescript-eslint';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import reactPlugin from 'eslint-plugin-react';
+import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
-});
-
-const eslintConfig = [
+export default [
   {
     ignores: [
       '**/.next/**',
@@ -32,24 +23,25 @@ const eslintConfig = [
       '**/emails/**',
     ],
   },
-  ...compat.extends('next/core-web-vitals'),
+  ...tseslint.configs.recommended,
   {
-    files: ['**/*.ts', '**/*.tsx'],
+    files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
-      '@typescript-eslint': tseslint.plugin,
-    },
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        project: './tsconfig.json',
-      },
+      '@next/next': nextPlugin,
+      'react': reactPlugin,
+      'react-hooks': reactHooksPlugin,
     },
     rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs['core-web-vitals'].rules,
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@next/next/no-html-link-for-pages': 'off',
     },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   },
 ];
-
-export default eslintConfig;
