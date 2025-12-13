@@ -205,30 +205,12 @@ export default function SettingsPage() {
 
           <Tabs defaultValue="organization" className="space-y-6">
             <TabsList>
-              <TabsTrigger value="organization" className="gap-2">
-                <Building2 className="h-4 w-4" />
-                Organization
-              </TabsTrigger>
-              <TabsTrigger value="plans" className="gap-2">
-                <SettingsIcon className="h-4 w-4" />
-                Plans
-              </TabsTrigger>
-              <TabsTrigger value="agreement" className="gap-2">
-                <FileText className="h-4 w-4" />
-                Agreement
-              </TabsTrigger>
-              <TabsTrigger value="stripe" className="gap-2">
-                <CreditCard className="h-4 w-4" />
-                Stripe
-              </TabsTrigger>
-              <TabsTrigger value="admins" className="gap-2">
-                <Users className="h-4 w-4" />
-                Admins
-              </TabsTrigger>
-              <TabsTrigger value="emails" className="gap-2">
-                <Mail className="h-4 w-4" />
-                Email Templates
-              </TabsTrigger>
+              <TabsTrigger value="organization">Organization</TabsTrigger>
+              <TabsTrigger value="plans">Plans</TabsTrigger>
+              <TabsTrigger value="agreement">Agreement</TabsTrigger>
+              <TabsTrigger value="stripe">Stripe</TabsTrigger>
+              <TabsTrigger value="admins">Admins</TabsTrigger>
+              <TabsTrigger value="emails">Email Templates</TabsTrigger>
             </TabsList>
 
             {/* Organization Tab */}

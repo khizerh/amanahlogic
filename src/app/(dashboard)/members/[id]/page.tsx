@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useCallback, useMemo } from "react";
 import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,9 @@ import {
 } from "@/components/ui/dialog";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
+import { CollectPaymentDialog } from "@/components/payments/collect-payment-dialog";
+import { ChargeCardSheet } from "@/components/payments/charge-card-sheet";
+import { SendPaymentLinkSheet } from "@/components/payments/send-payment-link-sheet";
 import Link from "next/link";
 import {
   getMember,
@@ -94,7 +97,18 @@ interface MemberDetailPageProps {
 
 export default function MemberDetailPage({ params }: MemberDetailPageProps) {
   const { id } = use(params);
-  const memberData = getMember(id);
+
+  // Refresh key to force re-read of mock data after mutations
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Re-read member data whenever refreshKey changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memberData = useMemo(() => getMember(id), [id, refreshKey]);
+
+  // Callback to refresh data after payment is recorded
+  const handlePaymentRecorded = useCallback(() => {
+    setRefreshKey((prev) => prev + 1);
+  }, []);
 
   if (!memberData) {
     return (
@@ -120,8 +134,11 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
 
-  // State for record payment sheet
+  // State for payment collection flow
+  const [collectPaymentOpen, setCollectPaymentOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [chargeCardOpen, setChargeCardOpen] = useState(false);
+  const [sendLinkOpen, setSendLinkOpen] = useState(false);
 
   // State for email details sheet
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
@@ -169,11 +186,16 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
     setIsEditing(false);
   };
 
-  // Get recent payments for this member
-  const recentPayments = mockPayments
-    .filter((p) => p.memberId === id)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 10);
+  // Get recent payments for this member (reactive to refreshKey)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const recentPayments = useMemo(
+    () =>
+      mockPayments
+        .filter((p) => p.memberId === id)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10),
+    [id, refreshKey]
+  );
 
   // Transform to PaymentWithDetails for the sheet
   const handleViewPayment = (payment: typeof recentPayments[0]) => {
@@ -241,6 +263,17 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
     const s = ["th", "st", "nd", "rd"];
     const v = n % 100;
     return s[(v - 20) % 10] || s[v] || s[0];
+  };
+
+  const calculateAge = (dateOfBirth: string): number => {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   const getPlanBadgeVariant = (planType: string): "info" | "refunded" | "warning" | "inactive" => {
@@ -315,61 +348,20 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                 <h1 className="text-3xl font-bold">
                   {memberData.firstName} {memberData.lastName}
                 </h1>
-              </div>
-              <div className="flex items-center gap-3">
                 {membership && (
                   <Badge
                     variant={getStatusVariant(membership.status)}
-                    className="text-sm px-4 py-2"
+                    className="mt-2"
                   >
                     {formatStatus(membership.status)}
                   </Badge>
                 )}
-                <Button variant="outline" onClick={() => setRecordPaymentOpen(true)}>
-                  Record Payment
-                </Button>
               </div>
+              <Button variant="default" onClick={() => setCollectPaymentOpen(true)}>
+                Collect Payment
+              </Button>
             </div>
           </div>
-
-          {/* Eligibility Progress Section */}
-          {membership && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Eligibility Progress</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-2xl font-bold">
-                      {membership.paidMonths} / 60 months
-                    </span>
-                    <span className="text-lg text-muted-foreground">
-                      {Math.round(progressPercent)}%
-                    </span>
-                  </div>
-                  <Progress value={progressPercent} className="h-3" />
-                </div>
-                <div className="pt-2">
-                  {isEligible ? (
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle2 className="h-5 w-5" />
-                      <span className="font-medium">
-                        Eligible since {formatDate(membership.eligibleDate)}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-blue-700">
-                      <Clock className="h-5 w-5" />
-                      <span className="font-medium">
-                        {monthsRemaining} months until eligibility
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* No Membership Warning */}
           {!membership && (
@@ -417,20 +409,16 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Agreement</p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         {membership.agreementSignedAt ? (
                           <>
                             <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-700">Signed</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs"
+                            <button
                               onClick={() => setAgreementDialogOpen(true)}
+                              className="text-sm font-medium text-green-700 hover:underline"
                             >
-                              <Eye className="h-3 w-3 mr-1" />
-                              View
-                            </Button>
+                              Signed
+                            </button>
                           </>
                         ) : (
                           <>
@@ -453,12 +441,17 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                             <span className="text-muted-foreground">Spouse</span>
                           </div>
                         )}
-                        {memberData.children.map((child) => (
-                          <div key={child.id} className="flex items-center justify-between text-sm">
-                            <span className="font-medium">{child.name}</span>
-                            <span className="text-muted-foreground">Child</span>
-                          </div>
-                        ))}
+                        {memberData.children.map((child) => {
+                          const age = calculateAge(child.dateOfBirth);
+                          return (
+                            <div key={child.id} className="flex items-center justify-between text-sm">
+                              <span className="font-medium">{child.name}</span>
+                              <span className="text-muted-foreground">
+                                {age} {age === 1 ? "yr" : "yrs"}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -491,51 +484,36 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                   /* View Mode */
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{memberData.email}</p>
-                        </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium">{memberData.email}</p>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <Phone className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Phone</p>
-                          <p className="font-medium">{memberData.phone}</p>
-                        </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className="font-medium">{memberData.phone}</p>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <Languages className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Preferred Language</p>
-                          <p className="font-medium">
-                            {memberData.preferredLanguage === "fa" ? "فارسی (Farsi)" : "English"}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Preferred Language</p>
+                        <p className="font-medium">
+                          {memberData.preferredLanguage === "fa" ? "فارسی (Farsi)" : "English"}
+                        </p>
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Address</p>
-                          <p className="font-medium">{memberData.address.street}</p>
-                          <p className="font-medium">
-                            {memberData.address.city}, {memberData.address.state}{" "}
-                            {memberData.address.zip}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Address</p>
+                        <p className="font-medium">{memberData.address.street}</p>
+                        <p className="font-medium">
+                          {memberData.address.city}, {memberData.address.state}{" "}
+                          {memberData.address.zip}
+                        </p>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Emergency Contact</p>
-                          <p className="font-medium">{memberData.emergencyContact.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {memberData.emergencyContact.phone}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Emergency Contact</p>
+                        <p className="font-medium">{memberData.emergencyContact.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {memberData.emergencyContact.phone}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -639,6 +617,25 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                 <CardTitle>Billing & Payments</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Eligibility Progress */}
+                <div className="mb-6 pb-6 border-b">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Eligibility Progress</span>
+                    {isEligible ? (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Eligible since {formatDate(membership.eligibleDate)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        {monthsRemaining} months to go
+                      </span>
+                    )}
+                  </div>
+                  <Progress value={progressPercent} className="h-2" />
+                  <p className="text-sm font-medium mt-2">{membership.paidMonths}/60 months</p>
+                </div>
+
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   {/* Payment Method */}
                   <div className="space-y-2">
@@ -912,12 +909,41 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
         onOpenChange={setDetailsSheetOpen}
       />
 
-      {/* Record Payment Sheet */}
+      {/* Collect Payment Dialog - Entry Point */}
+      <CollectPaymentDialog
+        member={memberData}
+        plan={plan}
+        open={collectPaymentOpen}
+        onOpenChange={setCollectPaymentOpen}
+        onSelectManual={() => setRecordPaymentOpen(true)}
+        onSelectChargeCard={() => setChargeCardOpen(true)}
+        onSelectSendLink={() => setSendLinkOpen(true)}
+      />
+
+      {/* Record Manual Payment Sheet */}
       <RecordPaymentSheet
         member={memberData}
         plan={plan}
         open={recordPaymentOpen}
         onOpenChange={setRecordPaymentOpen}
+        onPaymentRecorded={handlePaymentRecorded}
+      />
+
+      {/* Charge Card Sheet */}
+      <ChargeCardSheet
+        member={memberData}
+        plan={plan}
+        open={chargeCardOpen}
+        onOpenChange={setChargeCardOpen}
+        onPaymentRecorded={handlePaymentRecorded}
+      />
+
+      {/* Send Payment Link Sheet */}
+      <SendPaymentLinkSheet
+        member={memberData}
+        plan={plan}
+        open={sendLinkOpen}
+        onOpenChange={setSendLinkOpen}
       />
 
       {/* Email Details Sheet */}

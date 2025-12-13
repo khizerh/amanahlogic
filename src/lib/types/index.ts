@@ -368,3 +368,75 @@ export interface EmailLog {
 export interface EmailLogWithMember extends EmailLog {
   member: Member;
 }
+
+// -----------------------------------------------------------------------------
+// Auto-Pay Invite (Stripe Checkout Session Tracking)
+// -----------------------------------------------------------------------------
+
+export type AutoPayInviteStatus = 'pending' | 'completed' | 'expired' | 'canceled';
+
+export interface AutoPayInvite {
+  id: string;
+  organizationId: string;
+  membershipId: string;
+  memberId: string;
+
+  // Stripe
+  stripeCheckoutSessionId: string | null;
+
+  // Details
+  plannedAmount: number; // Monthly amount at time of invite
+  firstChargeDate: string | null; // When first recurring charge will occur
+
+  // Status tracking
+  status: AutoPayInviteStatus;
+  sentAt: string;
+  completedAt: string | null;
+  expiredAt: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AutoPayInviteWithMember extends AutoPayInvite {
+  member: Member;
+  membership: Membership;
+  plan: Plan;
+}
+
+// -----------------------------------------------------------------------------
+// Overdue Payment (View Type)
+// -----------------------------------------------------------------------------
+
+export interface OverduePaymentInfo {
+  id: string;
+  membershipId: string;
+  memberId: string;
+
+  // Member info
+  memberName: string;
+  memberEmail: string;
+  planName: string;
+
+  // Payment info
+  amountDue: number;
+  dueDate: string;
+  daysOverdue: number;
+
+  // Status
+  lastPaymentDate: string | null;
+  paidMonths: number;
+  membershipStatus: MembershipStatus;
+
+  // Reminders
+  reminderCount: number;
+  lastReminderSent: string | null;
+  remindersPaused: boolean;
+}
+
+// Aging bucket for overdue analysis
+export interface AgingBucket {
+  range: string; // e.g., "0-7 days", "8-30 days"
+  count: number;
+  totalAmount: number;
+}

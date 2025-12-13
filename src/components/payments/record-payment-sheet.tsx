@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MemberWithMembership, PaymentType, PaymentMethod, Plan } from "@/lib/types";
 import { formatCurrency } from "@/lib/mock-data";
+import { recordPayment, previewPayment, type RecordPaymentResult } from "@/lib/mock-data/billing-service";
 import { toast } from "sonner";
 import {
   Banknote,
@@ -33,6 +34,9 @@ import {
   Smartphone,
   AlertCircle,
   CheckCircle2,
+  TrendingUp,
+  Award,
+  ArrowRight,
 } from "lucide-react";
 
 interface RecordPaymentSheetProps {
@@ -131,13 +135,34 @@ export function RecordPaymentSheet({
       return;
     }
 
+    if (!membership) {
+      toast.error("No membership found for this member");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // In a real app, this would call an API to create the payment
-      // For now, we'll simulate success
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Call the billing service to record the payment
+      const result: RecordPaymentResult = recordPayment({
+        memberId: member.id,
+        membershipId: membership.id,
+        planId: plan.id,
+        type: paymentType,
+        method: paymentMethod,
+        amount,
+        monthsCredited,
+        checkNumber: checkNumber || undefined,
+        zelleTransactionId: zelleTransactionId || undefined,
+        notes: notes || undefined,
+        recordedBy: "Admin User",
+      });
 
+      if (!result.success) {
+        throw new Error(result.error || "Failed to record payment");
+      }
+
+      // Build success message
       const paymentTypeLabel =
         paymentType === "enrollment_fee"
           ? "Enrollment fee"
@@ -145,14 +170,33 @@ export function RecordPaymentSheet({
           ? "Back dues"
           : "Dues";
 
-      toast.success(
-        `${paymentTypeLabel} payment of ${formatCurrency(amount)} recorded successfully`
-      );
+      let successMessage = `${paymentTypeLabel} payment of ${formatCurrency(amount)} recorded`;
+
+      // Add status change info if applicable
+      if (result.statusChanged && result.membership) {
+        if (result.newStatus === "active") {
+          successMessage += ` - Member is now ELIGIBLE! (60+ months)`;
+          toast.success(successMessage, {
+            duration: 5000,
+            description: `Congratulations! ${member.firstName} has reached 60 paid months and is now fully eligible for benefits.`,
+          });
+        } else {
+          successMessage += ` - Status updated to ${result.newStatus}`;
+          toast.success(successMessage);
+        }
+      } else {
+        // Show updated paid months
+        if (result.membership && paymentType !== "enrollment_fee") {
+          successMessage += ` (${result.membership.paidMonths}/60 months)`;
+        }
+        toast.success(successMessage);
+      }
 
       onOpenChange(false);
       onPaymentRecorded?.();
     } catch (error) {
-      toast.error("Failed to record payment. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to record payment";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -398,6 +442,73 @@ export function RecordPaymentSheet({
           </div>
 
           <Separator />
+
+          {/* Billing Impact Preview */}
+          {membership && (
+            <div className="rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-blue-700 font-medium">
+                <TrendingUp className="h-4 w-4" />
+                <span>Payment Impact Preview</span>
+              </div>
+
+              {/* Progress change */}
+              {paymentType !== "enrollment_fee" && (
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">{membership.paidMonths}</span>
+                    <span className="text-muted-foreground">/60</span>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-blue-500" />
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-blue-700">
+                      {membership.paidMonths + monthsCredited}
+                    </span>
+                    <span className="text-muted-foreground">/60</span>
+                  </div>
+                  <span className="text-muted-foreground">
+                    (+{monthsCredited} {monthsCredited === 1 ? "month" : "months"})
+                  </span>
+                </div>
+              )}
+
+              {/* Enrollment fee status */}
+              {paymentType === "enrollment_fee" && !enrollmentFeePaid && (
+                <div className="flex items-center gap-2 text-sm text-green-700">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Enrollment fee will be marked as paid</span>
+                </div>
+              )}
+
+              {/* Will become eligible! */}
+              {paymentType !== "enrollment_fee" &&
+                membership.paidMonths < 60 &&
+                membership.paidMonths + monthsCredited >= 60 && (
+                  <div className="flex items-center gap-2 bg-green-100 text-green-800 rounded-md px-3 py-2">
+                    <Award className="h-5 w-5" />
+                    <span className="font-semibold">
+                      Member will become ELIGIBLE for benefits!
+                    </span>
+                  </div>
+                )}
+
+              {/* Status change */}
+              {paymentType !== "enrollment_fee" &&
+                membership.status === "lapsed" && (
+                  <div className="flex items-center gap-2 text-sm text-amber-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>
+                      Status will change: <Badge variant="withdrawn">Lapsed</Badge>
+                      <ArrowRight className="h-3 w-3 inline mx-1" />
+                      {membership.paidMonths + monthsCredited >= 60 ? (
+                        <Badge variant="success">Active</Badge>
+                      ) : (
+                        <Badge variant="info">Waiting Period</Badge>
+                      )}
+                    </span>
+                  </div>
+                )}
+            </div>
+          )}
 
           {/* Payment Summary */}
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">

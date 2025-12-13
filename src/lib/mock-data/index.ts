@@ -27,6 +27,11 @@ import {
   EmailTemplateType,
   EmailLog,
   EmailStatus,
+  AutoPayInvite,
+  AutoPayInviteWithMember,
+  AutoPayInviteStatus,
+  OverduePaymentInfo,
+  AgingBucket,
 } from '@/lib/types';
 
 // -----------------------------------------------------------------------------
@@ -456,6 +461,103 @@ export const mockMemberships: Membership[] = generateMemberships(mockMembers);
 export const mockPayments: Payment[] = generatePayments(mockMemberships, mockMembers);
 
 // -----------------------------------------------------------------------------
+// Auto-Pay Invites (Stripe Checkout Session Tracking)
+// -----------------------------------------------------------------------------
+
+function generateAutoPayInvites(): AutoPayInvite[] {
+  const invites: AutoPayInvite[] = [];
+  const now = new Date();
+
+  // Find members without auto-pay to create invites for
+  const membersWithoutAutoPay = mockMemberships.filter(
+    m => !m.autoPayEnabled && (m.status === 'active' || m.status === 'waiting_period')
+  );
+
+  // Create some pending invites (sent but not completed)
+  membersWithoutAutoPay.slice(0, 5).forEach((membership, i) => {
+    const sentDate = new Date(now);
+    sentDate.setDate(sentDate.getDate() - (i + 1)); // 1-5 days ago
+
+    const plan = mockPlans.find(p => p.id === membership.planId);
+
+    invites.push({
+      id: `invite_pending_${i + 1}`,
+      organizationId: 'org_1',
+      membershipId: membership.id,
+      memberId: membership.memberId,
+      stripeCheckoutSessionId: `cs_live_${Math.random().toString(36).substring(2, 15)}`,
+      plannedAmount: plan?.pricing.monthly || 20,
+      firstChargeDate: new Date(now.getFullYear(), now.getMonth() + 1, membership.billingAnniversaryDay).toISOString(),
+      status: 'pending',
+      sentAt: sentDate.toISOString(),
+      completedAt: null,
+      expiredAt: null,
+      createdAt: sentDate.toISOString(),
+      updatedAt: sentDate.toISOString(),
+    });
+  });
+
+  // Create some completed invites (members who completed auto-pay setup)
+  const membersWithAutoPay = mockMemberships.filter(m => m.autoPayEnabled);
+  membersWithAutoPay.slice(0, 8).forEach((membership, i) => {
+    const sentDate = new Date(now);
+    sentDate.setDate(sentDate.getDate() - (10 + i * 3)); // 10-31 days ago
+
+    const completedDate = new Date(sentDate);
+    completedDate.setDate(completedDate.getDate() + 1); // Completed 1 day after sent
+
+    const plan = mockPlans.find(p => p.id === membership.planId);
+
+    invites.push({
+      id: `invite_completed_${i + 1}`,
+      organizationId: 'org_1',
+      membershipId: membership.id,
+      memberId: membership.memberId,
+      stripeCheckoutSessionId: `cs_live_${Math.random().toString(36).substring(2, 15)}`,
+      plannedAmount: plan?.pricing.monthly || 20,
+      firstChargeDate: new Date(completedDate.getFullYear(), completedDate.getMonth() + 1, membership.billingAnniversaryDay).toISOString(),
+      status: 'completed',
+      sentAt: sentDate.toISOString(),
+      completedAt: completedDate.toISOString(),
+      expiredAt: null,
+      createdAt: sentDate.toISOString(),
+      updatedAt: completedDate.toISOString(),
+    });
+  });
+
+  // Create some expired invites (link expired after 24 hours)
+  membersWithoutAutoPay.slice(5, 8).forEach((membership, i) => {
+    const sentDate = new Date(now);
+    sentDate.setDate(sentDate.getDate() - (5 + i)); // 5-7 days ago
+
+    const expiredDate = new Date(sentDate);
+    expiredDate.setDate(expiredDate.getDate() + 1); // Expired 1 day after sent
+
+    const plan = mockPlans.find(p => p.id === membership.planId);
+
+    invites.push({
+      id: `invite_expired_${i + 1}`,
+      organizationId: 'org_1',
+      membershipId: membership.id,
+      memberId: membership.memberId,
+      stripeCheckoutSessionId: `cs_live_${Math.random().toString(36).substring(2, 15)}`,
+      plannedAmount: plan?.pricing.monthly || 20,
+      firstChargeDate: null,
+      status: 'expired',
+      sentAt: sentDate.toISOString(),
+      completedAt: null,
+      expiredAt: expiredDate.toISOString(),
+      createdAt: sentDate.toISOString(),
+      updatedAt: expiredDate.toISOString(),
+    });
+  });
+
+  return invites;
+}
+
+export const mockAutoPayInvites: AutoPayInvite[] = generateAutoPayInvites();
+
+// -----------------------------------------------------------------------------
 // Data Access Functions (simulating API calls)
 // -----------------------------------------------------------------------------
 
@@ -648,23 +750,174 @@ export function getApproachingEligibility(limit: number = 10): MembershipWithDet
     .slice(0, limit);
 }
 
-// Helper to get overdue members
+// -----------------------------------------------------------------------------
+// Overdue Payment Helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Calculate days between two dates
+ */
+function daysBetween(date1: Date, date2: Date): number {
+  const diffTime = date2.getTime() - date1.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Check if a payment is overdue (past due date)
+ */
+export function isOverdue(dueDate: string | null): boolean {
+  if (!dueDate) return false;
+  const now = new Date();
+  const due = new Date(dueDate);
+  return daysBetween(due, now) > 0;
+}
+
+/**
+ * Get days overdue for a due date
+ */
+export function getDaysOverdue(dueDate: string | null): number {
+  if (!dueDate) return 0;
+  const now = new Date();
+  const due = new Date(dueDate);
+  return Math.max(0, daysBetween(due, now));
+}
+
+/**
+ * Get overdue payment information with proper calculations
+ */
+export function getOverduePayments(): OverduePaymentInfo[] {
+  const results: OverduePaymentInfo[] = [];
+
+  getMemberships().forEach(m => {
+    if (!m.nextPaymentDue) return;
+    if (!isOverdue(m.nextPaymentDue)) return;
+
+    const plan = mockPlans.find(p => p.id === m.planId);
+    const daysOverdue = getDaysOverdue(m.nextPaymentDue);
+    const amountDue = plan
+      ? (m.billingFrequency === 'monthly'
+          ? plan.pricing.monthly
+          : m.billingFrequency === 'biannual'
+          ? plan.pricing.biannual
+          : plan.pricing.annual)
+      : 0;
+
+    results.push({
+      id: `overdue_${m.id}`,
+      membershipId: m.id,
+      memberId: m.member.id,
+      memberName: `${m.member.firstName} ${m.member.lastName}`,
+      memberEmail: m.member.email,
+      planName: plan?.name || 'Unknown',
+      amountDue,
+      dueDate: m.nextPaymentDue,
+      daysOverdue,
+      lastPaymentDate: m.lastPaymentDate,
+      paidMonths: m.paidMonths,
+      membershipStatus: m.status,
+      reminderCount: Math.min(Math.floor(daysOverdue / 7), 3), // Mock: 1 reminder per week, max 3
+      lastReminderSent: daysOverdue > 7 ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() : null,
+      remindersPaused: false,
+    });
+  });
+
+  // Sort by days overdue descending
+  return results.sort((a, b) => b.daysOverdue - a.daysOverdue);
+}
+
+
+/**
+ * Get aging buckets for overdue analysis
+ */
+export function getAgingBuckets(): AgingBucket[] {
+  const overduePayments = getOverduePayments();
+
+  const buckets: AgingBucket[] = [
+    { range: '1-7 days', count: 0, totalAmount: 0 },
+    { range: '8-30 days', count: 0, totalAmount: 0 },
+    { range: '31-60 days', count: 0, totalAmount: 0 },
+    { range: '61-90 days', count: 0, totalAmount: 0 },
+    { range: '90+ days', count: 0, totalAmount: 0 },
+  ];
+
+  overduePayments.forEach(p => {
+    const days = p.daysOverdue;
+    let bucketIndex = 0;
+    if (days <= 7) bucketIndex = 0;
+    else if (days <= 30) bucketIndex = 1;
+    else if (days <= 60) bucketIndex = 2;
+    else if (days <= 90) bucketIndex = 3;
+    else bucketIndex = 4;
+
+    buckets[bucketIndex].count++;
+    buckets[bucketIndex].totalAmount += p.amountDue;
+  });
+
+  return buckets;
+}
+
+/**
+ * Legacy function - kept for backwards compatibility
+ * @deprecated Use getOverduePayments() instead
+ */
 export function getOverdueMembers(limit: number = 10): MembershipWithDetails[] {
   const now = new Date();
+
   return getMemberships()
-    .filter(m => m.status === 'lapsed' || (m.nextPaymentDue && new Date(m.nextPaymentDue) < now))
+    .filter(m => m.nextPaymentDue && new Date(m.nextPaymentDue) < now)
     .slice(0, limit);
 }
 
-// Helper to get members with auto-pay enabled
+// -----------------------------------------------------------------------------
+// Auto-Pay Invite Helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Get auto-pay invites with member details
+ */
+export function getAutoPayInvites(status?: AutoPayInviteStatus): AutoPayInviteWithMember[] {
+  let invites = mockAutoPayInvites;
+
+  if (status) {
+    invites = invites.filter(i => i.status === status);
+  }
+
+  return invites.map(invite => {
+    const member = mockMembers.find(m => m.id === invite.memberId)!;
+    const membership = mockMemberships.find(m => m.id === invite.membershipId)!;
+    const plan = mockPlans.find(p => p.id === membership?.planId)!;
+    return { ...invite, member, membership, plan };
+  }).sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+}
+
+/**
+ * Get pending auto-pay invites count
+ */
+export function getPendingInvitesCount(): number {
+  return mockAutoPayInvites.filter(i => i.status === 'pending').length;
+}
+
+/**
+ * Helper to get members with auto-pay enabled
+ */
 export function getAutoPayMembers(): MembershipWithDetails[] {
   return getMemberships().filter(m => m.autoPayEnabled);
 }
 
-// Helper to get members without auto-pay (need to set up)
+/**
+ * Helper to get members without auto-pay AND no pending invite
+ * These are members who could be invited to set up auto-pay
+ */
 export function getMembersWithoutAutoPay(): MembershipWithDetails[] {
+  const pendingInviteMemberIds = new Set(
+    mockAutoPayInvites
+      .filter(i => i.status === 'pending')
+      .map(i => i.memberId)
+  );
+
   return getMemberships().filter(m =>
     !m.autoPayEnabled &&
+    !pendingInviteMemberIds.has(m.member.id) &&
     (m.status === 'active' || m.status === 'waiting_period')
   );
 }
@@ -1170,3 +1423,6 @@ export function getEmailStatusVariant(status: EmailStatus): "success" | "warning
   };
   return variants[status];
 }
+
+// Note: Billing service is imported separately from '@/lib/mock-data/billing-service'
+// to avoid circular dependencies
