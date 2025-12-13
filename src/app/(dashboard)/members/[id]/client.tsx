@@ -116,6 +116,9 @@ export function MemberDetailClient({ initialMember, initialPayments, initialEmai
   // State for agreement dialog
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
 
+  // State for sending agreement
+  const [isSendingAgreement, setIsSendingAgreement] = useState(false);
+
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<{
@@ -147,6 +150,51 @@ export function MemberDetailClient({ initialMember, initialPayments, initialEmai
   }, [router]);
 
   const { membership, plan } = memberData;
+
+  // Send agreement to member
+  const handleSendAgreement = useCallback(async () => {
+    if (!membership) return;
+
+    setIsSendingAgreement(true);
+    try {
+      const response = await fetch("/api/agreements/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          memberId: memberData.id,
+          language: memberData.preferredLanguage,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send agreement");
+      }
+
+      if (result.emailSent) {
+        toast.success("Agreement sent! Check member's email.");
+      } else {
+        toast.success("Agreement created", {
+          description: "Email not configured - copy the sign link manually.",
+          action: {
+            label: "Copy Link",
+            onClick: () => {
+              navigator.clipboard.writeText(result.signUrl);
+              toast.info("Sign link copied to clipboard");
+            },
+          },
+        });
+      }
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send agreement");
+    } finally {
+      setIsSendingAgreement(false);
+    }
+  }, [membership, memberData.id, memberData.preferredLanguage, router]);
 
   const handleStartEdit = () => {
     setEditForm({
@@ -398,7 +446,7 @@ export function MemberDetailClient({ initialMember, initialPayments, initialEmai
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Agreement</p>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         {membership.agreementSignedAt ? (
                           <>
                             <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -412,7 +460,25 @@ export function MemberDetailClient({ initialMember, initialPayments, initialEmai
                         ) : (
                           <>
                             <FileText className="h-4 w-4 text-amber-600" />
-                            <span className="text-sm font-medium text-amber-700">Pending</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleSendAgreement}
+                              disabled={isSendingAgreement}
+                              className="h-7 text-xs"
+                            >
+                              {isSendingAgreement ? (
+                                <>
+                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                  Sending...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="h-3 w-3 mr-1" />
+                                  Send Agreement
+                                </>
+                              )}
+                            </Button>
                           </>
                         )}
                       </div>
