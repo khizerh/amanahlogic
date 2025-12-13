@@ -258,6 +258,7 @@ export interface Agreement {
 
   // Document
   templateVersion: string;
+  templateLanguage?: "en" | "fa";
   pdfUrl: string | null;
 
   // Signature capture
@@ -273,6 +274,21 @@ export interface Agreement {
   sentAt: string;
   signedAt: string | null;
 
+  createdAt: string;
+}
+
+// ----------------------------------------------------------------------------- 
+// Agreement Template
+// -----------------------------------------------------------------------------
+
+export interface AgreementTemplate {
+  id: string;
+  organizationId: string;
+  language: "en" | "fa";
+  version: string;
+  storagePath: string;
+  isActive: boolean;
+  notes: string;
   createdAt: string;
 }
 

@@ -2,17 +2,15 @@ import { notFound } from "next/navigation";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 import { AgreementsService } from "@/lib/database/agreements";
 import { MembersService } from "@/lib/database/members";
+import {
+  AgreementTemplatesService,
+  resolveTemplateUrl,
+} from "@/lib/database/agreement-templates";
 import SignClient from "./sign-client";
 
 interface SignPageProps {
   params: Promise<{ token: string }>;
 }
-
-// Map template versions to PDF paths
-const PDF_PATHS: Record<string, string> = {
-  "v1-en": "/Masjid Muhajireen Agreement.pdf",
-  "v1-fa": "/Masjid Muhajireen Bylaws 2 (Dari).pdf",
-};
 
 export default async function SignPage({ params }: SignPageProps) {
   const { token } = await params;
@@ -32,9 +30,24 @@ export default async function SignPage({ params }: SignPageProps) {
     notFound();
   }
 
-  // Determine language from template version
+  // Try to resolve template from DB; fall back to static mapping
   const language = agreement.templateVersion.includes("fa") ? "fa" : "en";
-  const pdfPath = PDF_PATHS[agreement.templateVersion] || PDF_PATHS["v1-en"];
+  let pdfPath: string | null = null;
+
+  const template = await AgreementTemplatesService.getByVersion(
+    agreement.organizationId,
+    agreement.templateVersion
+  );
+
+  if (template) {
+    pdfPath = await resolveTemplateUrl(template.storagePath);
+  }
+
+  if (!pdfPath) {
+    const fallback =
+      language === "fa" ? "/Masjid Muhajireen Bylaws 2 (Dari).pdf" : "/Masjid Muhajireen Agreement.pdf";
+    pdfPath = fallback;
+  }
 
   return (
     <SignClient

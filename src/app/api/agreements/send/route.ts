@@ -7,6 +7,7 @@ import { MembershipsService } from "@/lib/database/memberships";
 import { MembersService } from "@/lib/database/members";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { sendAgreementEmail } from "@/lib/email/send-agreement";
+import { AgreementTemplatesService } from "@/lib/database/agreement-templates";
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -51,12 +52,24 @@ export async function POST(req: Request) {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + ONE_WEEK_MS).toISOString();
 
+    // Find active template for language (or fallback to provided version)
+    let resolvedTemplateVersion = templateVersion;
+    const activeTemplate = await AgreementTemplatesService.getActiveByLanguage(
+      organizationId,
+      memberLanguage as "en" | "fa"
+    );
+    if (activeTemplate) {
+      resolvedTemplateVersion = activeTemplate.version;
+    } else if (!resolvedTemplateVersion) {
+      resolvedTemplateVersion = memberLanguage === "fa" ? "v1-fa" : "v1-en";
+    }
+
     // Create agreement record
     const agreement = await AgreementsService.create({
       organizationId,
       membershipId,
       memberId,
-      templateVersion: templateVersion || (memberLanguage === "fa" ? "v1-fa" : "v1-en"),
+      templateVersion: resolvedTemplateVersion!,
       sentAt: now.toISOString(),
     });
 

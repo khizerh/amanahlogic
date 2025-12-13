@@ -1,19 +1,17 @@
 import { OrganizationsService } from "@/lib/database/organizations";
 import { PlansService } from "@/lib/database/plans";
 import { SettingsPageClient } from "./client";
-import { getEmailTemplates } from "@/lib/mock-data";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
+import { AgreementTemplatesService } from "@/lib/database/agreement-templates";
 
 export default async function SettingsPage() {
   const organizationId = await getOrganizationId();
 
-  const [organization, plans] = await Promise.all([
+  const [organization, plans, agreementTemplates] = await Promise.all([
     OrganizationsService.getById(organizationId),
     PlansService.getAll(organizationId),
+    AgreementTemplatesService.getAllByOrg(organizationId),
   ]);
-
-  // Email templates still come from mock for now (would need a separate table)
-  const emailTemplates = getEmailTemplates();
 
   if (!organization) {
     return (
@@ -27,7 +25,7 @@ export default async function SettingsPage() {
     <SettingsPageClient
       initialOrganization={organization}
       initialPlans={plans}
-      emailTemplates={emailTemplates}
+      agreementTemplates={agreementTemplates}
     />
   );
 }

@@ -24,50 +24,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Plus, Edit2, ToggleLeft, ToggleRight, Languages } from "lucide-react";
+import {
+  Eye,
+  Plus,
+  Edit2,
+  ToggleLeft,
+  ToggleRight,
+  Languages,
+  UploadCloud,
+  CheckCircle2,
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, getEmailTemplateTypeLabel } from "@/lib/mock-data";
-import { Organization, Plan, EmailTemplate } from "@/lib/types";
+import { Organization, Plan, EmailTemplate, AgreementTemplate } from "@/lib/types";
 import { toast } from "sonner";
-
-const defaultAgreementText = `MEMBERSHIP AGREEMENT
-
-This Membership Agreement ("Agreement") is entered into between the undersigned Member and [Organization Name] ("Organization").
-
-1. MEMBERSHIP BENEFITS
-Upon completion of the required waiting period (60 consecutive months of paid membership), the Member shall be eligible to receive burial benefits as outlined in the Organization's bylaws.
-
-2. PAYMENT OBLIGATIONS
-- The Member agrees to pay the enrollment fee of $500.00 upon signing this Agreement.
-- The Member agrees to pay monthly dues according to their selected plan:
-  • Single Plan: $20.00/month
-  • Married Plan: $40.00/month
-  • Widow Plan: $40.00/month
-
-3. WAITING PERIOD
-- Benefits become available after 60 consecutive months of paid membership.
-- Missed payments may extend the waiting period.
-- If payments are missed for 24 consecutive months, membership will be automatically cancelled.
-
-4. CANCELLATION
-- Members may cancel their membership at any time by providing written notice.
-- No refunds will be provided for payments already made.
-- Cancelled memberships forfeit all accumulated paid months toward eligibility.
-
-5. AGREEMENT
-By signing below, the Member acknowledges that they have read, understood, and agree to the terms of this Agreement.
-
-Member Signature: ____________________
-Date: ____________________
-`;
 
 interface SettingsPageClientProps {
   initialOrganization: Organization;
   initialPlans: Plan[];
-  emailTemplates: EmailTemplate[];
+  agreementTemplates: AgreementTemplate[];
+  emailTemplates?: EmailTemplate[];
 }
 
-export function SettingsPageClient({ initialOrganization, initialPlans, emailTemplates }: SettingsPageClientProps) {
+export function SettingsPageClient({
+  initialOrganization,
+  initialPlans,
+  agreementTemplates,
+  emailTemplates = [],
+}: SettingsPageClientProps) {
   const organization = initialOrganization;
   const plans = initialPlans;
 
@@ -81,9 +65,28 @@ export function SettingsPageClient({ initialOrganization, initialPlans, emailTem
     zip: organization.address.zip,
   });
 
-  const [agreementText, setAgreementText] = useState(defaultAgreementText);
-  const [agreementVersion, setAgreementVersion] = useState("1.0");
-  const [showPreview, setShowPreview] = useState(false);
+  // Agreement templates state
+  const [activeTemplates, setActiveTemplates] = useState<{
+    en: AgreementTemplate | null;
+    fa: AgreementTemplate | null;
+  }>(() => {
+    const en = agreementTemplates.find((t) => t.language === "en" && t.isActive) || null;
+    const fa = agreementTemplates.find((t) => t.language === "fa" && t.isActive) || null;
+    return { en, fa };
+  });
+  const [allTemplates, setAllTemplates] = useState<AgreementTemplate[]>(agreementTemplates);
+  const [uploadingTemplate, setUploadingTemplate] = useState(false);
+  const [templateUpload, setTemplateUpload] = useState<{
+    file: File | null;
+    language: "en" | "fa";
+    version: string;
+    notes: string;
+  }>({
+    file: null,
+    language: "en",
+    version: "v1-en",
+    notes: "",
+  });
 
   // Plan management state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -113,7 +116,7 @@ export function SettingsPageClient({ initialOrganization, initialPlans, emailTem
     toast.success("Organization settings saved successfully");
   };
 
-  const handleSaveAgreement = (e: React.FormEvent) => {
+  const _handleSaveAgreement = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Membership agreement saved successfully");
   };
@@ -422,82 +425,237 @@ export function SettingsPageClient({ initialOrganization, initialPlans, emailTem
               </div>
             </TabsContent>
 
-            {/* Agreement Tab */}
+            {/* Agreement Templates Tab */}
             <TabsContent value="agreement">
               <div className="grid gap-6 lg:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Membership Agreement</CardTitle>
-                    <CardDescription>
-                      Edit the legal agreement that members sign during enrollment
-                    </CardDescription>
+                    <CardTitle>Agreement Templates</CardTitle>
+                    <CardDescription>Manage PDF templates used for signing (EN/FA)</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleSaveAgreement} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="agreementVersion">Version</Label>
-                        <Input
-                          id="agreementVersion"
-                          value={agreementVersion}
-                          onChange={(e) => setAgreementVersion(e.target.value)}
-                          placeholder="1.0"
-                          className="w-32"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Update the version when making significant changes
-                        </p>
-                      </div>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4">
+                      {(["en", "fa"] as const).map((lang) => {
+                        const active = activeTemplates[lang];
+                        return (
+                          <div key={lang} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground">
+                                  {lang === "en" ? "English" : "Dari/Farsi"} template
+                                </p>
+                                <p className="font-medium mt-1">
+                                  {active ? `${active.version}` : "No active template"}
+                                </p>
+                                {active && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {active.storagePath}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {active && (
+                                  <a
+                                    href={active.storagePath}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 hover:text-blue-500 flex items-center gap-1"
+                                  >
+                                    Open
+                                    <Eye className="h-4 w-4" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            {active && (
+                              <div className="mt-2 inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-1 rounded">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Active
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="agreementText">Agreement Text</Label>
-                        <Textarea
-                          id="agreementText"
-                          value={agreementText}
-                          onChange={(e) => setAgreementText(e.target.value)}
-                          placeholder="Enter your membership agreement text..."
-                          className="min-h-[400px] font-mono text-sm"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Use [Organization Name] as a placeholder - it will be replaced with your organization name
-                        </p>
+                    <div className="border rounded-lg p-4 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <UploadCloud className="h-4 w-4 text-muted-foreground" />
+                        <p className="font-medium">Upload new template</p>
                       </div>
+                      <div className="grid gap-3">
+                        <div className="grid gap-1">
+                          <Label>Language</Label>
+                          <Select
+                            value={templateUpload.language}
+                            onValueChange={(v) =>
+                              setTemplateUpload((prev) => ({ ...prev, language: v as "en" | "fa" }))
+                            }
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue placeholder="Language" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="en">English</SelectItem>
+                              <SelectItem value="fa">Dari/Farsi</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label>Version</Label>
+                          <Input
+                            value={templateUpload.version}
+                            onChange={(e) =>
+                              setTemplateUpload((prev) => ({ ...prev, version: e.target.value }))
+                            }
+                            placeholder="v1-en"
+                            className="w-40"
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label>Notes</Label>
+                          <Input
+                            value={templateUpload.notes}
+                            onChange={(e) =>
+                              setTemplateUpload((prev) => ({ ...prev, notes: e.target.value }))
+                            }
+                            placeholder="e.g. Updated terms, new rates"
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label>PDF File</Label>
+                          <Input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) =>
+                              setTemplateUpload((prev) => ({
+                                ...prev,
+                                file: e.target.files?.[0] || null,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            onClick={async () => {
+                              if (!templateUpload.file) {
+                                toast.error("Select a PDF to upload");
+                                return;
+                              }
+                              setUploadingTemplate(true);
+                              try {
+                                const formData = new FormData();
+                                formData.append("file", templateUpload.file);
+                                formData.append("language", templateUpload.language);
+                                formData.append("version", templateUpload.version);
+                                formData.append("notes", templateUpload.notes);
 
-                      <div className="flex gap-3">
-                        <Button type="submit">Save Agreement</Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setShowPreview(!showPreview)}
-                          className="lg:hidden"
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          {showPreview ? "Hide Preview" : "Show Preview"}
-                        </Button>
+                                const res = await fetch("/api/agreements/templates/upload", {
+                                  method: "POST",
+                                  body: formData,
+                                });
+                                const json = await res.json();
+                                if (!res.ok || !json.success) {
+                                  throw new Error(json.error || "Upload failed");
+                                }
+
+                                const newTemplate: AgreementTemplate = json.template;
+                                setAllTemplates((prev) => [newTemplate, ...prev]);
+                                setActiveTemplates((prev) => ({
+                                  ...prev,
+                                  [newTemplate.language]: newTemplate,
+                                }));
+                                toast.success("Template uploaded and activated");
+                              } catch (err) {
+                                toast.error(err instanceof Error ? err.message : "Upload failed");
+                              } finally {
+                                setUploadingTemplate(false);
+                              }
+                            }}
+                            disabled={uploadingTemplate}
+                          >
+                            {uploadingTemplate ? "Uploading..." : "Upload & Activate"}
+                          </Button>
+                        </div>
                       </div>
-                    </form>
+                    </div>
                   </CardContent>
                 </Card>
 
-                <Card className={showPreview ? "block" : "hidden lg:block"}>
+                <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Eye className="h-5 w-5" />
-                      Preview
-                    </CardTitle>
-                    <CardDescription>
-                      How the agreement will appear to members
-                    </CardDescription>
+                    <CardTitle>All Templates</CardTitle>
+                    <CardDescription>Manage versions across languages</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="border rounded-lg p-6 bg-white max-h-[500px] overflow-y-auto">
-                      <pre className="whitespace-pre-wrap font-serif text-sm leading-relaxed">
-                        {agreementText.replace(/\[Organization Name\]/g, organization.name)}
-                      </pre>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      Active templates are used when sending agreements. You can upload a new version to replace the active one.
                     </div>
-                    <div className="mt-4 p-3 bg-muted rounded-lg">
-                      <p className="text-xs text-muted-foreground">
-                        <strong>Version:</strong> {agreementVersion} | <strong>Last updated:</strong> {new Date().toLocaleDateString()}
-                      </p>
+                    <div className="border rounded-lg divide-y">
+                      <div className="grid grid-cols-5 text-xs uppercase text-muted-foreground px-3 py-2 bg-muted/50">
+                        <span>Language</span>
+                        <span>Version</span>
+                        <span>Active</span>
+                        <span>Path</span>
+                        <span></span>
+                      </div>
+                      {allTemplates.map((t) => (
+                        <div key={t.id} className="grid grid-cols-5 items-center px-3 py-2 text-sm">
+                          <span>{t.language === "en" ? "English" : "Dari/Farsi"}</span>
+                          <span>{t.version}</span>
+                          <span>{t.isActive ? "Yes" : "No"}</span>
+                          <span className="truncate text-xs text-muted-foreground">{t.storagePath}</span>
+                          <div className="flex justify-end gap-2">
+                            {!t.isActive && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch("/api/agreements/templates/set-active", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        templateId: t.id,
+                                        language: t.language,
+                                      }),
+                                    });
+                                    const json = await res.json();
+                                    if (!res.ok || !json.success) {
+                                      throw new Error(json.error || "Failed to activate");
+                                    }
+                                    setAllTemplates((prev) =>
+                                      prev.map((tpl) =>
+                                        tpl.language === t.language
+                                          ? { ...tpl, isActive: tpl.id === t.id }
+                                          : tpl
+                                      )
+                                    );
+                                    setActiveTemplates((prev) => ({ ...prev, [t.language]: t }));
+                                    toast.success(`Activated ${t.version}`);
+                                  } catch (err) {
+                                    toast.error(err instanceof Error ? err.message : "Failed to activate");
+                                  }
+                                }}
+                              >
+                                Set Active
+                              </Button>
+                            )}
+                            <a
+                              href={t.storagePath}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 text-xs hover:underline"
+                            >
+                              View
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                      {allTemplates.length === 0 && (
+                        <div className="px-3 py-4 text-sm text-muted-foreground">No templates uploaded yet.</div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
