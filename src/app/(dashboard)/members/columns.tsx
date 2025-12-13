@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import { MemberWithMembership, PlanType } from "@/lib/types";
-import { formatStatus, getStatusVariant } from "@/lib/mock-data";
+import { formatStatus, getStatusVariant, formatDate } from "@/lib/mock-data";
 
 const getPlanTypeBadge = (type: PlanType) => {
   const variants: Record<PlanType, "info" | "refunded" | "warning"> = {
@@ -87,13 +87,13 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
     },
   },
   {
-    accessorKey: "paidMonths",
-    header: "Paid Months",
-    accessorFn: (row) => row.membership?.paidMonths || 0,
+    accessorKey: "joinDate",
+    header: "Joined",
+    accessorFn: (row) => row.membership?.joinDate || null,
     cell: ({ row }) => {
-      const paidMonths = row.original.membership?.paidMonths;
-      return paidMonths !== undefined ? (
-        <span className="font-mono">{paidMonths}/60</span>
+      const joinDate = row.original.membership?.joinDate;
+      return joinDate ? (
+        <span className="text-muted-foreground">{formatDate(joinDate)}</span>
       ) : (
         <span>-</span>
       );

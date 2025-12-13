@@ -403,8 +403,8 @@ export default function PaymentsPage() {
                   <div className="bg-muted/50 rounded-lg p-4 mb-6">
                     <p className="text-sm text-muted-foreground">
                       This shows checkout links that have been <strong>sent</strong> to members to set up auto-pay.
-                      Links expire after 24 hours. Pending invites are members who received a link but haven't completed setup yet.
-                      To invite a new member, go to their profile and click "Send Payment Link" with auto-pay enabled.
+                      Links expire after 24 hours. Pending invites are members who received a link but haven&apos;t completed setup yet.
+                      To invite a new member, go to their profile and click &quot;Send Payment Link&quot; with auto-pay enabled.
                     </p>
                   </div>
 

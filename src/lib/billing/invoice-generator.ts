@@ -113,7 +113,7 @@ function extractOrgCode(name: string): string {
 export function calculateNextBillingDate(
   current: Date,
   frequency: "monthly" | "biannual" | "annual",
-  timezone?: string
+  _timezone?: string
 ): Date {
   let monthsToAdd: number;
 
@@ -244,7 +244,164 @@ export function getTodayInOrgTimezone(timezone: string): string {
  * @example
  * parseDateInOrgTimezone("2025-01-15", "America/New_York")
  */
-export function parseDateInOrgTimezone(dateString: string, timezone: string): Date {
+export function parseDateInOrgTimezone(dateString: string, _timezone: string): Date {
+  // Note: timezone param reserved for future timezone-aware parsing
   const [year, month, day] = dateString.split("-").map(Number);
   return new Date(year, month - 1, day);
+}
+
+// -----------------------------------------------------------------------------
+// Invoice Metadata Bundle
+// -----------------------------------------------------------------------------
+
+export interface InvoiceMetadata {
+  invoiceNumber: string;
+  dueDate: string; // YYYY-MM-DD
+  periodStart: string; // YYYY-MM-DD
+  periodEnd: string; // YYYY-MM-DD
+  periodLabel: string;
+  monthsCredited: number;
+}
+
+/**
+ * Get months credited for a billing frequency
+ */
+export function getMonthsForFrequency(frequency: "monthly" | "biannual" | "annual"): number {
+  switch (frequency) {
+    case "monthly":
+      return 1;
+    case "biannual":
+      return 6;
+    case "annual":
+      return 12;
+    default:
+      return 1;
+  }
+}
+
+/**
+ * Calculate period end date from start and frequency
+ */
+export function calculatePeriodEnd(
+  periodStart: Date,
+  frequency: "monthly" | "biannual" | "annual"
+): Date {
+  const periodEnd = new Date(periodStart);
+  switch (frequency) {
+    case "monthly":
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      break;
+    case "biannual":
+      periodEnd.setMonth(periodEnd.getMonth() + 6);
+      break;
+    case "annual":
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      break;
+  }
+  periodEnd.setDate(periodEnd.getDate() - 1); // End is day before next period starts
+  return periodEnd;
+}
+
+/**
+ * Generate complete invoice metadata for a payment
+ *
+ * Use this when creating payments (manual, webhook, or billing engine)
+ * to ensure consistent invoice metadata across all paths.
+ *
+ * @param organizationId - ID of the organization
+ * @param billingDate - Date the payment is due (typically next_payment_due or today)
+ * @param frequency - Billing frequency for period calculation
+ * @param orgTimezone - Organization timezone
+ * @param supabase - Supabase client
+ * @returns Complete invoice metadata bundle
+ *
+ * @example
+ * const metadata = await generateInvoiceMetadata(
+ *   'org-123',
+ *   '2025-01-15',
+ *   'monthly',
+ *   'America/Los_Angeles',
+ *   supabase
+ * );
+ * // Returns: { invoiceNumber: 'INV-AL-202501-0001', dueDate: '2025-01-15', ... }
+ */
+export async function generateInvoiceMetadata(
+  organizationId: string,
+  billingDate: string,
+  frequency: "monthly" | "biannual" | "annual",
+  orgTimezone: string,
+  supabase: SupabaseClient
+): Promise<InvoiceMetadata> {
+  const periodStart = parseDateInOrgTimezone(billingDate, orgTimezone);
+  const invoiceNumber = await generateInvoiceNumber(organizationId, periodStart, supabase);
+  const periodEnd = calculatePeriodEnd(periodStart, frequency);
+  const periodLabel = formatPeriodLabel(periodStart, frequency);
+  const monthsCredited = getMonthsForFrequency(frequency);
+
+  return {
+    invoiceNumber,
+    dueDate: billingDate,
+    periodStart: periodStart.toISOString().split("T")[0],
+    periodEnd: periodEnd.toISOString().split("T")[0],
+    periodLabel,
+    monthsCredited,
+  };
+}
+
+/**
+ * Generate invoice metadata for ad-hoc payments (back dues, custom amounts)
+ *
+ * Unlike regular billing, ad-hoc payments may cover multiple periods or
+ * custom month counts. This generates appropriate metadata.
+ *
+ * @param organizationId - ID of the organization
+ * @param billingDate - Date of the payment (typically today)
+ * @param monthsCredited - Number of months this payment covers
+ * @param orgTimezone - Organization timezone
+ * @param supabase - Supabase client
+ * @returns Invoice metadata with custom period
+ */
+export async function generateAdHocInvoiceMetadata(
+  organizationId: string,
+  billingDate: string,
+  monthsCredited: number,
+  orgTimezone: string,
+  supabase: SupabaseClient
+): Promise<InvoiceMetadata> {
+  const periodStart = parseDateInOrgTimezone(billingDate, orgTimezone);
+  const invoiceNumber = await generateInvoiceNumber(organizationId, periodStart, supabase);
+
+  // Calculate period end based on months credited
+  const periodEnd = new Date(periodStart);
+  periodEnd.setMonth(periodEnd.getMonth() + monthsCredited);
+  periodEnd.setDate(periodEnd.getDate() - 1);
+
+  // Generate period label
+  let periodLabel: string;
+  if (monthsCredited === 1) {
+    periodLabel = formatPeriodLabel(periodStart, "monthly");
+  } else if (monthsCredited === 6) {
+    periodLabel = formatPeriodLabel(periodStart, "biannual");
+  } else if (monthsCredited === 12) {
+    periodLabel = formatPeriodLabel(periodStart, "annual");
+  } else {
+    // Custom period
+    const startMonth = periodStart.toLocaleDateString("en-US", { month: "short" });
+    const startYear = periodStart.getFullYear();
+    const endMonth = periodEnd.toLocaleDateString("en-US", { month: "short" });
+    const endYear = periodEnd.getFullYear();
+    periodLabel =
+      startYear === endYear
+        ? `${startMonth} - ${endMonth} ${startYear}`
+        : `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
+  }
+
+  return {
+    invoiceNumber,
+    dueDate: billingDate,
+    periodStart: periodStart.toISOString().split("T")[0],
+    periodEnd: periodEnd.toISOString().split("T")[0],
+    periodLabel,
+    monthsCredited,
+  };
 }

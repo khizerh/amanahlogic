@@ -477,3 +477,103 @@ export function reinstateMembership(membershipId: string): boolean {
 
   return true;
 }
+
+// -----------------------------------------------------------------------------
+// Billing Frequency Management
+// -----------------------------------------------------------------------------
+
+export interface UpdateFrequencyInput {
+  membershipId: string;
+  newFrequency: BillingFrequency;
+}
+
+export interface UpdateFrequencyResult {
+  success: boolean;
+  membership?: Membership;
+  previousFrequency?: BillingFrequency;
+  newFrequency?: BillingFrequency;
+  error?: string;
+}
+
+/**
+ * Update a membership's billing frequency
+ *
+ * Business rules:
+ * - Change takes effect immediately for manual payment members
+ * - For auto-pay members, this updates the local record (Stripe update would happen separately)
+ * - Next payment due date is recalculated based on new frequency
+ * - No proration - change simply applies to next payment
+ */
+export function updateBillingFrequency(input: UpdateFrequencyInput): UpdateFrequencyResult {
+  const { membershipId, newFrequency } = input;
+
+  const membershipIndex = mockMemberships.findIndex((m) => m.id === membershipId);
+  if (membershipIndex === -1) {
+    return { success: false, error: 'Membership not found' };
+  }
+
+  const membership = mockMemberships[membershipIndex];
+  const previousFrequency = membership.billingFrequency;
+
+  // No change needed
+  if (previousFrequency === newFrequency) {
+    return {
+      success: true,
+      membership,
+      previousFrequency,
+      newFrequency,
+    };
+  }
+
+  const now = new Date();
+  const nowStr = formatDateString(now);
+
+  // Calculate new next payment due based on new frequency
+  // Uses last payment date as the base, or current date if no payments yet
+  const baseDate = membership.lastPaymentDate
+    ? new Date(membership.lastPaymentDate)
+    : now;
+
+  const nextPaymentDue = calculateNextPaymentDue(
+    baseDate,
+    newFrequency,
+    membership.billingAnniversaryDay
+  );
+
+  // Update membership
+  const updatedMembership: Membership = {
+    ...membership,
+    billingFrequency: newFrequency,
+    nextPaymentDue,
+    updatedAt: nowStr,
+  };
+
+  // Apply update to mock data
+  mockMemberships[membershipIndex] = updatedMembership;
+
+  return {
+    success: true,
+    membership: updatedMembership,
+    previousFrequency,
+    newFrequency,
+  };
+}
+
+/**
+ * Get the amount for a given billing frequency and plan
+ */
+export function getAmountForFrequency(planId: string, frequency: BillingFrequency): number {
+  const plan = mockPlans.find((p) => p.id === planId);
+  if (!plan) return 0;
+
+  switch (frequency) {
+    case 'monthly':
+      return plan.pricing.monthly;
+    case 'biannual':
+      return plan.pricing.biannual;
+    case 'annual':
+      return plan.pricing.annual;
+    default:
+      return plan.pricing.monthly;
+  }
+}

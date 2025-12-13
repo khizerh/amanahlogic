@@ -13,20 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MemberWithMembership, PaymentType, PaymentMethod, Plan } from "@/lib/types";
+import { MemberWithMembership, PaymentType, Plan } from "@/lib/types";
 import { formatCurrency } from "@/lib/mock-data";
-import { recordPayment, previewPayment, type RecordPaymentResult } from "@/lib/mock-data/billing-service";
 import { toast } from "sonner";
 import {
   Banknote,
@@ -39,6 +31,26 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+// API response types
+interface RecordPaymentApiResponse {
+  success: boolean;
+  paymentId?: string;
+  error?: string;
+  membershipUpdated?: boolean;
+  newPaidMonths?: number;
+  newStatus?: string;
+  becameEligible?: boolean;
+  settledExisting?: boolean;
+  createdNew?: boolean;
+  warning?: string; // Amount mismatch warning
+}
+
+interface BillingConfigResponse {
+  eligibilityMonths: number;
+  lapseDays: number;
+  cancelMonths: number;
+}
+
 interface RecordPaymentSheetProps {
   member: MemberWithMembership | null;
   plan: Plan | null;
@@ -48,6 +60,9 @@ interface RecordPaymentSheetProps {
 }
 
 type ManualPaymentMethod = "cash" | "check" | "zelle";
+
+// Default eligibility months (used if config fetch fails)
+const DEFAULT_ELIGIBILITY_MONTHS = 60;
 
 export function RecordPaymentSheet({
   member,
@@ -66,6 +81,23 @@ export function RecordPaymentSheet({
   const [zelleTransactionId, setZelleTransactionId] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Billing config state
+  const [billingConfig, setBillingConfig] = useState<BillingConfigResponse | null>(null);
+  const eligibilityMonths = billingConfig?.eligibilityMonths ?? DEFAULT_ELIGIBILITY_MONTHS;
+
+  // Fetch billing config when sheet opens
+  useEffect(() => {
+    if (open && member?.organizationId) {
+      fetch(`/api/billing-config?organizationId=${member.organizationId}`)
+        .then((res) => res.json())
+        .then((data) => setBillingConfig(data))
+        .catch(() => {
+          // Use defaults on error
+          setBillingConfig({ eligibilityMonths: DEFAULT_ELIGIBILITY_MONTHS, lapseDays: 7, cancelMonths: 24 });
+        });
+    }
+  }, [open, member?.organizationId]);
 
   // Reset form when sheet opens/closes or member changes
   useEffect(() => {
@@ -143,22 +175,27 @@ export function RecordPaymentSheet({
     setIsSubmitting(true);
 
     try {
-      // Call the billing service to record the payment
-      const result: RecordPaymentResult = recordPayment({
-        memberId: member.id,
-        membershipId: membership.id,
-        planId: plan.id,
-        type: paymentType,
-        method: paymentMethod,
-        amount,
-        monthsCredited,
-        checkNumber: checkNumber || undefined,
-        zelleTransactionId: zelleTransactionId || undefined,
-        notes: notes || undefined,
-        recordedBy: "Admin User",
+      // Call the real API to record the payment
+      const response = await fetch("/api/payments/record", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationId: member.organizationId,
+          membershipId: membership.id,
+          memberId: member.id,
+          type: paymentType,
+          method: paymentMethod,
+          amount,
+          monthsCredited,
+          checkNumber: checkNumber || undefined,
+          zelleTransactionId: zelleTransactionId || undefined,
+          notes: notes || undefined,
+        }),
       });
 
-      if (!result.success) {
+      const result: RecordPaymentApiResponse = await response.json();
+
+      if (!response.ok || !result.success) {
         throw new Error(result.error || "Failed to record payment");
       }
 
@@ -173,23 +210,29 @@ export function RecordPaymentSheet({
       let successMessage = `${paymentTypeLabel} payment of ${formatCurrency(amount)} recorded`;
 
       // Add status change info if applicable
-      if (result.statusChanged && result.membership) {
-        if (result.newStatus === "active") {
-          successMessage += ` - Member is now ELIGIBLE! (60+ months)`;
-          toast.success(successMessage, {
-            duration: 5000,
-            description: `Congratulations! ${member.firstName} has reached 60 paid months and is now fully eligible for benefits.`,
-          });
-        } else {
-          successMessage += ` - Status updated to ${result.newStatus}`;
-          toast.success(successMessage);
-        }
+      if (result.becameEligible) {
+        successMessage += ` - Member is now ELIGIBLE! (${eligibilityMonths}+ months)`;
+        toast.success(successMessage, {
+          duration: 5000,
+          description: `Congratulations! ${member.firstName} has reached ${eligibilityMonths} paid months and is now fully eligible for benefits.`,
+        });
+      } else if (result.newStatus && result.membershipUpdated) {
+        successMessage += ` - Status updated to ${result.newStatus}`;
+        toast.success(successMessage);
       } else {
         // Show updated paid months
-        if (result.membership && paymentType !== "enrollment_fee") {
-          successMessage += ` (${result.membership.paidMonths}/60 months)`;
+        if (result.newPaidMonths !== undefined && paymentType !== "enrollment_fee") {
+          successMessage += ` (${result.newPaidMonths}/${eligibilityMonths} months)`;
         }
         toast.success(successMessage);
+      }
+
+      // Show warning if amount doesn't match expected
+      if (result.warning) {
+        toast.warning(result.warning, {
+          duration: 6000,
+          description: "The payment was recorded but the amount may not match standard pricing.",
+        });
       }
 
       onOpenChange(false);
@@ -456,14 +499,14 @@ export function RecordPaymentSheet({
                 <div className="flex items-center gap-3 text-sm">
                   <div className="flex items-center gap-1">
                     <span className="font-medium">{membership.paidMonths}</span>
-                    <span className="text-muted-foreground">/60</span>
+                    <span className="text-muted-foreground">/{eligibilityMonths}</span>
                   </div>
                   <ArrowRight className="h-4 w-4 text-blue-500" />
                   <div className="flex items-center gap-1">
                     <span className="font-bold text-blue-700">
                       {membership.paidMonths + monthsCredited}
                     </span>
-                    <span className="text-muted-foreground">/60</span>
+                    <span className="text-muted-foreground">/{eligibilityMonths}</span>
                   </div>
                   <span className="text-muted-foreground">
                     (+{monthsCredited} {monthsCredited === 1 ? "month" : "months"})
@@ -481,8 +524,8 @@ export function RecordPaymentSheet({
 
               {/* Will become eligible! */}
               {paymentType !== "enrollment_fee" &&
-                membership.paidMonths < 60 &&
-                membership.paidMonths + monthsCredited >= 60 && (
+                membership.paidMonths < eligibilityMonths &&
+                membership.paidMonths + monthsCredited >= eligibilityMonths && (
                   <div className="flex items-center gap-2 bg-green-100 text-green-800 rounded-md px-3 py-2">
                     <Award className="h-5 w-5" />
                     <span className="font-semibold">
@@ -499,7 +542,7 @@ export function RecordPaymentSheet({
                     <span>
                       Status will change: <Badge variant="withdrawn">Lapsed</Badge>
                       <ArrowRight className="h-3 w-3 inline mx-1" />
-                      {membership.paidMonths + monthsCredited >= 60 ? (
+                      {membership.paidMonths + monthsCredited >= eligibilityMonths ? (
                         <Badge variant="success">Active</Badge>
                       ) : (
                         <Badge variant="info">Waiting Period</Badge>

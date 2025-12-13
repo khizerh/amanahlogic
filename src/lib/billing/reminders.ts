@@ -2,14 +2,15 @@
  * Payment Reminder Logic
  *
  * Handles automated payment reminders based on organization's reminder schedule.
- * Default schedule: [3, 7, 14] days after due date
- * Max reminders: 3 (hardcoded for MVP)
+ * Uses configurable settings from organization_settings.billing_config.
+ * Defaults: schedule [3, 7, 14] days, max 3 reminders
  */
 
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
+import { loadBillingConfig } from "./config";
 
 /**
  * Calculate days between two YYYY-MM-DD date strings
@@ -31,8 +32,6 @@ function getTodayInOrgTimezone(timezone: string): string {
   return now.toLocaleDateString("en-CA", { timeZone: timezone });
 }
 
-const MAX_REMINDERS = 3;
-const DEFAULT_REMINDER_SCHEDULE = [3, 7, 14]; // Days after due date
 
 export interface ReminderProcessingResult {
   success: boolean;
@@ -68,11 +67,16 @@ interface OrganizationSettings {
 /**
  * Check if a payment is due for a reminder based on the schedule
  */
-function isReminderDue(payment: PaymentForReminder, schedule: number[], today: string): boolean {
+function isReminderDue(
+  payment: PaymentForReminder,
+  schedule: number[],
+  maxReminders: number,
+  today: string
+): boolean {
   const reminderCount = payment.reminder_count || 0;
 
   // Already at max reminders
-  if (reminderCount >= MAX_REMINDERS) {
+  if (reminderCount >= maxReminders) {
     return false;
   }
 
@@ -90,13 +94,24 @@ function isReminderDue(payment: PaymentForReminder, schedule: number[], today: s
     return false;
   }
 
-  // If this is not the first reminder, check time since last reminder
-  if (reminderCount > 0 && payment.reminder_sent_at) {
-    // Ensure at least 1 day between reminders
+  // DOUBLE-QUEUE GUARD: Check if reminder was sent recently (within same day)
+  // This prevents duplicate emails if cron runs multiple times or retries
+  if (payment.reminder_sent_at) {
     const reminderDate = payment.reminder_sent_at.split("T")[0];
     const daysSinceLastReminder = calculateDaysBetweenDates(reminderDate, today);
+
+    // Require at least 1 day between ANY reminders (even first → second)
     if (daysSinceLastReminder < 1) {
       return false;
+    }
+
+    // Extra check: For subsequent reminders, verify we're at the right schedule point
+    // e.g., if schedule is [3,7,14] and we're at reminderCount=1, we should be at day 7+
+    if (reminderCount > 0) {
+      const expectedDay = schedule[reminderCount];
+      if (expectedDay !== undefined && daysSinceDue < expectedDay) {
+        return false;
+      }
     }
   }
 
@@ -129,15 +144,12 @@ export async function processOrganizationReminders(
       throw new Error(`Failed to get organization: ${orgError?.message}`);
     }
 
-    const { data: settingsData } = await supabase
-      .from("organization_settings")
-      .select("send_invoice_reminders, reminder_schedule")
-      .eq("organization_id", organizationId)
-      .single();
+    // Load billing config for reminder settings
+    const billingConfig = await loadBillingConfig(organizationId, supabase);
 
     const settings: OrganizationSettings = {
-      send_invoice_reminders: settingsData?.send_invoice_reminders ?? true,
-      reminder_schedule: settingsData?.reminder_schedule ?? DEFAULT_REMINDER_SCHEDULE,
+      send_invoice_reminders: billingConfig.sendInvoiceReminders,
+      reminder_schedule: billingConfig.reminderSchedule,
       timezone: orgData.timezone || "America/Los_Angeles",
       country: orgData.country || "US",
     };
@@ -162,8 +174,11 @@ export async function processOrganizationReminders(
     const thresholdDateStr = threshold.toISOString().split("T")[0];
 
     // Query payments that might need reminders
-    // Handle NULL values: treat NULL as false for paused/review, NULL as 0 for count
-    const { data: payments, error: paymentsError } = await supabase
+    // NOTE: Multiple .or() calls overwrite each other in Supabase, so we:
+    // 1. Use simple filters for AND conditions
+    // 2. Handle NULL boolean fields in application code (null = false)
+    // 3. Handle NULL reminder_count as 0 in application code
+    const { data: rawPayments, error: paymentsError } = await supabase
       .from("payments")
       .select(
         `
@@ -185,10 +200,19 @@ export async function processOrganizationReminders(
       )
       .eq("organization_id", organizationId)
       .in("status", ["pending", "failed"])
-      .or("reminders_paused.is.null,reminders_paused.eq.false")
-      .or("requires_review.is.null,requires_review.eq.false")
-      .lte("due_date", thresholdDateStr)
-      .or(`reminder_count.is.null,reminder_count.lt.${MAX_REMINDERS}`);
+      .lte("due_date", thresholdDateStr);
+
+    // Apply filters that can't be done cleanly in Supabase query
+    // (multiple .or() calls overwrite each other, so we filter in JS)
+    const payments = (rawPayments || []).filter((payment) => {
+      // Skip if reminders are paused (null = not paused)
+      if (payment.reminders_paused === true) return false;
+      // Skip if requires review (null = doesn't require review)
+      if (payment.requires_review === true) return false;
+      // Skip if max reminders already sent (null = 0)
+      if ((payment.reminder_count || 0) >= billingConfig.maxReminders) return false;
+      return true;
+    });
 
     if (paymentsError) {
       throw new Error(`Failed to query payments: ${paymentsError.message}`);
@@ -208,7 +232,7 @@ export async function processOrganizationReminders(
     for (const payment of payments) {
       try {
         // Check if this payment is due for a reminder
-        if (!isReminderDue(payment, settings.reminder_schedule, today)) {
+        if (!isReminderDue(payment, settings.reminder_schedule, billingConfig.maxReminders, today)) {
           continue;
         }
 
@@ -235,7 +259,7 @@ export async function processOrganizationReminders(
         };
 
         // Mark for review if this was the last reminder
-        if (newReminderCount >= MAX_REMINDERS) {
+        if (newReminderCount >= billingConfig.maxReminders) {
           updateData.requires_review = true;
           result.paymentsMarkedForReview++;
         }
@@ -313,7 +337,7 @@ export async function sendPaymentReminder(
       return { success: false, error: "Can only send reminders for pending or failed payments" };
     }
 
-    // Get organization settings
+    // Get organization settings and billing config
     const { data: org } = await supabase
       .from("organizations")
       .select("timezone, country")
@@ -322,6 +346,9 @@ export async function sendPaymentReminder(
 
     const timezone = org?.timezone || "America/Los_Angeles";
     const today = getTodayInOrgTimezone(timezone);
+
+    // Load billing config for max reminders setting
+    const billingConfig = await loadBillingConfig(payment.organization_id, supabase);
 
     // Calculate values (using noon-anchored calculation)
     const daysOverdue = calculateDaysBetweenDates(payment.due_date, today);
@@ -335,7 +362,7 @@ export async function sendPaymentReminder(
       amount: payment.amount,
       dueDate: payment.due_date,
       daysOverdue: Math.max(daysOverdue, 0),
-      reminderCount: Math.min(newReminderCount, MAX_REMINDERS),
+      reminderCount: Math.min(newReminderCount, billingConfig.maxReminders),
     });
 
     // Update payment
@@ -344,7 +371,7 @@ export async function sendPaymentReminder(
       reminder_sent_at: new Date().toISOString(),
     };
 
-    if (newReminderCount >= MAX_REMINDERS) {
+    if (newReminderCount >= billingConfig.maxReminders) {
       updateData.requires_review = true;
     }
 

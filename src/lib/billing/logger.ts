@@ -26,14 +26,6 @@ class BillingLogger {
    * Core logging method that formats and outputs structured logs
    */
   private log(level: LogLevel, message: string, context?: LogContext) {
-    const timestamp = new Date().toISOString();
-    const logData = {
-      timestamp,
-      level,
-      message,
-      ...context,
-    };
-
     // In production, send to logging service (e.g., Sentry, LogDNA)
     // For now, use base logger with structured format
     switch (level) {

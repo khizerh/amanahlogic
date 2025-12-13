@@ -158,7 +158,7 @@ export interface Membership {
   enrollmentFeePaid: boolean;
 
   // Dates
-  joinDate: string;
+  joinDate: string | null; // Set when agreement is signed (official join date)
   lastPaymentDate: string | null;
   nextPaymentDue: string | null;
   eligibleDate: string | null; // Date they became/will become eligible
@@ -182,7 +182,21 @@ export interface Membership {
 // -----------------------------------------------------------------------------
 // Payment
 // -----------------------------------------------------------------------------
-
+/**
+ * Payment record representing a dues invoice/payment.
+ *
+ * ## Expected DB Schema (snake_case columns):
+ * - id, organization_id, membership_id, member_id
+ * - type, method, status
+ * - amount, stripe_fee, platform_fee, total_charged, net_amount
+ * - months_credited
+ * - invoice_number, due_date, period_start, period_end, period_label
+ * - stripe_payment_intent_id, stripe_charge_id, stripe_invoice_id
+ * - check_number, zelle_transaction_id
+ * - notes, recorded_by
+ * - reminder_count, reminder_sent_at, reminders_paused, requires_review
+ * - created_at, paid_at, refunded_at, updated_at
+ */
 export interface Payment {
   id: string;
   organizationId: string;
@@ -204,6 +218,13 @@ export interface Payment {
   // Credits
   monthsCredited: number;  // How many months this payment credits
 
+  // Invoice metadata (for statements/reminders)
+  invoiceNumber?: string | null;      // e.g., "INV-2025-0001"
+  dueDate?: string | null;            // When payment is due (YYYY-MM-DD)
+  periodStart?: string | null;        // Start of billing period (YYYY-MM-DD)
+  periodEnd?: string | null;          // End of billing period (YYYY-MM-DD)
+  periodLabel?: string | null;        // e.g., "January 2025" or "Q1 2025"
+
   // Stripe
   stripePaymentIntentId: string | null;
 
@@ -212,6 +233,12 @@ export interface Payment {
   zelleTransactionId: string | null; // For Zelle payments
   notes: string | null;
   recordedBy: string | null; // Admin who recorded manual payment
+
+  // Reminder tracking
+  reminderCount?: number;             // Number of reminders sent (default: 0)
+  reminderSentAt?: string | null;     // When last reminder was sent
+  remindersPaused?: boolean;          // Admin paused reminders for this payment
+  requiresReview?: boolean;           // Flagged for admin review (max reminders hit)
 
   // Dates
   createdAt: string;
@@ -440,3 +467,51 @@ export interface AgingBucket {
   count: number;
   totalAmount: number;
 }
+
+// -----------------------------------------------------------------------------
+// Organization Settings (Billing Configuration)
+// -----------------------------------------------------------------------------
+
+export interface BillingConfig {
+  // Lapse/Cancel windows
+  lapseDays: number; // Days overdue before lapse (default: 7)
+  cancelMonths: number; // Months unpaid before cancel (default: 24)
+
+  // Reminder schedule
+  reminderSchedule: number[]; // Days after due date to send reminders (default: [3, 7, 14])
+  maxReminders: number; // Max reminders before flagging for review (default: 3)
+  sendInvoiceReminders: boolean; // Whether to send automated reminders
+
+  // Eligibility
+  eligibilityMonths: number; // Months required for eligibility (default: 60)
+}
+
+export interface OrganizationSettings {
+  id: string;
+  organizationId: string;
+
+  // Billing configuration
+  billing: BillingConfig;
+
+  // Email settings
+  sendWelcomeEmail: boolean;
+  sendReceiptEmail: boolean;
+  sendEligibilityEmail: boolean;
+
+  // Agreement settings
+  requireAgreementSignature: boolean;
+  agreementTemplateVersion: string;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Default billing configuration
+export const DEFAULT_BILLING_CONFIG: BillingConfig = {
+  lapseDays: 7,
+  cancelMonths: 24,
+  reminderSchedule: [3, 7, 14],
+  maxReminders: 3,
+  sendInvoiceReminders: true,
+  eligibilityMonths: 60,
+};

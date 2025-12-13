@@ -159,11 +159,11 @@ export class PaymentsService {
     const { data, error } = await supabase
       .from("payments")
       .select("*")
-      .eq("organizationId", organizationId)
-      .order("createdAt", { ascending: false });
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return transformPayments(data || []);
   }
 
   /**
@@ -177,25 +177,25 @@ export class PaymentsService {
       .select(
         `
         *,
-        member:members(id, firstName, lastName, email),
+        member:members(id, first_name, last_name, email),
         membership:memberships(
           id,
           status,
-          paidMonths,
-          billingFrequency,
+          paid_months,
+          billing_frequency,
           plan:plans(id, name, type)
         )
       `
       )
-      .eq("organizationId", organizationId)
-      .order("createdAt", { ascending: false });
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error loading payments:", error);
       throw error;
     }
 
-    return (data || []) as unknown as PaymentWithDetails[];
+    return transformPaymentsWithDetails(data || []);
   }
 
   /**
@@ -215,7 +215,7 @@ export class PaymentsService {
       throw error;
     }
 
-    return data;
+    return transformPayment(data);
   }
 
   /**
@@ -230,7 +230,7 @@ export class PaymentsService {
     const { data, error } = await client
       .from("payments")
       .select("*")
-      .eq("stripePaymentIntentId", stripePaymentIntentId)
+      .eq("stripe_payment_intent_id", stripePaymentIntentId)
       .single();
 
     if (error) {
@@ -240,7 +240,7 @@ export class PaymentsService {
       throw error;
     }
 
-    return { success: true, data };
+    return { success: true, data: transformPayment(data) };
   }
 
   /**
@@ -255,12 +255,12 @@ export class PaymentsService {
     const { data, error } = await supabase
       .from("payments")
       .select("*")
-      .eq("membershipId", membershipId)
-      .eq("organizationId", organizationId)
-      .order("createdAt", { ascending: false });
+      .eq("membership_id", membershipId)
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return transformPayments(data || []);
   }
 
   /**
@@ -275,12 +275,12 @@ export class PaymentsService {
     const { data, error } = await supabase
       .from("payments")
       .select("*")
-      .eq("memberId", memberId)
-      .eq("organizationId", organizationId)
-      .order("createdAt", { ascending: false });
+      .eq("member_id", memberId)
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return transformPayments(data || []);
   }
 
   /**
@@ -297,22 +297,22 @@ export class PaymentsService {
       .select(
         `
         *,
-        member:members(id, firstName, lastName, email),
+        member:members(id, first_name, last_name, email),
         membership:memberships(
           id,
           status,
-          paidMonths,
-          billingFrequency,
+          paid_months,
+          billing_frequency,
           plan:plans(id, name, type)
         )
       `
       )
-      .eq("memberId", memberId)
-      .eq("organizationId", organizationId)
-      .order("createdAt", { ascending: false });
+      .eq("member_id", memberId)
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return (data || []) as unknown as PaymentWithDetails[];
+    return transformPaymentsWithDetails(data || []);
   }
 
   /**
@@ -327,12 +327,12 @@ export class PaymentsService {
     const { data, error } = await supabase
       .from("payments")
       .select("*")
-      .eq("organizationId", organizationId)
+      .eq("organization_id", organizationId)
       .eq("status", status)
-      .order("createdAt", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return transformPayments(data || []);
   }
 
   /**
@@ -347,31 +347,31 @@ export class PaymentsService {
     const { data, error } = await client
       .from("payments")
       .insert({
-        organizationId: input.organizationId,
-        membershipId: input.membershipId,
-        memberId: input.memberId,
+        organization_id: input.organizationId,
+        membership_id: input.membershipId,
+        member_id: input.memberId,
         type: input.type,
         method: input.method,
         status: input.status || "pending",
         amount: input.amount,
-        stripeFee: input.stripeFee || 0,
-        platformFee: input.platformFee || 0,
-        totalCharged: input.totalCharged,
-        netAmount: input.netAmount,
-        monthsCredited: input.monthsCredited,
-        stripePaymentIntentId: input.stripePaymentIntentId || null,
-        stripeChargeId: input.stripeChargeId || null,
-        stripeInvoiceId: input.stripeInvoiceId || null,
+        stripe_fee: input.stripeFee || 0,
+        platform_fee: input.platformFee || 0,
+        total_charged: input.totalCharged,
+        net_amount: input.netAmount,
+        months_credited: input.monthsCredited,
+        stripe_payment_intent_id: input.stripePaymentIntentId || null,
+        stripe_charge_id: input.stripeChargeId || null,
+        stripe_invoice_id: input.stripeInvoiceId || null,
         notes: input.notes || null,
-        recordedBy: input.recordedBy || null,
-        paidAt: input.paidAt || null,
-        createdAt: input.createdAt || new Date().toISOString(),
+        recorded_by: input.recordedBy || null,
+        paid_at: input.paidAt || null,
+        created_at: input.createdAt || new Date().toISOString(),
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data as Payment;
+    return transformPayment(data);
   }
 
   /**
@@ -381,18 +381,36 @@ export class PaymentsService {
     const supabase = await createClient();
     const { id, ...updates } = input;
 
+    // Transform camelCase input to snake_case for DB
+    const dbUpdates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.organizationId !== undefined) dbUpdates.organization_id = updates.organizationId;
+    if (updates.membershipId !== undefined) dbUpdates.membership_id = updates.membershipId;
+    if (updates.memberId !== undefined) dbUpdates.member_id = updates.memberId;
+    if (updates.type !== undefined) dbUpdates.type = updates.type;
+    if (updates.method !== undefined) dbUpdates.method = updates.method;
+    if (updates.status !== undefined) dbUpdates.status = updates.status;
+    if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+    if (updates.stripeFee !== undefined) dbUpdates.stripe_fee = updates.stripeFee;
+    if (updates.platformFee !== undefined) dbUpdates.platform_fee = updates.platformFee;
+    if (updates.totalCharged !== undefined) dbUpdates.total_charged = updates.totalCharged;
+    if (updates.netAmount !== undefined) dbUpdates.net_amount = updates.netAmount;
+    if (updates.monthsCredited !== undefined) dbUpdates.months_credited = updates.monthsCredited;
+    if (updates.stripePaymentIntentId !== undefined) dbUpdates.stripe_payment_intent_id = updates.stripePaymentIntentId;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.recordedBy !== undefined) dbUpdates.recorded_by = updates.recordedBy;
+    if (updates.paidAt !== undefined) dbUpdates.paid_at = updates.paidAt;
+
     const { data, error } = await supabase
       .from("payments")
-      .update({
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      })
+      .update(dbUpdates)
       .eq("id", id)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Payment;
+    return transformPayment(data);
   }
 
   /**
@@ -408,15 +426,15 @@ export class PaymentsService {
       .from("payments")
       .update({
         status: "completed",
-        paidAt: paidAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        paid_at: paidAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq("id", paymentId)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Payment;
+    return transformPayment(data);
   }
 
   /**
@@ -429,14 +447,14 @@ export class PaymentsService {
       .from("payments")
       .update({
         status: "failed",
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq("id", paymentId)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Payment;
+    return transformPayment(data);
   }
 
   /**
@@ -449,15 +467,15 @@ export class PaymentsService {
       .from("payments")
       .update({
         status: "refunded",
-        refundedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        refunded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq("id", paymentId)
       .select()
       .single();
 
     if (error) throw error;
-    return data as Payment;
+    return transformPayment(data);
   }
 
   /**
@@ -480,48 +498,51 @@ export class PaymentsService {
       .select(
         `
         id,
-        memberId,
+        member_id,
         status,
-        paidMonths,
-        nextPaymentDue,
-        member:members(id, firstName, lastName, email),
+        paid_months,
+        next_payment_due,
+        member:members(id, first_name, last_name, email),
         plan:plans(id, name)
       `
       )
-      .eq("organizationId", organizationId)
+      .eq("organization_id", organizationId)
       .in("status", ["waiting_period", "active", "lapsed"])
-      .not("nextPaymentDue", "is", null)
-      .lt("nextPaymentDue", threshold);
+      .not("next_payment_due", "is", null)
+      .lt("next_payment_due", threshold);
 
     if (error) throw error;
 
     // Transform to overdue payment info
     return (data || []).map((membership: any) => {
-      const dueDate = new Date(membership.nextPaymentDue);
+      const dueDate = new Date(membership.next_payment_due);
       const now = new Date();
       const daysPastDue = Math.floor(
         (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
+      const member = Array.isArray(membership.member) ? membership.member[0] : membership.member;
+      const plan = Array.isArray(membership.plan) ? membership.plan[0] : membership.plan;
+
       return {
         id: `overdue_${membership.id}`,
         membershipId: membership.id,
-        memberId: membership.memberId,
+        memberId: membership.member_id,
         status: "pending" as PaymentStatus,
         amount: 0, // Would calculate from plan pricing
-        dueDate: membership.nextPaymentDue,
+        dueDate: membership.next_payment_due,
         daysPastDue,
-        member: membership.member
+        member: member
           ? {
-              firstName: membership.member.firstName,
-              lastName: membership.member.lastName,
-              email: membership.member.email,
+              firstName: member.first_name,
+              lastName: member.last_name,
+              email: member.email,
             }
           : null,
         membership: {
           status: membership.status,
-          paidMonths: membership.paidMonths,
-          plan: membership.plan ? { name: membership.plan.name } : null,
+          paidMonths: membership.paid_months,
+          plan: plan ? { name: plan.name } : null,
         },
       };
     });
@@ -538,13 +559,13 @@ export class PaymentsService {
 
     let query = supabase
       .from("payments")
-      .select("amount, netAmount, stripeFee, platformFee, status, monthsCredited")
-      .eq("organizationId", organizationId);
+      .select("amount, net_amount, stripe_fee, platform_fee, status, months_credited")
+      .eq("organization_id", organizationId);
 
     if (dateRange) {
       query = query
-        .gte("createdAt", dateRange.start)
-        .lte("createdAt", dateRange.end);
+        .gte("created_at", dateRange.start)
+        .lte("created_at", dateRange.end);
     }
 
     const { data: payments, error } = await query;
@@ -566,8 +587,8 @@ export class PaymentsService {
     payments?.forEach((payment) => {
       if (payment.status === "completed") {
         stats.totalCollected += payment.amount;
-        stats.totalNet += payment.netAmount;
-        stats.totalFees += (payment.stripeFee || 0) + (payment.platformFee || 0);
+        stats.totalNet += payment.net_amount;
+        stats.totalFees += (payment.stripe_fee || 0) + (payment.platform_fee || 0);
         stats.succeededCount++;
       } else if (payment.status === "pending") {
         stats.pendingCount++;
@@ -600,22 +621,22 @@ export class PaymentsService {
       .select(
         `
         *,
-        member:members(id, firstName, lastName, email),
+        member:members(id, first_name, last_name, email),
         membership:memberships(
           id,
           status,
-          paidMonths,
-          billingFrequency,
+          paid_months,
+          billing_frequency,
           plan:plans(id, name, type)
         )
       `
       )
-      .eq("organizationId", organizationId)
-      .order("createdAt", { ascending: false })
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
       .limit(limit);
 
     if (error) throw error;
-    return (data || []) as unknown as PaymentWithDetails[];
+    return transformPaymentsWithDetails(data || []);
   }
 
   /**
@@ -630,8 +651,8 @@ export class PaymentsService {
     const { count, error } = await supabase
       .from("payments")
       .select("*", { count: "exact", head: true })
-      .eq("membershipId", membershipId)
-      .eq("organizationId", organizationId)
+      .eq("membership_id", membershipId)
+      .eq("organization_id", organizationId)
       .eq("status", "completed");
 
     if (error) throw error;
@@ -651,4 +672,131 @@ export class PaymentsService {
 
     if (error) throw error;
   }
+}
+
+// =============================================================================
+// Transform Functions (snake_case DB → camelCase TypeScript)
+// =============================================================================
+
+/**
+ * Transform a single payment from DB format to TypeScript format
+ */
+function transformPayment(dbPayment: any): Payment {
+  return {
+    id: dbPayment.id,
+    organizationId: dbPayment.organization_id,
+    membershipId: dbPayment.membership_id,
+    memberId: dbPayment.member_id,
+    type: dbPayment.type,
+    method: dbPayment.method,
+    status: dbPayment.status,
+    amount: dbPayment.amount,
+    stripeFee: dbPayment.stripe_fee,
+    platformFee: dbPayment.platform_fee,
+    totalCharged: dbPayment.total_charged,
+    netAmount: dbPayment.net_amount,
+    monthsCredited: dbPayment.months_credited,
+    // Invoice metadata
+    invoiceNumber: dbPayment.invoice_number,
+    dueDate: dbPayment.due_date,
+    periodStart: dbPayment.period_start,
+    periodEnd: dbPayment.period_end,
+    periodLabel: dbPayment.period_label,
+    // Stripe
+    stripePaymentIntentId: dbPayment.stripe_payment_intent_id,
+    // Manual payment info
+    checkNumber: dbPayment.check_number,
+    zelleTransactionId: dbPayment.zelle_transaction_id,
+    notes: dbPayment.notes,
+    recordedBy: dbPayment.recorded_by,
+    // Reminder tracking
+    reminderCount: dbPayment.reminder_count,
+    reminderSentAt: dbPayment.reminder_sent_at,
+    remindersPaused: dbPayment.reminders_paused,
+    requiresReview: dbPayment.requires_review,
+    // Dates
+    createdAt: dbPayment.created_at,
+    paidAt: dbPayment.paid_at,
+    refundedAt: dbPayment.refunded_at,
+  };
+}
+
+/**
+ * Transform multiple payments from DB format to TypeScript format
+ */
+function transformPayments(dbPayments: any[]): Payment[] {
+  return dbPayments.map(transformPayment);
+}
+
+/**
+ * Transform a payment with details from DB format to TypeScript format
+ */
+function transformPaymentsWithDetails(dbPayments: any[]): PaymentWithDetails[] {
+  return dbPayments.map((dbPayment) => {
+    const member = Array.isArray(dbPayment.member) ? dbPayment.member[0] : dbPayment.member;
+    const membership = Array.isArray(dbPayment.membership) ? dbPayment.membership[0] : dbPayment.membership;
+    const plan = membership?.plan;
+    const planData = Array.isArray(plan) ? plan[0] : plan;
+
+    return {
+      id: dbPayment.id,
+      organizationId: dbPayment.organization_id,
+      membershipId: dbPayment.membership_id,
+      memberId: dbPayment.member_id,
+      type: dbPayment.type,
+      method: dbPayment.method,
+      status: dbPayment.status,
+      amount: dbPayment.amount,
+      stripeFee: dbPayment.stripe_fee,
+      platformFee: dbPayment.platform_fee,
+      totalCharged: dbPayment.total_charged,
+      netAmount: dbPayment.net_amount,
+      monthsCredited: dbPayment.months_credited,
+      // Invoice metadata
+      invoiceNumber: dbPayment.invoice_number,
+      dueDate: dbPayment.due_date,
+      periodStart: dbPayment.period_start,
+      periodEnd: dbPayment.period_end,
+      periodLabel: dbPayment.period_label,
+      // Stripe
+      stripePaymentIntentId: dbPayment.stripe_payment_intent_id,
+      // Manual payment info
+      checkNumber: dbPayment.check_number,
+      zelleTransactionId: dbPayment.zelle_transaction_id,
+      notes: dbPayment.notes,
+      recordedBy: dbPayment.recorded_by,
+      // Reminder tracking
+      reminderCount: dbPayment.reminder_count,
+      reminderSentAt: dbPayment.reminder_sent_at,
+      remindersPaused: dbPayment.reminders_paused,
+      requiresReview: dbPayment.requires_review,
+      // Dates
+      createdAt: dbPayment.created_at,
+      paidAt: dbPayment.paid_at,
+      refundedAt: dbPayment.refunded_at,
+      member: member
+        ? {
+            id: member.id,
+            firstName: member.first_name,
+            lastName: member.last_name,
+            email: member.email,
+          }
+        : null,
+      membership: membership
+        ? {
+            id: membership.id,
+            status: membership.status,
+            paidMonths: membership.paid_months,
+            billingFrequency: membership.billing_frequency,
+            plan: planData
+              ? {
+                  id: planData.id,
+                  name: planData.name,
+                  type: planData.type,
+                }
+              : null,
+          }
+        : null,
+    };
+  });
 }

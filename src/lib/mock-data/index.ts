@@ -295,8 +295,15 @@ function generateMemberships(members: Member[]): Membership[] {
         break;
     }
 
-    const joinDate = randomDate(new Date('2019-01-01'), new Date('2024-06-01'));
+    // joinDate = agreementSignedAt (you officially join when you sign)
+    // For pending/awaiting_signature, joinDate is null
+    const joinDate = agreementSignedAt;
     const billingDay = randomInt(1, 28);
+
+    // createdAt is when admin added them to system (before or same as signing)
+    const createdAt = agreementSignedAt
+      ? randomDate(new Date(new Date(agreementSignedAt).getTime() - 30 * 24 * 60 * 60 * 1000), new Date(agreementSignedAt))
+      : randomDate(new Date('2024-01-01'), new Date('2024-11-01'));
 
     // Auto-pay - about 60% of active/waiting members have it set up
     const autoPayEnabled = (status === 'active' || status === 'waiting_period') && rng.next() > 0.4;
@@ -352,7 +359,7 @@ function generateMemberships(members: Member[]): Membership[] {
       stripeCustomerId: autoPayEnabled ? seededId('cus') : null,
       subscriptionStatus,
       paymentMethod,
-      createdAt: joinDate,
+      createdAt,
       updatedAt: randomDate(new Date('2024-06-01'), new Date('2024-12-01')),
     };
   });
@@ -390,8 +397,8 @@ function generatePayments(memberships: Membership[], members: Member[]): Payment
         zelleTransactionId: null,
         notes: enrollIsManual ? 'Enrollment fee - check payment' : null,
         recordedBy: enrollIsManual ? 'Admin User' : null,
-        createdAt: membership.joinDate,
-        paidAt: membership.joinDate,
+        createdAt: membership.joinDate || membership.createdAt,
+        paidAt: membership.joinDate || membership.createdAt,
         refundedAt: null,
       });
     }

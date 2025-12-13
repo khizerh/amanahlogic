@@ -206,7 +206,7 @@ export function RecordPaymentDialog({ open, onOpenChange }: RecordPaymentDialogP
               </div>
               {selectedMemberId && paymentType === "dues" && (
                 <p className="text-xs text-muted-foreground">
-                  Auto-filled based on member's plan
+                  Auto-filled based on member&apos;s plan
                 </p>
               )}
             </div>

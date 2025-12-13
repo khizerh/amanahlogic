@@ -12,6 +12,18 @@ Web application for managing burial benefits membership for Muslim communities. 
 
 ---
 
+## Implementation Reality Notes (current codebase)
+
+- Billing engine creates a **pending payment** as soon as `next_payment_due <= today`, immediately increments `paid_months`, advances `next_payment_due`, and flips to `active` at 60 months even though the payment is not settled yet. `last_payment_date`/`eligible_date` are not set on settlement paths yet.
+- Lapse/cancel rules are hardcoded: **lapsed at 7 days overdue**, **cancelled when lapsed and `last_payment_date` is ≥24 months ago _or null_** (null triggers immediate cancel); no org-level grace settings.
+- Enrollment fee / agreement signing are **not enforced gates** in billing; members can accrue months without paying the fee or signing.
+- Invoice metadata (`invoice_number`, `due_date`, period start/end) is generated but **not stored** on payment rows; reminders reference these fields and currently only log instead of sending.
+- Reminder schedule defaults to **[3, 7, 14] days, max 3 reminders**, with filter logic that needs tightening to respect paused/review flags.
+- Stripe subscription handling is stubbed (skips active subs), and Stripe webhooks/auto-pay/checkout/email receipts live in `_disabled/` and are not wired.
+- Data/model naming is mixed (snake_case in billing engine, camelCase in database service/UI types); alignment pass is still needed.
+
+---
+
 ## Plan Types & Pricing
 
 | Plan    | Who's Covered              | Monthly | Bi-Annual | Annual |

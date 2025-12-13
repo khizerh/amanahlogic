@@ -4,16 +4,34 @@
  * Core billing engine that processes recurring memberships and generates payments.
  * Designed to be called by cron jobs or manually triggered by admins.
  *
- * Key adaptations for burial benefits:
- * - Process memberships where next_payment_due <= today
- * - Skip Stripe-managed subscriptions (they handle their own billing)
- * - For manual billing: create pending payment record
- * - Track paidMonths: monthly = +1, biannual = +6, annual = +12
- * - Status transitions:
- *   - If paidMonths >= 60 and status is waiting_period → change to active
- *   - If payment overdue > 7 days and status is active/waiting_period → change to lapsed
- *   - If unpaid for 24 months → change to cancelled
- * - Use organization timezone for date calculations
+ * ## ONBOARDING GATES (Required before billing starts)
+ * Members must complete these before they are billed:
+ * 1. enrollment_fee_paid = true (enrollment fee collected)
+ * 2. agreement_signed_at IS NOT NULL (agreement signed)
+ *
+ * Members who haven't completed onboarding:
+ * - Are NOT included in billing runs
+ * - Do NOT accrue dues or months
+ * - Must complete onboarding via member portal or admin action
+ *
+ * ## Billing Flow
+ * 1. Billing engine creates PENDING payment (invoice) with due_date
+ * 2. Payment is SETTLED via:
+ *    - Stripe webhook (payment_intent.succeeded)
+ *    - Manual recording (cash/check/zelle via admin UI)
+ * 3. Settlement credits months and updates status via settlePayment()
+ *
+ * ## Status Transitions (configurable via org billing_config)
+ * - waiting_period → active: when paid_months >= eligibilityMonths (default: 60)
+ * - active/waiting_period → lapsed: when payment overdue > lapseDays (default: 7)
+ * - lapsed → cancelled: when next_payment_due > cancelMonths ago (default: 24)
+ * - lapsed → active/waiting_period: when payment is settled (reinstated)
+ *
+ * ## Key Invariants
+ * - paid_months is ONLY incremented in settlePayment(), not at invoice creation
+ * - next_payment_due is ONLY advanced in settlePayment(), not at invoice creation
+ * - last_payment_date is set when payment is settled
+ * - eligible_date is set when member first becomes active
  */
 
 import "server-only";
@@ -21,18 +39,43 @@ import { createClient } from "@/lib/supabase/server";
 import { logger } from "./logger";
 import {
   generateInvoiceNumber,
-  calculateNextBillingDate,
   formatPeriodLabel,
   getTodayInOrgTimezone,
   parseDateInOrgTimezone,
 } from "./invoice-generator";
+import { loadBillingConfig } from "./config";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BillingFrequency,
   MembershipStatus,
   PaymentMethod,
   PaymentType,
+  BillingConfig,
 } from "@/lib/types";
+
+// -----------------------------------------------------------------------------
+// Date Helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Add N months to a date while preserving "anniversary day" semantics.
+ * If the current date is the last day of its month, the result is the last day
+ * of the target month. Otherwise, clamp to the last day if the day doesn't exist.
+ */
+function addMonthsPreserveDay(date: Date, monthsToAdd: number): Date {
+  const currentDay = date.getDate();
+  const lastDayCurrentMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const isOnLastDay = currentDay === lastDayCurrentMonth;
+
+  const totalMonths = date.getMonth() + monthsToAdd;
+  const targetYear = date.getFullYear() + Math.floor(totalMonths / 12);
+  const targetMonth = totalMonths % 12;
+
+  const lastDayTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const targetDay = isOnLastDay ? lastDayTargetMonth : Math.min(currentDay, lastDayTargetMonth);
+
+  return new Date(targetYear, targetMonth, targetDay);
+}
 
 // -----------------------------------------------------------------------------
 // Types
@@ -336,6 +379,9 @@ export async function processRecurringBilling(
 
   try {
     // Step 4: Query memberships due for billing
+    // Only bill members who have completed onboarding:
+    // - enrollment_fee_paid = true
+    // - agreement_signed_at IS NOT NULL
     const { data: memberships, error: membershipsError } = await supabase
       .from("memberships")
       .select(
@@ -374,6 +420,8 @@ export async function processRecurringBilling(
       )
       .eq("organization_id", organization_id)
       .in("status", ["waiting_period", "active"])
+      .eq("enrollment_fee_paid", true)
+      .not("agreement_signed_at", "is", null)
       .lte("next_payment_due", today)
       .not("next_payment_due", "is", null);
 
@@ -505,7 +553,24 @@ export async function processRecurringBilling(
           // Format period label
           const periodLabel = formatPeriodLabel(periodStart, membership.billing_frequency);
 
-          // Create payment record
+          // Calculate period end based on billing frequency
+          const periodEnd = new Date(periodStart);
+          switch (membership.billing_frequency) {
+            case "monthly":
+              periodEnd.setMonth(periodEnd.getMonth() + 1);
+              break;
+            case "biannual":
+              periodEnd.setMonth(periodEnd.getMonth() + 6);
+              break;
+            case "annual":
+              periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+              break;
+          }
+          periodEnd.setDate(periodEnd.getDate() - 1); // End is day before next period starts
+          const periodStartStr = periodStart.toISOString().split("T")[0];
+          const periodEndStr = periodEnd.toISOString().split("T")[0];
+
+          // Create payment record with full invoice metadata
           const { data: payment, error: paymentError } = await supabase
             .from("payments")
             .insert({
@@ -521,6 +586,13 @@ export async function processRecurringBilling(
               total_charged: amount,
               net_amount: amount,
               months_credited: monthsCredited,
+              // Invoice metadata (required for reminders/statements)
+              invoice_number: invoiceNumber,
+              due_date: nextPaymentDueStr,
+              period_start: periodStartStr,
+              period_end: periodEndStr,
+              period_label: periodLabel,
+              // Other fields
               stripe_payment_intent_id: null,
               notes: `${periodLabel} dues`,
               recorded_by: null,
@@ -546,45 +618,9 @@ export async function processRecurringBilling(
           paymentsCreated++;
           paymentIds.push(payment.id);
 
-          // Step 7: Update membership
-          const newPaidMonths = membership.paid_months + monthsCredited;
-          const nextBillingDate = calculateNextBillingDate(
-            periodStart,
-            membership.billing_frequency,
-            orgTimezone
-          );
-          const nextBillingDateStr = nextBillingDate.toISOString().split("T")[0];
-
-          // Determine new status
-          let newStatus: MembershipStatus = membership.status;
-          if (membership.status === "waiting_period" && newPaidMonths >= 60) {
-            newStatus = "active";
-            logger.info("membership_status_transition", {
-              membership_id: membership.id,
-              old_status: "waiting_period",
-              new_status: "active",
-              paid_months: newPaidMonths,
-              reason: "reached_60_paid_months",
-            });
-            statusUpdates++;
-          }
-
-          const { error: updateError } = await supabase
-            .from("memberships")
-            .update({
-              paid_months: newPaidMonths,
-              next_payment_due: nextBillingDateStr,
-              status: newStatus,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", membership.id);
-
-          if (updateError) {
-            logger.warn("failed_to_update_membership", {
-              membership_id: membership.id,
-              error: updateError.message,
-            });
-          }
+          // NOTE: We do NOT update membership here (paid_months, status, etc.)
+          // Those updates happen when payment is SETTLED via settlePayment()
+          // This prevents crediting months before money is actually collected.
         } catch (error: unknown) {
           const errorMessage =
             error instanceof Error
@@ -632,10 +668,14 @@ export async function processRecurringBilling(
 
     // Step 8: Process status transitions for lapsed/cancelled memberships
     if (!options.dryRun) {
+      // Load billing config for configurable lapse/cancel windows
+      const billingConfig = await loadBillingConfig(organization_id, supabase);
+
       const statusTransitionResult = await processStatusTransitions(
         organization_id,
         today,
         orgTimezone,
+        billingConfig,
         supabase
       );
       statusUpdates += statusTransitionResult.updates;
@@ -701,34 +741,39 @@ export async function processRecurringBilling(
 /**
  * Process status transitions for lapsed/cancelled memberships
  *
- * - If payment overdue > 7 days and status is active/waiting_period → change to lapsed
- * - If unpaid for 24 months → change to cancelled
+ * - If payment overdue > lapseDays and status is active/waiting_period → change to lapsed
+ * - If unpaid for cancelMonths → change to cancelled
+ *
+ * Uses organization's billing config for thresholds (defaults: 7 days lapse, 24 months cancel)
  */
 async function processStatusTransitions(
   organization_id: string,
   today: string,
   orgTimezone: string,
+  billingConfig: BillingConfig,
   supabase: SupabaseClient
 ): Promise<{ updates: number }> {
   let updates = 0;
 
-  // Calculate cutoff dates
+  const { lapseDays, cancelMonths } = billingConfig;
+
+  // Calculate cutoff dates using configurable values
   const todayDate = parseDateInOrgTimezone(today, orgTimezone);
-  const sevenDaysAgo = new Date(todayDate);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+  const lapseCutoff = new Date(todayDate);
+  lapseCutoff.setDate(lapseCutoff.getDate() - lapseDays);
+  const lapseCutoffStr = lapseCutoff.toISOString().split("T")[0];
 
-  const twentyFourMonthsAgo = new Date(todayDate);
-  twentyFourMonthsAgo.setMonth(twentyFourMonthsAgo.getMonth() - 24);
-  const twentyFourMonthsAgoStr = twentyFourMonthsAgo.toISOString().split("T")[0];
+  const cancelCutoff = new Date(todayDate);
+  cancelCutoff.setMonth(cancelCutoff.getMonth() - cancelMonths);
+  const cancelCutoffStr = cancelCutoff.toISOString().split("T")[0];
 
-  // Find memberships to lapse (payment overdue > 7 days)
+  // Find memberships to lapse (payment overdue > lapseDays)
   const { data: toLapse, error: toLapseError } = await supabase
     .from("memberships")
     .select("id, member_id, next_payment_due")
     .eq("organization_id", organization_id)
     .in("status", ["active", "waiting_period"])
-    .lte("next_payment_due", sevenDaysAgoStr);
+    .lte("next_payment_due", lapseCutoffStr);
 
   if (!toLapseError && toLapse && toLapse.length > 0) {
     for (const membership of toLapse) {
@@ -745,7 +790,7 @@ async function processStatusTransitions(
           membership_id: membership.id,
           old_status: "active/waiting_period",
           new_status: "lapsed",
-          reason: "payment_overdue_7_days",
+          reason: `payment_overdue_${lapseDays}_days`,
           next_payment_due: membership.next_payment_due,
         });
         updates++;
@@ -758,13 +803,17 @@ async function processStatusTransitions(
     }
   }
 
-  // Find memberships to cancel (unpaid for 24 months)
+  // Find memberships to cancel (unpaid for cancelMonths)
+  // Use next_payment_due instead of last_payment_date because:
+  // - next_payment_due is frozen when member stops paying (only settlePayment advances it)
+  // - A member lapsed N months ago will have next_payment_due from N months ago
+  // - This avoids the bug where null last_payment_date = instant cancel
   const { data: toCancel, error: toCancelError } = await supabase
     .from("memberships")
-    .select("id, member_id, last_payment_date")
+    .select("id, member_id, next_payment_due, last_payment_date")
     .eq("organization_id", organization_id)
     .in("status", ["lapsed"])
-    .or(`last_payment_date.lte.${twentyFourMonthsAgoStr},last_payment_date.is.null`);
+    .lte("next_payment_due", cancelCutoffStr);
 
   if (!toCancelError && toCancel && toCancel.length > 0) {
     for (const membership of toCancel) {
@@ -782,7 +831,8 @@ async function processStatusTransitions(
           membership_id: membership.id,
           old_status: "lapsed",
           new_status: "cancelled",
-          reason: "unpaid_24_months",
+          reason: `unpaid_${cancelMonths}_months`,
+          next_payment_due: membership.next_payment_due,
           last_payment_date: membership.last_payment_date,
         });
         updates++;
@@ -796,6 +846,262 @@ async function processStatusTransitions(
   }
 
   return { updates };
+}
+
+// -----------------------------------------------------------------------------
+// Payment Settlement
+// -----------------------------------------------------------------------------
+
+export interface SettlePaymentOptions {
+  paymentId: string;
+  method: PaymentMethod;
+  paidAt?: string;
+  notes?: string;
+  recordedBy?: string;
+  stripePaymentIntentId?: string;
+  supabase?: SupabaseClient;
+}
+
+export interface SettlePaymentResult {
+  success: boolean;
+  error?: string;
+  membershipUpdated?: boolean;
+  newPaidMonths?: number;
+  newStatus?: MembershipStatus;
+  becameEligible?: boolean;
+}
+
+/**
+ * Settle a pending payment - marks it completed and credits the membership
+ *
+ * This is the ONLY place where paid_months, last_payment_date, eligible_date,
+ * and status transitions should happen. Called by:
+ * - Stripe webhooks (payment_intent.succeeded)
+ * - Manual payment recording (admin marks cash/check/zelle as paid)
+ *
+ * @param options - Payment settlement options
+ * @returns Settlement result with membership update info
+ */
+export async function settlePayment(
+  options: SettlePaymentOptions
+): Promise<SettlePaymentResult> {
+  const supabase = options.supabase || (await createClient());
+
+  try {
+    // 1. Get the payment with membership details
+    const { data: payment, error: paymentError } = await supabase
+      .from("payments")
+      .select(
+        `
+        id,
+        organization_id,
+        membership_id,
+        member_id,
+        status,
+        amount,
+        months_credited,
+        membership:memberships(
+          id,
+          organization_id,
+          status,
+          billing_frequency,
+          paid_months,
+          next_payment_due,
+          last_payment_date,
+          eligible_date
+        )
+      `
+      )
+      .eq("id", options.paymentId)
+      .single();
+
+    if (paymentError || !payment) {
+      return {
+        success: false,
+        error: `Payment not found: ${paymentError?.message || "unknown"}`,
+      };
+    }
+
+    // 2. Validate payment state
+    // Return success for already-completed payments (idempotent for webhook retries)
+    if (payment.status === "completed") {
+      logger.info("payment_already_settled", {
+        payment_id: options.paymentId,
+        message: "Payment already completed, returning success for idempotency",
+      });
+      return {
+        success: true,
+        membershipUpdated: false,
+        error: "Payment was already completed (no action taken)",
+      };
+    }
+
+    if (payment.status === "refunded") {
+      return {
+        success: false,
+        error: "Cannot settle a refunded payment",
+      };
+    }
+
+    const membership = Array.isArray(payment.membership)
+      ? payment.membership[0]
+      : payment.membership;
+
+    if (!membership) {
+      return {
+        success: false,
+        error: "Membership not found for payment",
+      };
+    }
+
+    // 3. Get organization timezone and billing config
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("timezone")
+      .eq("id", payment.organization_id)
+      .single();
+
+    const orgTimezone = org?.timezone || "America/Los_Angeles";
+    const today = getTodayInOrgTimezone(orgTimezone);
+    const paidAt = options.paidAt || new Date().toISOString();
+
+    // Load billing config for eligibility threshold
+    const billingConfig = await loadBillingConfig(payment.organization_id, supabase);
+    const { eligibilityMonths } = billingConfig;
+
+    // 4. Mark payment as completed
+    const { error: updatePaymentError } = await supabase
+      .from("payments")
+      .update({
+        status: "completed" as const,
+        method: options.method,
+        paid_at: paidAt,
+        notes: options.notes || null,
+        recorded_by: options.recordedBy || null,
+        stripe_payment_intent_id: options.stripePaymentIntentId || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", options.paymentId);
+
+    if (updatePaymentError) {
+      return {
+        success: false,
+        error: `Failed to update payment: ${updatePaymentError.message}`,
+      };
+    }
+
+    logger.info("payment_settled", {
+      payment_id: options.paymentId,
+      method: options.method,
+      amount: payment.amount,
+      months_credited: payment.months_credited,
+    });
+
+    // 5. Credit the membership
+    const monthsCredited = payment.months_credited || 0;
+    const newPaidMonths = (membership.paid_months || 0) + monthsCredited;
+
+    // Calculate next billing date from current next_payment_due (or today if null)
+    // Advance by the actual months credited to keep schedule aligned for bulk/back-due payments
+    let nextBillingDateStr: string | null = membership.next_payment_due;
+    if (monthsCredited > 0) {
+      const currentDueDate = membership.next_payment_due
+        ? parseDateInOrgTimezone(membership.next_payment_due, orgTimezone)
+        : parseDateInOrgTimezone(today, orgTimezone);
+
+      const advancedDate = addMonthsPreserveDay(currentDueDate, monthsCredited);
+      nextBillingDateStr = advancedDate.toISOString().split("T")[0];
+    }
+
+    // Determine new status using configurable eligibility threshold
+    let newStatus: MembershipStatus = membership.status as MembershipStatus;
+    let becameEligible = false;
+
+    // If lapsed and now paying, restore to appropriate status
+    if (membership.status === "lapsed") {
+      newStatus = newPaidMonths >= eligibilityMonths ? "active" : "waiting_period";
+      logger.info("membership_reinstated", {
+        membership_id: membership.id,
+        old_status: "lapsed",
+        new_status: newStatus,
+        paid_months: newPaidMonths,
+        eligibility_threshold: eligibilityMonths,
+      });
+    }
+    // Check for waiting_period → active transition
+    else if (membership.status === "waiting_period" && newPaidMonths >= eligibilityMonths) {
+      newStatus = "active";
+      becameEligible = true;
+      logger.info("membership_status_transition", {
+        membership_id: membership.id,
+        old_status: "waiting_period",
+        new_status: "active",
+        paid_months: newPaidMonths,
+        reason: `reached_${eligibilityMonths}_paid_months`,
+      });
+    }
+
+    // Build membership update
+    const membershipUpdate: Record<string, unknown> = {
+      paid_months: newPaidMonths,
+      next_payment_due: nextBillingDateStr,
+      last_payment_date: paidAt.split("T")[0],
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Set eligible_date if just became eligible
+    if (becameEligible) {
+      membershipUpdate.eligible_date = today;
+    }
+
+    // 6. Update membership
+    const { error: updateMembershipError } = await supabase
+      .from("memberships")
+      .update(membershipUpdate)
+      .eq("id", membership.id);
+
+    if (updateMembershipError) {
+      logger.error("failed_to_update_membership_on_settlement", {
+        payment_id: options.paymentId,
+        membership_id: membership.id,
+        error: updateMembershipError.message,
+      });
+      // Payment is already marked complete, so we return partial success
+      return {
+        success: true,
+        membershipUpdated: false,
+        error: `Payment settled but membership update failed: ${updateMembershipError.message}`,
+      };
+    }
+
+    logger.info("membership_updated_on_settlement", {
+      membership_id: membership.id,
+      old_paid_months: membership.paid_months,
+      new_paid_months: newPaidMonths,
+      next_payment_due: nextBillingDateStr,
+      status: newStatus,
+      became_eligible: becameEligible,
+    });
+
+    return {
+      success: true,
+      membershipUpdated: true,
+      newPaidMonths,
+      newStatus,
+      becameEligible,
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("settle_payment_failed", {
+      payment_id: options.paymentId,
+      error: errorMessage,
+    });
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
 }
 
 /**

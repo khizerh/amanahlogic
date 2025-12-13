@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useCallback, useMemo } from "react";
+import { use, useState, useCallback, useMemo, useEffect } from "react";
 import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import { CollectPaymentDialog } from "@/components/payments/collect-payment-dialog";
 import { ChargeCardSheet } from "@/components/payments/charge-card-sheet";
 import { SendPaymentLinkSheet } from "@/components/payments/send-payment-link-sheet";
+import { ChangeFrequencySheet } from "@/components/payments/change-frequency-sheet";
 import Link from "next/link";
 import {
   getMember,
@@ -62,7 +63,7 @@ import {
   getEmailTemplateTypeLabel,
   getEmailStatusVariant,
 } from "@/lib/mock-data";
-import { PaymentWithDetails, EmailLog } from "@/lib/types";
+import { PaymentWithDetails, EmailLog, CommunicationLanguage } from "@/lib/types";
 import {
   CheckCircle2,
   Clock,
@@ -102,14 +103,86 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Re-read member data whenever refreshKey changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const memberData = useMemo(() => getMember(id), [id, refreshKey]);
+
+  // All hooks must be called before any conditional returns
+  // State for payment details sheet
+  const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
+
+  // State for payment collection flow
+  const [collectPaymentOpen, setCollectPaymentOpen] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [chargeCardOpen, setChargeCardOpen] = useState(false);
+  const [sendLinkOpen, setSendLinkOpen] = useState(false);
+
+  // State for email details sheet
+  const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
+  const [emailSheetOpen, setEmailSheetOpen] = useState(false);
+
+  // State for change frequency sheet
+  const [changeFrequencyOpen, setChangeFrequencyOpen] = useState(false);
+
+  // State for agreement dialog
+  const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
+
+  // State for inline editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    email: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+    preferredLanguage: CommunicationLanguage;
+    emergencyName: string;
+    emergencyPhone: string;
+  }>({
+    email: "",
+    phone: "",
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+    preferredLanguage: "en",
+    emergencyName: "",
+    emergencyPhone: "",
+  });
+
+  // Get recent payments for this member (reactive to refreshKey)
+  const recentPayments = useMemo(
+    () =>
+      mockPayments
+        .filter((p) => p.memberId === id)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10),
+    [id, refreshKey]
+  );
 
   // Callback to refresh data after payment is recorded
   const handlePaymentRecorded = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
   }, []);
 
+  // Update editForm when memberData changes
+  useEffect(() => {
+    if (memberData) {
+      setEditForm({
+        email: memberData.email,
+        phone: memberData.phone,
+        street: memberData.address.street,
+        city: memberData.address.city,
+        state: memberData.address.state,
+        zip: memberData.address.zip,
+        preferredLanguage: memberData.preferredLanguage,
+        emergencyName: memberData.emergencyContact.name,
+        emergencyPhone: memberData.emergencyContact.phone,
+      });
+    }
+  }, [memberData]);
+
+  // Early return AFTER all hooks
   if (!memberData) {
     return (
       <>
@@ -129,37 +202,6 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
   }
 
   const { membership, plan } = memberData;
-
-  // State for payment details sheet
-  const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
-  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
-
-  // State for payment collection flow
-  const [collectPaymentOpen, setCollectPaymentOpen] = useState(false);
-  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
-  const [chargeCardOpen, setChargeCardOpen] = useState(false);
-  const [sendLinkOpen, setSendLinkOpen] = useState(false);
-
-  // State for email details sheet
-  const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
-  const [emailSheetOpen, setEmailSheetOpen] = useState(false);
-
-  // State for agreement dialog
-  const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
-
-  // State for inline editing
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({
-    email: memberData.email,
-    phone: memberData.phone,
-    street: memberData.address.street,
-    city: memberData.address.city,
-    state: memberData.address.state,
-    zip: memberData.address.zip,
-    preferredLanguage: memberData.preferredLanguage,
-    emergencyName: memberData.emergencyContact.name,
-    emergencyPhone: memberData.emergencyContact.phone,
-  });
 
   const handleStartEdit = () => {
     setEditForm({
@@ -185,17 +227,6 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
     toast.success("Contact information updated");
     setIsEditing(false);
   };
-
-  // Get recent payments for this member (reactive to refreshKey)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const recentPayments = useMemo(
-    () =>
-      mockPayments
-        .filter((p) => p.memberId === id)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 10),
-    [id, refreshKey]
-  );
 
   // Transform to PaymentWithDetails for the sheet
   const handleViewPayment = (payment: typeof recentPayments[0]) => {
@@ -769,7 +800,7 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => toast.info("Change billing frequency - coming soon")}
+                    onClick={() => setChangeFrequencyOpen(true)}
                   >
                     <Calendar className="h-4 w-4 mr-2" />
                     Change Frequency
@@ -944,6 +975,15 @@ export default function MemberDetailPage({ params }: MemberDetailPageProps) {
         plan={plan}
         open={sendLinkOpen}
         onOpenChange={setSendLinkOpen}
+      />
+
+      {/* Change Frequency Sheet */}
+      <ChangeFrequencySheet
+        member={memberData}
+        plan={plan}
+        open={changeFrequencyOpen}
+        onOpenChange={setChangeFrequencyOpen}
+        onFrequencyChanged={handlePaymentRecorded}
       />
 
       {/* Email Details Sheet */}

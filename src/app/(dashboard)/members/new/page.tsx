@@ -274,7 +274,7 @@ export default function NewMemberPage() {
 
                   {children.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg border-dashed">
-                      No children added. Click "Add Child" to add.
+                      No children added. Click &quot;Add Child&quot; to add.
                     </p>
                   ) : (
                     <div className="space-y-3">
