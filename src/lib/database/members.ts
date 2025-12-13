@@ -1,0 +1,443 @@
+import "server-only";
+
+import { createClientForContext } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type {
+  Member,
+  MemberWithMembership,
+  MemberFilters,
+  MembershipStatus,
+} from "@/lib/types";
+
+// =============================================================================
+// Input Types
+// =============================================================================
+
+export interface CreateMemberInput {
+  organizationId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
+  spouseName?: string | null;
+  children?: { id: string; name: string; dateOfBirth: string }[];
+  emergencyContact: {
+    name: string;
+    phone: string;
+  };
+  preferredLanguage?: "en" | "fa";
+}
+
+export interface UpdateMemberInput extends Partial<CreateMemberInput> {
+  id: string;
+}
+
+// =============================================================================
+// MembersService
+// =============================================================================
+
+export class MembersService {
+  /**
+   * Get all members for an organization
+   */
+  static async getAll(organizationId: string): Promise<Member[]> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("members")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true });
+
+    if (error) throw error;
+    return transformMembers(data || []);
+  }
+
+  /**
+   * Get members with their membership and plan details
+   */
+  static async getAllWithMembership(
+    organizationId: string,
+    filters?: MemberFilters
+  ): Promise<MemberWithMembership[]> {
+    const supabase = await createClientForContext();
+
+    let query = supabase
+      .from("members")
+      .select(
+        `
+        *,
+        membership:memberships(
+          *,
+          plan:plans(*)
+        )
+      `
+      )
+      .eq("organization_id", organizationId);
+
+    // Apply search filter
+    if (filters?.search) {
+      const search = `%${filters.search}%`;
+      query = query.or(
+        `first_name.ilike.${search},last_name.ilike.${search},email.ilike.${search},phone.ilike.${search}`
+      );
+    }
+
+    const { data, error } = await query.order("last_name", { ascending: true });
+
+    if (error) throw error;
+
+    let results = transformMembersWithMembership(data || []);
+
+    // Apply post-query filters (these need the joined data)
+    if (filters?.status && filters.status !== "all") {
+      results = results.filter((m) => m.membership?.status === filters.status);
+    }
+
+    if (filters?.planType && filters.planType !== "all") {
+      results = results.filter((m) => m.plan?.type === filters.planType);
+    }
+
+    if (filters?.eligibility && filters.eligibility !== "all") {
+      const eligibilityMonths = filters.eligibilityMonths ?? 60;
+      const approachingWindow = 10; // Window before eligibility (e.g., 50-59 for 60-month threshold)
+      const approachingStart = eligibilityMonths - approachingWindow;
+
+      switch (filters.eligibility) {
+        case "eligible":
+          results = results.filter(
+            (m) => m.membership && m.membership.paidMonths >= eligibilityMonths
+          );
+          break;
+        case "approaching":
+          results = results.filter(
+            (m) =>
+              m.membership &&
+              m.membership.paidMonths >= approachingStart &&
+              m.membership.paidMonths < eligibilityMonths
+          );
+          break;
+        case "waiting":
+          results = results.filter(
+            (m) => m.membership && m.membership.paidMonths < approachingStart
+          );
+          break;
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get a single member by ID
+   */
+  static async getById(memberId: string): Promise<Member | null> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("members")
+      .select("*")
+      .eq("id", memberId)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return transformMember(data);
+  }
+
+  /**
+   * Get a member by ID with membership details
+   * @param memberId - The member ID
+   * @param organizationId - Optional org ID to enforce org scoping (recommended for security)
+   */
+  static async getByIdWithMembership(
+    memberId: string,
+    organizationId?: string
+  ): Promise<MemberWithMembership | null> {
+    const supabase = await createClientForContext();
+
+    let query = supabase
+      .from("members")
+      .select(
+        `
+        *,
+        membership:memberships(
+          *,
+          plan:plans(*)
+        )
+      `
+      )
+      .eq("id", memberId);
+
+    // Enforce org scoping if organizationId is provided
+    if (organizationId) {
+      query = query.eq("organization_id", organizationId);
+    }
+
+    const { data, error } = await query.single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return transformMemberWithMembership(data);
+  }
+
+  /**
+   * Get member by email for an organization
+   */
+  static async getByEmail(
+    organizationId: string,
+    email: string
+  ): Promise<Member | null> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("members")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .eq("email", email)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return transformMember(data);
+  }
+
+  /**
+   * Create a new member
+   */
+  static async create(
+    input: CreateMemberInput,
+    supabase?: SupabaseClient
+  ): Promise<Member> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { data, error } = await client
+      .from("members")
+      .insert({
+        organization_id: input.organizationId,
+        first_name: input.firstName,
+        last_name: input.lastName,
+        email: input.email,
+        phone: input.phone || null,
+        address: input.address,
+        spouse_name: input.spouseName || null,
+        children: input.children || [],
+        emergency_contact: input.emergencyContact,
+        preferred_language: input.preferredLanguage || "en",
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return transformMember(data);
+  }
+
+  /**
+   * Update a member
+   */
+  static async update(
+    input: UpdateMemberInput,
+    supabase?: SupabaseClient
+  ): Promise<Member> {
+    const client = supabase ?? (await createClientForContext());
+    const { id, ...updates } = input;
+
+    const dbUpdates: Record<string, unknown> = {};
+    if (updates.organizationId !== undefined)
+      dbUpdates.organization_id = updates.organizationId;
+    if (updates.firstName !== undefined)
+      dbUpdates.first_name = updates.firstName;
+    if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName;
+    if (updates.email !== undefined) dbUpdates.email = updates.email;
+    if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+    if (updates.address !== undefined) dbUpdates.address = updates.address;
+    if (updates.spouseName !== undefined)
+      dbUpdates.spouse_name = updates.spouseName;
+    if (updates.children !== undefined) dbUpdates.children = updates.children;
+    if (updates.emergencyContact !== undefined)
+      dbUpdates.emergency_contact = updates.emergencyContact;
+    if (updates.preferredLanguage !== undefined)
+      dbUpdates.preferred_language = updates.preferredLanguage;
+
+    const { data, error } = await client
+      .from("members")
+      .update(dbUpdates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return transformMember(data);
+  }
+
+  /**
+   * Delete a member
+   */
+  static async delete(memberId: string): Promise<void> {
+    const supabase = await createClientForContext();
+
+    const { error } = await supabase
+      .from("members")
+      .delete()
+      .eq("id", memberId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Get members count by status for an organization
+   */
+  static async getCountsByStatus(
+    organizationId: string
+  ): Promise<Record<MembershipStatus | "total", number>> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("memberships")
+      .select("status")
+      .eq("organization_id", organizationId);
+
+    if (error) throw error;
+
+    const counts: Record<MembershipStatus | "total", number> = {
+      pending: 0,
+      awaiting_signature: 0,
+      waiting_period: 0,
+      active: 0,
+      lapsed: 0,
+      cancelled: 0,
+      total: 0,
+    };
+
+    (data || []).forEach((m) => {
+      counts[m.status as MembershipStatus]++;
+      counts.total++;
+    });
+
+    return counts;
+  }
+
+  /**
+   * Search members
+   */
+  static async search(
+    organizationId: string,
+    query: string,
+    limit: number = 10
+  ): Promise<Member[]> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("members")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .or(
+        `first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`
+      )
+      .limit(limit);
+
+    if (error) throw error;
+    return transformMembers(data || []);
+  }
+}
+
+// =============================================================================
+// Transform Functions (snake_case DB → camelCase TypeScript)
+// =============================================================================
+
+function transformMember(dbMember: any): Member {
+  return {
+    id: dbMember.id,
+    organizationId: dbMember.organization_id,
+    firstName: dbMember.first_name,
+    lastName: dbMember.last_name,
+    email: dbMember.email,
+    phone: dbMember.phone || "",
+    address: dbMember.address,
+    spouseName: dbMember.spouse_name,
+    children: dbMember.children || [],
+    emergencyContact: dbMember.emergency_contact,
+    preferredLanguage: dbMember.preferred_language,
+    createdAt: dbMember.created_at,
+    updatedAt: dbMember.updated_at,
+  };
+}
+
+function transformMembers(dbMembers: any[]): Member[] {
+  return dbMembers.map(transformMember);
+}
+
+function transformMemberWithMembership(dbMember: any): MemberWithMembership {
+  const membership = Array.isArray(dbMember.membership)
+    ? dbMember.membership[0]
+    : dbMember.membership;
+  const plan = membership?.plan;
+  const planData = Array.isArray(plan) ? plan[0] : plan;
+
+  return {
+    ...transformMember(dbMember),
+    membership: membership
+      ? {
+          id: membership.id,
+          organizationId: membership.organization_id,
+          memberId: membership.member_id,
+          planId: membership.plan_id,
+          status: membership.status,
+          billingFrequency: membership.billing_frequency,
+          billingAnniversaryDay: membership.billing_anniversary_day,
+          paidMonths: membership.paid_months,
+          enrollmentFeePaid: membership.enrollment_fee_paid,
+          joinDate: membership.join_date,
+          lastPaymentDate: membership.last_payment_date,
+          nextPaymentDue: membership.next_payment_due,
+          eligibleDate: membership.eligible_date,
+          cancelledDate: membership.cancelled_date,
+          agreementSignedAt: membership.agreement_signed_at,
+          agreementId: membership.agreement_id,
+          autoPayEnabled: membership.auto_pay_enabled,
+          stripeSubscriptionId: membership.stripe_subscription_id,
+          stripeCustomerId: membership.stripe_customer_id,
+          subscriptionStatus: membership.subscription_status,
+          paymentMethod: membership.payment_method,
+          createdAt: membership.created_at,
+          updatedAt: membership.updated_at,
+        }
+      : null,
+    plan: planData
+      ? {
+          id: planData.id,
+          organizationId: planData.organization_id,
+          type: planData.type,
+          name: planData.name,
+          description: planData.description,
+          pricing: planData.pricing,
+          enrollmentFee: planData.enrollment_fee,
+          isActive: planData.is_active,
+          createdAt: planData.created_at,
+          updatedAt: planData.updated_at,
+        }
+      : null,
+  };
+}
+
+function transformMembersWithMembership(
+  dbMembers: any[]
+): MemberWithMembership[] {
+  return dbMembers.map(transformMemberWithMembership);
+}

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MemberWithMembership, Plan } from "@/lib/types";
 import { formatCurrency } from "@/lib/mock-data";
@@ -16,11 +14,8 @@ import {
   Banknote,
   CreditCard,
   Send,
-  Building2,
   ChevronRight,
   Zap,
-  Clock,
-  CheckCircle2,
 } from "lucide-react";
 
 interface CollectPaymentDialogProps {

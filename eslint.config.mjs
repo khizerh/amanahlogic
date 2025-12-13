@@ -29,6 +29,7 @@ const eslintConfig = [
       '**/*.test.ts',
       '**/*.test.tsx',
       '**/_disabled/**',
+      '**/emails/**',
     ],
   },
   ...compat.extends('next/core-web-vitals'),

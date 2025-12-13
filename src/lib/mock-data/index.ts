@@ -19,8 +19,6 @@ import {
   PlanType,
   BillingFrequency,
   PaymentMethod,
-  PaymentType,
-  PaymentStatus,
   Child,
   CommunicationLanguage,
   EmailTemplate,
@@ -366,13 +364,12 @@ function generateMemberships(members: Member[]): Membership[] {
 }
 
 // Generate payments
-function generatePayments(memberships: Membership[], members: Member[]): Payment[] {
+function generatePayments(memberships: Membership[], _members: Member[]): Payment[] {
   const payments: Payment[] = [];
   let paymentIdx = 1;
 
   memberships.forEach((membership) => {
-    const member = members.find(m => m.id === membership.memberId)!;
-    const plan = mockPlans.find(p => p.id === membership.planId)!;
+    const plan = mockPlans.find(p => p.id === membership.planId)!
 
     // Generate enrollment fee payment if paid
     if (membership.enrollmentFeePaid) {
@@ -929,56 +926,14 @@ export function getMembersWithoutAutoPay(): MembershipWithDetails[] {
   );
 }
 
-// Format helpers
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-}
-
-export function formatDate(date: string | null): string {
-  if (!date) return '-';
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  }).format(new Date(date));
-}
-
-export function formatStatus(status: MembershipStatus): string {
-  const labels: Record<MembershipStatus, string> = {
-    pending: 'Pending',
-    awaiting_signature: 'Awaiting Signature',
-    waiting_period: 'Waiting Period',
-    active: 'Active',
-    lapsed: 'Lapsed',
-    cancelled: 'Cancelled',
-  };
-  return labels[status];
-}
-
-export function getStatusColor(status: MembershipStatus): string {
-  const colors: Record<MembershipStatus, string> = {
-    pending: 'bg-gray-100 text-gray-800',
-    awaiting_signature: 'bg-yellow-100 text-yellow-800',
-    waiting_period: 'bg-blue-100 text-blue-800',
-    active: 'bg-green-100 text-green-800',
-    lapsed: 'bg-orange-100 text-orange-800',
-    cancelled: 'bg-red-100 text-red-800',
-  };
-  return colors[status];
-}
-
-// Returns Badge variant name for proper styling (avoids CSS specificity issues)
-export function getStatusVariant(status: MembershipStatus): "success" | "info" | "warning" | "error" | "inactive" | "withdrawn" {
-  const variants: Record<MembershipStatus, "success" | "info" | "warning" | "error" | "inactive" | "withdrawn"> = {
-    pending: 'inactive',
-    awaiting_signature: 'warning',
-    waiting_period: 'info',
-    active: 'success',
-    lapsed: 'withdrawn',
-    cancelled: 'error',
-  };
-  return variants[status];
-}
+// Format helpers - re-exported from utils/formatters for backward compatibility
+export {
+  formatCurrency,
+  formatDate,
+  formatStatus,
+  getStatusColor,
+  getStatusVariant,
+} from "@/lib/utils/formatters";
 
 // -----------------------------------------------------------------------------
 // Email Templates
@@ -1404,32 +1359,8 @@ export function getEmailLogs(filters?: { memberId?: string; templateType?: Email
   return results;
 }
 
-export function getEmailTemplateTypeLabel(type: EmailTemplateType | 'custom'): string {
-  const labels: Record<EmailTemplateType | 'custom', string> = {
-    welcome: 'Welcome',
-    payment_receipt: 'Payment Receipt',
-    payment_reminder: 'Payment Reminder',
-    payment_failed: 'Payment Failed',
-    overdue_notice: 'Overdue Notice',
-    eligibility_reached: 'Eligibility Reached',
-    agreement_sent: 'Agreement Sent',
-    agreement_signed: 'Agreement Signed',
-    membership_cancelled: 'Membership Cancelled',
-    custom: 'Custom',
-  };
-  return labels[type];
-}
-
-export function getEmailStatusVariant(status: EmailStatus): "success" | "warning" | "error" | "info" | "inactive" {
-  const variants: Record<EmailStatus, "success" | "warning" | "error" | "info" | "inactive"> = {
-    queued: 'inactive',
-    sent: 'info',
-    delivered: 'success',
-    failed: 'error',
-    bounced: 'warning',
-  };
-  return variants[status];
-}
+// Email formatters - re-exported from utils/formatters
+export { getEmailTemplateTypeLabel, getEmailStatusVariant } from "@/lib/utils/formatters";
 
 // Note: Billing service is imported separately from '@/lib/mock-data/billing-service'
 // to avoid circular dependencies

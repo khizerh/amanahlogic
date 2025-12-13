@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MemberWithMembership, PaymentType, Plan } from "@/lib/types";
@@ -23,7 +22,6 @@ import {
   CreditCard,
   Building2,
   AlertCircle,
-  CheckCircle2,
   Loader2,
   Lock,
   TrendingUp,

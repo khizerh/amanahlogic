@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,7 +32,25 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDisplay, setUserDisplay] = useState<string | null>(null);
   const supabase = createClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Try to get name from metadata, fall back to email
+        const name = user.user_metadata?.full_name || user.user_metadata?.name;
+        if (name) {
+          setUserDisplay(name);
+        } else if (user.email) {
+          // Show just the part before @ for cleaner display
+          setUserDisplay(user.email.split('@')[0]);
+        }
+      }
+    };
+    getUser();
+  }, [supabase.auth]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -157,8 +175,7 @@ export default function Header() {
                       size="sm"
                       className="text-white/80 hover:text-white hover:bg-white/10"
                     >
-                      <span className="hidden sm:inline">Account</span>
-                      <span className="sm:hidden">Account</span>
+                      {userDisplay || "Account"}
                       <ChevronDown className="ml-1 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>

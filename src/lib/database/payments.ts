@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClientForContext } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Payment,
@@ -78,9 +78,30 @@ export interface PaymentWithDetails {
   totalCharged: number;
   netAmount: number;
   monthsCredited: number;
+
+  // Invoice metadata
+  invoiceNumber?: string | null;
+  dueDate?: string | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  periodLabel?: string | null;
+
+  // Stripe
   stripePaymentIntentId: string | null;
+
+  // Manual payment info
+  checkNumber: string | null;
+  zelleTransactionId: string | null;
   notes: string | null;
   recordedBy: string | null;
+
+  // Reminder tracking
+  reminderCount?: number;
+  reminderSentAt?: string | null;
+  remindersPaused?: boolean;
+  requiresReview?: boolean;
+
+  // Dates
   createdAt: string;
   paidAt: string | null;
   refundedAt: string | null;
@@ -154,7 +175,7 @@ export class PaymentsService {
    * Get all payments for an organization
    */
   static async getAll(organizationId: string): Promise<Payment[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -170,7 +191,7 @@ export class PaymentsService {
    * Get all payments with detailed member/membership info
    */
   static async getAllDetailed(organizationId: string): Promise<PaymentWithDetails[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -202,7 +223,7 @@ export class PaymentsService {
    * Get a single payment by ID
    */
   static async getById(paymentId: string): Promise<Payment | null> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -225,7 +246,7 @@ export class PaymentsService {
     stripePaymentIntentId: string,
     supabase?: SupabaseClient
   ): Promise<{ success: boolean; data: Payment | null }> {
-    const client = supabase ?? (await createClient());
+    const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
       .from("payments")
@@ -250,7 +271,7 @@ export class PaymentsService {
     membershipId: string,
     organizationId: string
   ): Promise<Payment[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -268,16 +289,20 @@ export class PaymentsService {
    */
   static async getByMember(
     memberId: string,
-    organizationId: string
+    organizationId?: string
   ): Promise<Payment[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("payments")
       .select("*")
-      .eq("member_id", memberId)
-      .eq("organization_id", organizationId)
-      .order("created_at", { ascending: false });
+      .eq("member_id", memberId);
+
+    if (organizationId) {
+      query = query.eq("organization_id", organizationId);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) throw error;
     return transformPayments(data || []);
@@ -290,7 +315,7 @@ export class PaymentsService {
     memberId: string,
     organizationId: string
   ): Promise<PaymentWithDetails[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -322,7 +347,7 @@ export class PaymentsService {
     organizationId: string,
     status: PaymentStatus
   ): Promise<Payment[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -342,7 +367,7 @@ export class PaymentsService {
     input: CreatePaymentInput,
     supabase?: SupabaseClient
   ): Promise<Payment> {
-    const client = supabase ?? (await createClient());
+    const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
       .from("payments")
@@ -378,7 +403,7 @@ export class PaymentsService {
    * Update a payment
    */
   static async update(input: UpdatePaymentInput): Promise<Payment> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
     const { id, ...updates } = input;
 
     // Transform camelCase input to snake_case for DB
@@ -420,7 +445,7 @@ export class PaymentsService {
     paymentId: string,
     paidAt?: string
   ): Promise<Payment> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -441,7 +466,7 @@ export class PaymentsService {
    * Mark payment as failed
    */
   static async markFailed(paymentId: string): Promise<Payment> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -461,7 +486,7 @@ export class PaymentsService {
    * Refund a payment
    */
   static async refund(paymentId: string): Promise<Payment> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -486,7 +511,7 @@ export class PaymentsService {
     organizationId: string,
     gracePeriodDays: number = 7
   ): Promise<OverduePaymentInfo[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     // Calculate threshold date (today minus grace period)
     const thresholdDate = new Date();
@@ -501,9 +526,10 @@ export class PaymentsService {
         member_id,
         status,
         paid_months,
+        billing_frequency,
         next_payment_due,
         member:members(id, first_name, last_name, email),
-        plan:plans(id, name)
+        plan:plans(id, name, pricing)
       `
       )
       .eq("organization_id", organizationId)
@@ -524,12 +550,31 @@ export class PaymentsService {
       const member = Array.isArray(membership.member) ? membership.member[0] : membership.member;
       const plan = Array.isArray(membership.plan) ? membership.plan[0] : membership.plan;
 
+      // Calculate amount based on billing frequency and plan pricing
+      let amount = 0;
+      if (plan?.pricing) {
+        const pricing = plan.pricing;
+        switch (membership.billing_frequency) {
+          case "monthly":
+            amount = pricing.monthly || 0;
+            break;
+          case "biannual":
+            amount = pricing.biannual || 0;
+            break;
+          case "annual":
+            amount = pricing.annual || 0;
+            break;
+          default:
+            amount = pricing.monthly || 0;
+        }
+      }
+
       return {
         id: `overdue_${membership.id}`,
         membershipId: membership.id,
         memberId: membership.member_id,
         status: "pending" as PaymentStatus,
-        amount: 0, // Would calculate from plan pricing
+        amount,
         dueDate: membership.next_payment_due,
         daysPastDue,
         member: member
@@ -555,7 +600,7 @@ export class PaymentsService {
     organizationId: string,
     dateRange?: { start: string; end: string }
   ): Promise<PaymentStats> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     let query = supabase
       .from("payments")
@@ -614,7 +659,7 @@ export class PaymentsService {
     organizationId: string,
     limit: number = 10
   ): Promise<PaymentWithDetails[]> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { data, error } = await supabase
       .from("payments")
@@ -646,7 +691,7 @@ export class PaymentsService {
     membershipId: string,
     organizationId: string
   ): Promise<number> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { count, error } = await supabase
       .from("payments")
@@ -663,7 +708,7 @@ export class PaymentsService {
    * Delete a payment (admin only, for corrections)
    */
   static async delete(paymentId: string): Promise<void> {
-    const supabase = await createClient();
+    const supabase = await createClientForContext();
 
     const { error } = await supabase
       .from("payments")

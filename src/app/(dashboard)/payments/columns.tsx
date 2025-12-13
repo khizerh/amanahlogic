@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, Mail, CreditCard, Building2, Banknote, FileText, Smartphone } from "lucide-react";
-import { PaymentWithDetails } from "@/lib/types";
+import { PaymentWithDetails } from "@/lib/database/payments";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 
 const getPaymentTypeBadge = (type: string) => {
@@ -101,6 +101,7 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
     header: "Member",
     cell: ({ row }) => {
       const member = row.original.member;
+      if (!member) return <span className="text-muted-foreground">Unknown</span>;
       return (
         <Link
           href={`/members/${member.id}`}
@@ -112,6 +113,7 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
     },
     filterFn: (row, id, value) => {
       const member = row.original.member;
+      if (!member) return false;
       const searchValue = value.toLowerCase();
       return (
         member.firstName.toLowerCase().includes(searchValue) ||

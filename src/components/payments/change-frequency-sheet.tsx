@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MemberWithMembership, BillingFrequency, Plan } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/mock-data";
 import {
   updateBillingFrequency,
   getAmountForFrequency,

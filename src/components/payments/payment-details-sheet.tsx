@@ -10,21 +10,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PaymentWithDetails } from "@/lib/types";
+import { PaymentWithDetails } from "@/lib/database/payments";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
-import {
-  CreditCard,
-  Building2,
-  Banknote,
-  FileText,
-  Smartphone,
-  Mail,
-  RotateCcw,
-  User,
-  Calendar,
-  Hash,
-  Receipt,
-} from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -33,23 +20,6 @@ interface PaymentDetailsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const getPaymentMethodIcon = (method: string) => {
-  switch (method) {
-    case "card":
-      return <CreditCard className="h-5 w-5" />;
-    case "ach":
-      return <Building2 className="h-5 w-5" />;
-    case "cash":
-      return <Banknote className="h-5 w-5" />;
-    case "check":
-      return <FileText className="h-5 w-5" />;
-    case "zelle":
-      return <Smartphone className="h-5 w-5" />;
-    default:
-      return <CreditCard className="h-5 w-5" />;
-  }
-};
 
 const getPaymentMethodLabel = (method: string) => {
   const labels: Record<string, string> = {
@@ -98,7 +68,7 @@ export function PaymentDetailsSheet({
   if (!payment) return null;
 
   const handleEmailReceipt = () => {
-    toast.success(`Receipt emailed to ${payment.member.email}`);
+    toast.success(`Receipt emailed to ${payment.member?.email || "member"}`);
   };
 
   const handleRefund = () => {
@@ -111,10 +81,7 @@ export function PaymentDetailsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
-            Payment Details
-          </SheetTitle>
+          <SheetTitle>Payment Details</SheetTitle>
           <SheetDescription>
             {formatDate(payment.paidAt || payment.createdAt)}
           </SheetDescription>
@@ -142,11 +109,8 @@ export function PaymentDetailsSheet({
 
           {/* Member Info */}
           <div>
-            <div className="text-sm font-medium text-muted-foreground mb-3">Member</div>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-brand-teal/10 flex items-center justify-center">
-                <User className="h-5 w-5 text-brand-teal" />
-              </div>
+            <div className="text-sm font-medium text-muted-foreground mb-2">Member</div>
+            {payment.member ? (
               <div>
                 <Link
                   href={`/members/${payment.member.id}`}
@@ -157,43 +121,40 @@ export function PaymentDetailsSheet({
                 </Link>
                 <div className="text-sm text-muted-foreground">{payment.member.email}</div>
               </div>
-            </div>
+            ) : (
+              <span className="text-muted-foreground">Unknown member</span>
+            )}
           </div>
 
           <Separator />
 
           {/* Payment Method */}
           <div>
-            <div className="text-sm font-medium text-muted-foreground mb-3">
+            <div className="text-sm font-medium text-muted-foreground mb-2">
               Payment Method
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                {getPaymentMethodIcon(payment.method)}
-              </div>
-              <div>
-                <div className="font-medium">{getPaymentMethodLabel(payment.method)}</div>
-                {payment.stripePaymentIntentId && (
-                  <div className="text-xs text-muted-foreground font-mono">
-                    {payment.stripePaymentIntentId}
-                  </div>
-                )}
-                {isManualPayment && payment.recordedBy && (
-                  <div className="text-sm text-muted-foreground">
-                    Recorded by {payment.recordedBy}
-                  </div>
-                )}
-                {payment.checkNumber && (
-                  <div className="text-sm text-muted-foreground">
-                    Check #{payment.checkNumber}
-                  </div>
-                )}
-                {payment.zelleTransactionId && (
-                  <div className="text-xs text-muted-foreground font-mono">
-                    Zelle: {payment.zelleTransactionId}
-                  </div>
-                )}
-              </div>
+            <div>
+              <div className="font-medium">{getPaymentMethodLabel(payment.method)}</div>
+              {payment.stripePaymentIntentId && (
+                <div className="text-xs text-muted-foreground font-mono mt-1">
+                  {payment.stripePaymentIntentId}
+                </div>
+              )}
+              {isManualPayment && payment.recordedBy && (
+                <div className="text-sm text-muted-foreground">
+                  Recorded by {payment.recordedBy}
+                </div>
+              )}
+              {payment.checkNumber && (
+                <div className="text-sm text-muted-foreground">
+                  Check #{payment.checkNumber}
+                </div>
+              )}
+              {payment.zelleTransactionId && (
+                <div className="text-xs text-muted-foreground font-mono">
+                  Zelle: {payment.zelleTransactionId}
+                </div>
+              )}
             </div>
           </div>
 
@@ -248,25 +209,18 @@ export function PaymentDetailsSheet({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <div className="text-muted-foreground mb-1">Created</div>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                {formatDate(payment.createdAt)}
-              </div>
+              <div>{formatDate(payment.createdAt)}</div>
             </div>
             {payment.paidAt && (
               <div>
                 <div className="text-muted-foreground mb-1">Paid</div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  {formatDate(payment.paidAt)}
-                </div>
+                <div>{formatDate(payment.paidAt)}</div>
               </div>
             )}
           </div>
 
           {/* ID */}
-          <div className="text-xs text-muted-foreground flex items-center gap-2">
-            <Hash className="h-3 w-3" />
+          <div className="text-xs text-muted-foreground font-mono">
             {payment.id}
           </div>
 
@@ -278,7 +232,6 @@ export function PaymentDetailsSheet({
               className="flex-1"
               onClick={handleEmailReceipt}
             >
-              <Mail className="h-4 w-4 mr-2" />
               Email Receipt
             </Button>
             {payment.status === "completed" && (
@@ -287,7 +240,6 @@ export function PaymentDetailsSheet({
                 className="flex-1"
                 onClick={handleRefund}
               >
-                <RotateCcw className="h-4 w-4 mr-2" />
                 Refund
               </Button>
             )}

@@ -27,10 +27,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  Link,
   Copy,
-  ExternalLink,
-  CreditCard,
   Clock,
 } from "lucide-react";
 
@@ -114,7 +111,7 @@ export function SendPaymentLinkSheet({
       toast.success("Payment link sent!", {
         description: `Email sent to ${member.email}`,
       });
-    } catch (error) {
+    } catch {
       toast.error("Failed to send payment link");
     } finally {
       setIsSending(false);

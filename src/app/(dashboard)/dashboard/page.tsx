@@ -3,22 +3,74 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { MembersService } from "@/lib/database/members";
+import { MembershipsService } from "@/lib/database/memberships";
+import { PaymentsService } from "@/lib/database/payments";
+import { OrganizationsService } from "@/lib/database/organizations";
+import { getOrgContext } from "@/lib/auth/get-organization-id";
 import {
-  getDashboardStats,
-  getRecentSignups,
-  getApproachingEligibility,
-  getOverdueMembers,
   formatCurrency,
   formatDate,
   formatStatus,
-  getStatusVariant,
 } from "@/lib/mock-data";
 
-export default function DashboardPage() {
-  const stats = getDashboardStats();
-  const recentSignups = getRecentSignups(5);
-  const approachingEligibility = getApproachingEligibility(5);
-  const overdueMembers = getOverdueMembers(5);
+export default async function DashboardPage() {
+  // Get org context with billing config
+  const { organizationId, billingConfig } = await getOrgContext();
+
+  // Fetch all data in parallel using org config
+  const [organization, membersWithMembership, paymentStats, overdueMembers, recentPayments] = await Promise.all([
+    OrganizationsService.getById(organizationId),
+    MembersService.getAllWithMembership(organizationId),
+    PaymentsService.getStats(organizationId),
+    MembershipsService.getOverdue(organizationId, billingConfig.lapseDays),
+    PaymentsService.getRecent(organizationId, 10),
+  ]);
+
+  // Calculate stats from real data
+  const stats = {
+    totalMembers: membersWithMembership.length,
+    activeMembers: membersWithMembership.filter(m => m.membership?.status === 'active').length,
+    lapsed: membersWithMembership.filter(m => m.membership?.status === 'lapsed').length,
+    monthlyRevenue: paymentStats.totalCollected,
+  };
+
+  // Build recent activity feed combining signups and payments
+  type ActivityItem = {
+    id: string;
+    type: 'signup' | 'payment';
+    date: string;
+    memberName: string;
+    memberId: string;
+    detail: string;
+    amount?: number;
+  };
+
+  const recentSignups: ActivityItem[] = [...membersWithMembership]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5)
+    .map(member => ({
+      id: `signup-${member.id}`,
+      type: 'signup' as const,
+      date: member.createdAt,
+      memberName: `${member.firstName} ${member.lastName}`,
+      memberId: member.id,
+      detail: 'New member signup',
+    }));
+
+  const paymentActivity: ActivityItem[] = recentPayments.map(payment => ({
+    id: `payment-${payment.id}`,
+    type: 'payment' as const,
+    date: payment.paidAt || payment.createdAt,
+    memberName: payment.member ? `${payment.member.firstName} ${payment.member.lastName}` : 'Unknown',
+    memberId: payment.memberId,
+    detail: payment.type === 'enrollment_fee' ? 'Enrollment fee' : `${payment.monthsCredited} month${payment.monthsCredited > 1 ? 's' : ''} dues`,
+    amount: payment.amount,
+  }));
+
+  const recentActivity = [...recentSignups, ...paymentActivity]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 8);
 
   return (
     <>
@@ -26,14 +78,14 @@ export default function DashboardPage() {
       <div className="min-h-screen">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <h1 className="text-3xl font-bold">{organization?.name}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Overview of members and payments
             </p>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5 mb-8">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium">Total Members</CardTitle>
@@ -51,16 +103,6 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">{stats.activeMembers}</div>
                 <p className="text-xs text-muted-foreground">Eligible for burial benefit</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">In Waiting Period</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{stats.waitingPeriod}</div>
-                <p className="text-xs text-muted-foreground">Building toward 60 months</p>
               </CardContent>
             </Card>
 
@@ -90,14 +132,14 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold mb-4">Quick Access</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Link href="/members">
-                <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+                <Card className="hover:border-primary transition-colors cursor-pointer h-full flex flex-col">
                   <CardHeader>
                     <CardTitle className="text-base">Members</CardTitle>
                     <CardDescription>
                       View and manage all members, plans, eligibility, and payment history
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="mt-auto">
                     <Button variant="outline" size="sm" className="w-full">
                       View Members
                     </Button>
@@ -106,14 +148,14 @@ export default function DashboardPage() {
               </Link>
 
               <Link href="/payments">
-                <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+                <Card className="hover:border-primary transition-colors cursor-pointer h-full flex flex-col">
                   <CardHeader>
                     <CardTitle className="text-base">Payments</CardTitle>
                     <CardDescription>
                       Record payments, view history, and manage billing
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="mt-auto">
                     <Button variant="outline" size="sm" className="w-full">
                       View Payments
                     </Button>
@@ -122,14 +164,14 @@ export default function DashboardPage() {
               </Link>
 
               <Link href="/reports">
-                <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+                <Card className="hover:border-primary transition-colors cursor-pointer h-full flex flex-col">
                   <CardHeader>
                     <CardTitle className="text-base">Reports</CardTitle>
                     <CardDescription>
                       Eligibility reports, overdue payments, and analytics
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="mt-auto">
                     <Button variant="outline" size="sm" className="w-full">
                       View Reports
                     </Button>
@@ -139,37 +181,41 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Recent Sign-ups */}
+          {/* Overdue Payments */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Recent Sign-ups</h2>
-              <Link href="/members">
+              <h2 className="text-lg font-semibold">Overdue Payments</h2>
+              <Link href="/reports/overdue">
                 <Button variant="ghost" size="sm">View All</Button>
               </Link>
             </div>
             <Card>
               <CardContent className="pt-6">
-                {recentSignups.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No recent sign-ups</p>
+                {overdueMembers.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No overdue payments
+                  </p>
                 ) : (
                   <div className="space-y-4">
-                    {recentSignups.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                    {overdueMembers.slice(0, 5).map((membership) => (
+                      <div key={membership.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                         <div className="flex-1">
-                          <Link href={`/members/${member.id}`} className="font-medium hover:underline">
-                            {member.firstName} {member.lastName}
+                          <Link href={`/members/${membership.member.id}`} className="font-medium hover:underline">
+                            {membership.member.firstName} {membership.member.lastName}
                           </Link>
-                          <div className="text-sm text-muted-foreground">{member.email}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {membership.lastPaymentDate ? `Last payment: ${formatDate(membership.lastPaymentDate)}` : 'No payments yet'}
+                          </div>
                         </div>
                         <div className="text-right ml-4">
-                          {member.membership && (
-                            <Badge variant={getStatusVariant(member.membership.status)}>
-                              {formatStatus(member.membership.status)}
-                            </Badge>
+                          <Badge variant="withdrawn">
+                            {formatStatus(membership.status)}
+                          </Badge>
+                          {membership.nextPaymentDue && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Due: {formatDate(membership.nextPaymentDue)}
+                            </div>
                           )}
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Joined {formatDate(member.createdAt)}
-                          </div>
                         </div>
                       </div>
                     ))}
@@ -179,87 +225,45 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Two Column Layout */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Approaching Eligibility */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Approaching Eligibility</h2>
-                <Link href="/reports/approaching">
-                  <Button variant="ghost" size="sm">View All</Button>
-                </Link>
-              </div>
-              <Card>
-                <CardContent className="pt-6">
-                  {approachingEligibility.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      Members with 50-59 paid months will appear here
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {approachingEligibility.map((membership) => (
-                        <div key={membership.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
-                          <div className="flex-1">
-                            <Link href={`/members/${membership.member.id}`} className="font-medium hover:underline">
-                              {membership.member.firstName} {membership.member.lastName}
-                            </Link>
-                            <div className="text-sm text-muted-foreground">{membership.plan.name} Plan</div>
-                          </div>
-                          <div className="text-right ml-4">
-                            <div className="font-semibold text-blue-600">{membership.paidMonths} months</div>
-                            <div className="text-xs text-muted-foreground">{60 - membership.paidMonths} to go</div>
+          {/* Recent Activity */}
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Recent Activity</h2>
+              <Link href="/payments">
+                <Button variant="ghost" size="sm">View All</Button>
+              </Link>
+            </div>
+            <Card>
+              <CardContent className="pt-6">
+                {recentActivity.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No recent activity</p>
+                ) : (
+                  <div className="space-y-4">
+                    {recentActivity.map((activity) => (
+                      <div key={activity.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                        <div className="flex-1">
+                          <Link href={`/members/${activity.memberId}`} className="font-medium hover:underline">
+                            {activity.memberName}
+                          </Link>
+                          <div className="text-sm text-muted-foreground">{activity.detail}</div>
+                        </div>
+                        <div className="text-right ml-4">
+                          {activity.type === 'payment' && activity.amount && (
+                            <div className="font-medium text-green-600">{formatCurrency(activity.amount)}</div>
+                          )}
+                          {activity.type === 'signup' && (
+                            <Badge variant="info">New</Badge>
+                          )}
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {formatDate(activity.date)}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Overdue Payments */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Overdue Payments</h2>
-                <Link href="/reports/overdue">
-                  <Button variant="ghost" size="sm">View All</Button>
-                </Link>
-              </div>
-              <Card>
-                <CardContent className="pt-6">
-                  {overdueMembers.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No overdue payments
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {overdueMembers.map((membership) => (
-                        <div key={membership.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
-                          <div className="flex-1">
-                            <Link href={`/members/${membership.member.id}`} className="font-medium hover:underline">
-                              {membership.member.firstName} {membership.member.lastName}
-                            </Link>
-                            <div className="text-sm text-muted-foreground">
-                              {membership.lastPaymentDate ? `Last payment: ${formatDate(membership.lastPaymentDate)}` : 'No payments yet'}
-                            </div>
-                          </div>
-                          <div className="text-right ml-4">
-                            <Badge variant="withdrawn">
-                              {formatStatus(membership.status)}
-                            </Badge>
-                            {membership.nextPaymentDue && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                Due: {formatDate(membership.nextPaymentDue)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

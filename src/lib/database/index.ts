@@ -1,5 +1,20 @@
 /**
  * Database Services - Centralized data access layer
+ *
+ * All services follow the same pattern:
+ * - Static methods for CRUD operations
+ * - Transform functions to convert snake_case DB → camelCase TypeScript
+ * - Support for optional Supabase client injection (for transactions/webhooks)
  */
 
+// Core entities
+export * from "./organizations";
+export * from "./plans";
+export * from "./members";
+export * from "./memberships";
 export * from "./payments";
+export * from "./agreements";
+
+// Supporting entities
+export * from "./email-logs";
+export * from "./auto-pay-invites";

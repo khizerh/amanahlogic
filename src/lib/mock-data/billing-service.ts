@@ -85,12 +85,6 @@ function formatDateString(date: Date): string {
   return date.toISOString();
 }
 
-function addMonthsToDate(date: Date, months: number): Date {
-  const result = new Date(date);
-  result.setMonth(result.getMonth() + months);
-  return result;
-}
-
 function calculateNextPaymentDue(
   currentDate: Date,
   billingFrequency: BillingFrequency,

@@ -322,6 +322,8 @@ export interface MemberFilters {
   status?: MembershipStatus | 'all';
   planType?: PlanType | 'all';
   eligibility?: 'eligible' | 'approaching' | 'waiting' | 'all';
+  /** Custom eligibility threshold (default 60). Used for eligibility filters. */
+  eligibilityMonths?: number;
 }
 
 export interface PaymentFilters {

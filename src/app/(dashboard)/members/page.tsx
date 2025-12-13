@@ -1,5 +1,3 @@
-"use client";
-
 import Header from "@/components/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,10 +5,12 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { columns } from "./columns";
-import { getMembers } from "@/lib/mock-data";
+import { MembersService } from "@/lib/database/members";
+import { getOrganizationId } from "@/lib/auth/get-organization-id";
 
-export default function MembersPage() {
-  const members = getMembers();
+export default async function MembersPage() {
+  const organizationId = await getOrganizationId();
+  const members = await MembersService.getAllWithMembership(organizationId);
 
   return (
     <>
