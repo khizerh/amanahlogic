@@ -75,6 +75,7 @@ export function SettingsPageClient({
     return { en, fa };
   });
   const [allTemplates, setAllTemplates] = useState<AgreementTemplate[]>(agreementTemplates);
+  const [allEmailTemplates, setAllEmailTemplates] = useState<EmailTemplate[]>(emailTemplates);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const [templateUpload, setTemplateUpload] = useState<{
     file: File | null;
@@ -178,14 +179,57 @@ export function SettingsPageClient({
     setEditTemplateDialogOpen(true);
   };
 
-  const handleSaveTemplate = (e: React.FormEvent) => {
+  const handleSaveTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Email template updated successfully");
-    setEditTemplateDialogOpen(false);
+    if (!selectedTemplate) return;
+    try {
+      const res = await fetch("/api/email-templates/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedTemplate.id,
+          subject: { en: templateFormData.subjectEn, fa: templateFormData.subjectFa },
+          body: { en: templateFormData.bodyEn, fa: templateFormData.bodyFa },
+          isActive: selectedTemplate.isActive,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to update template");
+      }
+      const updated = json.template as EmailTemplate;
+      setAllEmailTemplates((prev) =>
+        prev.map((t) => (t.id === updated.id ? updated : t))
+      );
+      toast.success("Email template updated");
+      setEditTemplateDialogOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update template");
+    }
   };
 
-  const handleToggleTemplateActive = (template: EmailTemplate) => {
-    toast.success(`Template ${template.isActive ? "deactivated" : "activated"} successfully`);
+  const handleToggleTemplateActive = async (template: EmailTemplate) => {
+    try {
+      const res = await fetch("/api/email-templates/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: template.id,
+          isActive: !template.isActive,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to update template");
+      }
+      const updated = json.template as EmailTemplate;
+      setAllEmailTemplates((prev) =>
+        prev.map((t) => (t.id === updated.id ? updated : t))
+      );
+      toast.success(`Template ${updated.isActive ? "activated" : "deactivated"}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update template");
+    }
   };
 
   const getPlanTypeBadge = (type: string) => {
@@ -742,7 +786,7 @@ export function SettingsPageClient({
                 </div>
 
                 <div className="grid gap-4">
-                  {emailTemplates.map((template) => (
+                  {allEmailTemplates.map((template) => (
                     <Card key={template.id} className={template.isActive ? "" : "opacity-60"}>
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between gap-4">

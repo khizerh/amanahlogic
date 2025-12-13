@@ -16,6 +16,7 @@ export * from "./payments";
 export * from "./agreements";
 export * from "./agreement-links";
 export * from "./agreement-templates";
+export * from "./email-templates";
 
 // Supporting entities
 export * from "./email-logs";
