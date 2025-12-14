@@ -30,9 +30,10 @@ import {
   Edit2,
   ToggleLeft,
   ToggleRight,
-  Languages,
   UploadCloud,
-  CheckCircle2,
+  Loader2,
+  Languages,
+  Trash2,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, getEmailTemplateTypeLabel } from "@/lib/mock-data";
@@ -53,7 +54,7 @@ export function SettingsPageClient({
   emailTemplates = [],
 }: SettingsPageClientProps) {
   const organization = initialOrganization;
-  const plans = initialPlans;
+  const [plans, setPlans] = useState<Plan[]>(initialPlans);
 
   const [formData, setFormData] = useState({
     name: organization.name,
@@ -66,14 +67,6 @@ export function SettingsPageClient({
   });
 
   // Agreement templates state
-  const [activeTemplates, setActiveTemplates] = useState<{
-    en: AgreementTemplate | null;
-    fa: AgreementTemplate | null;
-  }>(() => {
-    const en = agreementTemplates.find((t) => t.language === "en" && t.isActive) || null;
-    const fa = agreementTemplates.find((t) => t.language === "fa" && t.isActive) || null;
-    return { en, fa };
-  });
   const [allTemplates, setAllTemplates] = useState<AgreementTemplate[]>(agreementTemplates);
   const [allEmailTemplates, setAllEmailTemplates] = useState<EmailTemplate[]>(emailTemplates);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
@@ -92,6 +85,9 @@ export function SettingsPageClient({
   // Plan management state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [togglingPlanId, setTogglingPlanId] = useState<string | null>(null);
   const [planFormData, setPlanFormData] = useState({
     name: "",
     type: "single",
@@ -112,14 +108,66 @@ export function SettingsPageClient({
     bodyFa: "",
   });
 
+  // View/delete template loading state
+  const [viewingTemplateId, setViewingTemplateId] = useState<string | null>(null);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+
+  // Handle deleting an agreement template
+  const handleDeleteTemplate = async (template: AgreementTemplate) => {
+    if (template.isActive) {
+      toast.error("Cannot delete active template. Set another template as active first.");
+      return;
+    }
+
+    if (!confirm(`Delete template "${template.version}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingTemplateId(template.id);
+    try {
+      const res = await fetch("/api/agreements/templates/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: template.id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete template");
+      }
+
+      setAllTemplates((prev) => prev.filter((t) => t.id !== template.id));
+      toast.success(`Deleted ${template.version}`);
+    } catch (err) {
+      console.error("Failed to delete template:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to delete template");
+    } finally {
+      setDeletingTemplateId(null);
+    }
+  };
+
+  // Handle viewing an agreement template (fetches signed URL)
+  const handleViewTemplate = async (templateId: string) => {
+    setViewingTemplateId(templateId);
+    try {
+      const res = await fetch(`/api/agreement-templates/${templateId}/url`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to get template URL");
+      }
+      const { url } = await res.json();
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to view template:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to open template");
+    } finally {
+      setViewingTemplateId(null);
+    }
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Organization settings saved successfully");
-  };
-
-  const _handleSaveAgreement = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success("Membership agreement saved successfully");
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,6 +179,7 @@ export function SettingsPageClient({
 
   // Plan management handlers
   const handleEditPlan = (plan: Plan) => {
+    setEditingPlanId(plan.id);
     setPlanFormData({
       name: plan.name,
       type: plan.type,
@@ -144,6 +193,7 @@ export function SettingsPageClient({
   };
 
   const handleAddPlan = () => {
+    setEditingPlanId(null);
     setPlanFormData({
       name: "",
       type: "single",
@@ -156,15 +206,80 @@ export function SettingsPageClient({
     setAddDialogOpen(true);
   };
 
-  const handleSavePlan = (e: React.FormEvent) => {
+  const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success(editDialogOpen ? "Plan updated successfully" : "Plan created successfully");
-    setEditDialogOpen(false);
-    setAddDialogOpen(false);
+    setSavingPlan(true);
+
+    try {
+      const payload = {
+        name: planFormData.name,
+        type: planFormData.type,
+        description: planFormData.description,
+        pricing: {
+          monthly: Number(planFormData.monthly) || 0,
+          biannual: Number(planFormData.biannual) || 0,
+          annual: Number(planFormData.annual) || 0,
+        },
+        enrollmentFee: Number(planFormData.enrollmentFee) || 0,
+      };
+
+      if (editDialogOpen && editingPlanId) {
+        // Update existing plan
+        const res = await fetch("/api/plans/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingPlanId, ...payload }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || "Failed to update plan");
+        }
+        setPlans((prev) => prev.map((p) => (p.id === editingPlanId ? json.plan : p)));
+        toast.success("Plan updated successfully");
+      } else {
+        // Create new plan
+        const res = await fetch("/api/plans/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || "Failed to create plan");
+        }
+        setPlans((prev) => [...prev, json.plan]);
+        toast.success("Plan created successfully");
+      }
+
+      setEditDialogOpen(false);
+      setAddDialogOpen(false);
+      setEditingPlanId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save plan");
+    } finally {
+      setSavingPlan(false);
+    }
   };
 
-  const handleToggleActive = (plan: Plan) => {
-    toast.success(`Plan ${plan.isActive ? "deactivated" : "activated"} successfully`);
+  const handleToggleActive = async (plan: Plan) => {
+    setTogglingPlanId(plan.id);
+    try {
+      const res = await fetch("/api/plans/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: plan.id }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to toggle plan");
+      }
+      setPlans((prev) => prev.map((p) => (p.id === plan.id ? json.plan : p)));
+      toast.success(`Plan ${json.plan.isActive ? "activated" : "deactivated"} successfully`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to toggle plan");
+    } finally {
+      setTogglingPlanId(null);
+    }
   };
 
   // Email template handlers
@@ -448,8 +563,11 @@ export function SettingsPageClient({
                             size="sm"
                             onClick={() => handleToggleActive(plan)}
                             className="flex-1 gap-2"
+                            disabled={togglingPlanId === plan.id}
                           >
-                            {plan.isActive ? (
+                            {togglingPlanId === plan.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : plan.isActive ? (
                               <>
                                 <ToggleLeft className="h-4 w-4" />
                                 Deactivate
@@ -471,239 +589,238 @@ export function SettingsPageClient({
 
             {/* Agreement Templates Tab */}
             <TabsContent value="agreement">
-              <div className="grid gap-6 lg:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Agreement Templates</CardTitle>
-                    <CardDescription>Manage PDF templates used for signing (EN/FA)</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-4">
-                      {(["en", "fa"] as const).map((lang) => {
-                        const active = activeTemplates[lang];
-                        return (
-                          <div key={lang} className="border rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm text-muted-foreground">
-                                  {lang === "en" ? "English" : "Dari/Farsi"} template
-                                </p>
-                                <p className="font-medium mt-1">
-                                  {active ? `${active.version}` : "No active template"}
-                                </p>
-                                {active && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {active.storagePath}
-                                  </p>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Agreement Templates</CardTitle>
+                  <CardDescription>
+                    Manage PDF templates for membership agreements. Upload separate templates for English and Dari/Farsi.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Templates Table */}
+                  {allTemplates.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead>Language</TableHead>
+                            <TableHead>Version</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Notes</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {allTemplates.map((t) => (
+                            <TableRow key={t.id}>
+                              <TableCell className="font-medium">
+                                {t.language === "en" ? "English" : "Dari/Farsi"}
+                              </TableCell>
+                              <TableCell>{t.version}</TableCell>
+                              <TableCell>
+                                {t.isActive ? (
+                                  <Badge variant="success">Active</Badge>
+                                ) : (
+                                  <Badge variant="outline">Inactive</Badge>
                                 )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {active && (
-                                  <a
-                                    href={active.storagePath}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm text-blue-600 hover:text-blue-500 flex items-center gap-1"
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {t.notes || "-"}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewTemplate(t.id)}
+                                    disabled={viewingTemplateId === t.id}
                                   >
-                                    Open
-                                    <Eye className="h-4 w-4" />
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                            {active && (
-                              <div className="mt-2 inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-1 rounded">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Active
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                                    {viewingTemplateId === t.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  {!t.isActive && (
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={async () => {
+                                          try {
+                                            const res = await fetch("/api/agreements/templates/set-active", {
+                                              method: "POST",
+                                              headers: { "Content-Type": "application/json" },
+                                              body: JSON.stringify({
+                                                templateId: t.id,
+                                                language: t.language,
+                                              }),
+                                            });
+                                            const json = await res.json();
+                                            if (!res.ok || !json.success) {
+                                              throw new Error(json.error || "Failed to activate");
+                                            }
+                                            setAllTemplates((prev) =>
+                                              prev.map((tpl) =>
+                                                tpl.language === t.language
+                                                  ? { ...tpl, isActive: tpl.id === t.id }
+                                                  : tpl
+                                              )
+                                            );
+                                            toast.success(`Activated ${t.version}`);
+                                          } catch (err) {
+                                            toast.error(err instanceof Error ? err.message : "Failed to activate");
+                                          }
+                                        }}
+                                      >
+                                        Set Active
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteTemplate(t)}
+                                        disabled={deletingTemplateId === t.id}
+                                      >
+                                        {deletingTemplateId === t.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="h-4 w-4 text-red-500" />
+                                        )}
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
+                  )}
 
-                    <div className="border rounded-lg p-4 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <UploadCloud className="h-4 w-4 text-muted-foreground" />
-                        <p className="font-medium">Upload new template</p>
+                  {allTemplates.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
+                      <UploadCloud className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No templates uploaded yet</p>
+                      <p className="text-sm">Upload your first agreement template below</p>
+                    </div>
+                  )}
+
+                  {/* Upload Form */}
+                  <div className="border rounded-lg p-4 bg-muted/30">
+                    <div className="flex items-center gap-2 mb-4">
+                      <UploadCloud className="h-4 w-4" />
+                      <span className="font-medium">Upload New Template</span>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="space-y-1">
+                        <Label>Language</Label>
+                        <Select
+                          value={templateUpload.language}
+                          onValueChange={(v) =>
+                            setTemplateUpload((prev) => ({ ...prev, language: v as "en" | "fa" }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Language" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="fa">Dari/Farsi</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="grid gap-3">
-                        <div className="grid gap-1">
-                          <Label>Language</Label>
-                          <Select
-                            value={templateUpload.language}
-                            onValueChange={(v) =>
-                              setTemplateUpload((prev) => ({ ...prev, language: v as "en" | "fa" }))
-                            }
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue placeholder="Language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="en">English</SelectItem>
-                              <SelectItem value="fa">Dari/Farsi</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-1">
-                          <Label>Version</Label>
-                          <Input
-                            value={templateUpload.version}
-                            onChange={(e) =>
-                              setTemplateUpload((prev) => ({ ...prev, version: e.target.value }))
-                            }
-                            placeholder="v1-en"
-                            className="w-40"
-                          />
-                        </div>
-                        <div className="grid gap-1">
-                          <Label>Notes</Label>
-                          <Input
-                            value={templateUpload.notes}
-                            onChange={(e) =>
-                              setTemplateUpload((prev) => ({ ...prev, notes: e.target.value }))
-                            }
-                            placeholder="e.g. Updated terms, new rates"
-                          />
-                        </div>
-                        <div className="grid gap-1">
-                          <Label>PDF File</Label>
-                          <Input
-                            type="file"
-                            accept="application/pdf"
-                            onChange={(e) =>
-                              setTemplateUpload((prev) => ({
-                                ...prev,
-                                file: e.target.files?.[0] || null,
-                              }))
-                            }
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            onClick={async () => {
-                              if (!templateUpload.file) {
-                                toast.error("Select a PDF to upload");
-                                return;
-                              }
-                              setUploadingTemplate(true);
-                              try {
-                                const formData = new FormData();
-                                formData.append("file", templateUpload.file);
-                                formData.append("language", templateUpload.language);
-                                formData.append("version", templateUpload.version);
-                                formData.append("notes", templateUpload.notes);
-
-                                const res = await fetch("/api/agreements/templates/upload", {
-                                  method: "POST",
-                                  body: formData,
-                                });
-                                const json = await res.json();
-                                if (!res.ok || !json.success) {
-                                  throw new Error(json.error || "Upload failed");
-                                }
-
-                                const newTemplate: AgreementTemplate = json.template;
-                                setAllTemplates((prev) => [newTemplate, ...prev]);
-                                setActiveTemplates((prev) => ({
-                                  ...prev,
-                                  [newTemplate.language]: newTemplate,
-                                }));
-                                toast.success("Template uploaded and activated");
-                              } catch (err) {
-                                toast.error(err instanceof Error ? err.message : "Upload failed");
-                              } finally {
-                                setUploadingTemplate(false);
-                              }
-                            }}
-                            disabled={uploadingTemplate}
-                          >
-                            {uploadingTemplate ? "Uploading..." : "Upload & Activate"}
-                          </Button>
-                        </div>
+                      <div className="space-y-1">
+                        <Label>Version</Label>
+                        <Input
+                          value={templateUpload.version}
+                          onChange={(e) =>
+                            setTemplateUpload((prev) => ({ ...prev, version: e.target.value }))
+                          }
+                          placeholder="e.g. v1.0"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Notes (optional)</Label>
+                        <Input
+                          value={templateUpload.notes}
+                          onChange={(e) =>
+                            setTemplateUpload((prev) => ({ ...prev, notes: e.target.value }))
+                          }
+                          placeholder="e.g. Updated terms"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>PDF File</Label>
+                        <Input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(e) =>
+                            setTemplateUpload((prev) => ({
+                              ...prev,
+                              file: e.target.files?.[0] || null,
+                            }))
+                          }
+                        />
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="mt-4">
+                      <Button
+                        onClick={async () => {
+                          if (!templateUpload.file) {
+                            toast.error("Select a PDF to upload");
+                            return;
+                          }
+                          setUploadingTemplate(true);
+                          try {
+                            const formData = new FormData();
+                            formData.append("file", templateUpload.file);
+                            formData.append("language", templateUpload.language);
+                            formData.append("version", templateUpload.version);
+                            formData.append("notes", templateUpload.notes);
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>All Templates</CardTitle>
-                    <CardDescription>Manage versions across languages</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-sm text-muted-foreground">
-                      Active templates are used when sending agreements. You can upload a new version to replace the active one.
+                            const res = await fetch("/api/agreements/templates/upload", {
+                              method: "POST",
+                              body: formData,
+                            });
+                            const json = await res.json();
+                            if (!res.ok || !json.success) {
+                              throw new Error(json.error || "Upload failed");
+                            }
+
+                            const newTemplate: AgreementTemplate = json.template;
+                            setAllTemplates((prev) => [newTemplate, ...prev]);
+                            setTemplateUpload((prev) => ({
+                              ...prev,
+                              file: null,
+                              version: "",
+                              notes: "",
+                            }));
+                            toast.success("Template uploaded and activated");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Upload failed");
+                          } finally {
+                            setUploadingTemplate(false);
+                          }
+                        }}
+                        disabled={uploadingTemplate || !templateUpload.file}
+                      >
+                        {uploadingTemplate ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="h-4 w-4 mr-2" />
+                            Upload & Activate
+                          </>
+                        )}
+                      </Button>
                     </div>
-                    <div className="border rounded-lg divide-y">
-                      <div className="grid grid-cols-5 text-xs uppercase text-muted-foreground px-3 py-2 bg-muted/50">
-                        <span>Language</span>
-                        <span>Version</span>
-                        <span>Active</span>
-                        <span>Path</span>
-                        <span></span>
-                      </div>
-                      {allTemplates.map((t) => (
-                        <div key={t.id} className="grid grid-cols-5 items-center px-3 py-2 text-sm">
-                          <span>{t.language === "en" ? "English" : "Dari/Farsi"}</span>
-                          <span>{t.version}</span>
-                          <span>{t.isActive ? "Yes" : "No"}</span>
-                          <span className="truncate text-xs text-muted-foreground">{t.storagePath}</span>
-                          <div className="flex justify-end gap-2">
-                            {!t.isActive && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    const res = await fetch("/api/agreements/templates/set-active", {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({
-                                        templateId: t.id,
-                                        language: t.language,
-                                      }),
-                                    });
-                                    const json = await res.json();
-                                    if (!res.ok || !json.success) {
-                                      throw new Error(json.error || "Failed to activate");
-                                    }
-                                    setAllTemplates((prev) =>
-                                      prev.map((tpl) =>
-                                        tpl.language === t.language
-                                          ? { ...tpl, isActive: tpl.id === t.id }
-                                          : tpl
-                                      )
-                                    );
-                                    setActiveTemplates((prev) => ({ ...prev, [t.language]: t }));
-                                    toast.success(`Activated ${t.version}`);
-                                  } catch (err) {
-                                    toast.error(err instanceof Error ? err.message : "Failed to activate");
-                                  }
-                                }}
-                              >
-                                Set Active
-                              </Button>
-                            )}
-                            <a
-                              href={t.storagePath}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 text-xs hover:underline"
-                            >
-                              View
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                      {allTemplates.length === 0 && (
-                        <div className="px-3 py-4 text-sm text-muted-foreground">No templates uploaded yet.</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Stripe Tab */}
@@ -967,10 +1084,19 @@ export function SettingsPageClient({
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} disabled={savingPlan}>
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={savingPlan}>
+                {savingPlan ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1074,10 +1200,19 @@ export function SettingsPageClient({
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)} disabled={savingPlan}>
                 Cancel
               </Button>
-              <Button type="submit">Create Plan</Button>
+              <Button type="submit" disabled={savingPlan}>
+                {savingPlan ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Plan"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
