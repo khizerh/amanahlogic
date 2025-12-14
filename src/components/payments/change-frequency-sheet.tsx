@@ -19,7 +19,6 @@ import { MemberWithMembership, BillingFrequency, Plan } from "@/lib/types";
 import { formatCurrency } from "@/lib/mock-data";
 import {
   updateBillingFrequency,
-  getAmountForFrequency,
   getMonthsForFrequency,
 } from "@/lib/mock-data/billing-service";
 import { toast } from "sonner";
@@ -70,8 +69,22 @@ export function ChangeFrequencySheet({
     { value: "annual", label: "Annual (12 months)", months: 12 },
   ];
 
-  const currentAmount = getAmountForFrequency(plan.id, currentFrequency);
-  const newAmount = getAmountForFrequency(plan.id, selectedFrequency);
+  // Helper to get amount from the actual plan pricing
+  const getAmountForFrequency = (frequency: BillingFrequency): number => {
+    switch (frequency) {
+      case "monthly":
+        return plan.pricing.monthly;
+      case "biannual":
+        return plan.pricing.biannual;
+      case "annual":
+        return plan.pricing.annual;
+      default:
+        return plan.pricing.monthly;
+    }
+  };
+
+  const currentAmount = getAmountForFrequency(currentFrequency);
+  const newAmount = getAmountForFrequency(selectedFrequency);
   const currentMonths = getMonthsForFrequency(currentFrequency);
   const newMonths = getMonthsForFrequency(selectedFrequency);
 
@@ -174,7 +187,7 @@ export function ChangeFrequencySheet({
               className="space-y-3"
             >
               {frequencyOptions.map((option) => {
-                const amount = getAmountForFrequency(plan.id, option.value);
+                const amount = getAmountForFrequency(option.value);
                 const isCurrent = option.value === currentFrequency;
                 return (
                   <div
