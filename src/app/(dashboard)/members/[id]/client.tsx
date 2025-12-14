@@ -136,6 +136,12 @@ export function MemberDetailClient({
   // State for switching to manual payments
   const [isSwitchingToManual, setIsSwitchingToManual] = useState(false);
 
+  // State for setting up autopay
+  const [isSettingUpAutopay, setIsSettingUpAutopay] = useState(false);
+
+  // State for pausing/resuming subscription
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<{
@@ -296,6 +302,74 @@ export function MemberDetailClient({
       toast.error(err instanceof Error ? err.message : "Failed to switch to manual payments");
     } finally {
       setIsSwitchingToManual(false);
+    }
+  }, [membership, router]);
+
+  // Set up autopay (redirect to Stripe Checkout)
+  const handleSetupAutopay = useCallback(async () => {
+    if (!membership) return;
+
+    setIsSettingUpAutopay(true);
+    try {
+      const response = await fetch("/api/stripe/setup-autopay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          memberId: memberData.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to set up autopay");
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = result.checkoutUrl;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to set up autopay");
+      setIsSettingUpAutopay(false);
+    }
+    // Don't setIsSettingUpAutopay(false) on success - we're redirecting
+  }, [membership, memberData.id]);
+
+  // Pause or resume subscription
+  const handleSubscriptionAction = useCallback(async (action: "pause" | "resume") => {
+    if (!membership) return;
+
+    setIsManagingSubscription(true);
+    try {
+      const response = await fetch("/api/stripe/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          action,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `Failed to ${action} subscription`);
+      }
+
+      toast.success(
+        action === "pause" ? "Subscription paused" : "Subscription resumed",
+        {
+          description: action === "pause"
+            ? "Billing has been paused. No charges will be made until resumed."
+            : "Billing has resumed. Charges will continue as normal.",
+        }
+      );
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Failed to ${action} subscription`);
+    } finally {
+      setIsManagingSubscription(false);
     }
   }, [membership, router]);
 
@@ -898,19 +972,39 @@ export function MemberDetailClient({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => toast.info("Subscription paused")}
+                          onClick={() => handleSubscriptionAction("pause")}
+                          disabled={isManagingSubscription}
                         >
-                          <Pause className="h-4 w-4 mr-2" />
-                          Pause Subscription
+                          {isManagingSubscription ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Pausing...
+                            </>
+                          ) : (
+                            <>
+                              <Pause className="h-4 w-4 mr-2" />
+                              Pause Subscription
+                            </>
+                          )}
                         </Button>
                       ) : membership.subscriptionStatus === 'paused' ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => toast.info("Subscription resumed")}
+                          onClick={() => handleSubscriptionAction("resume")}
+                          disabled={isManagingSubscription}
                         >
-                          <Play className="h-4 w-4 mr-2" />
-                          Resume Subscription
+                          {isManagingSubscription ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Resuming...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-2" />
+                              Resume Subscription
+                            </>
+                          )}
                         </Button>
                       ) : null}
                       <Button
@@ -936,10 +1030,20 @@ export function MemberDetailClient({
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => toast.info("Set up auto-pay - Stripe integration coming soon")}
+                      onClick={handleSetupAutopay}
+                      disabled={isSettingUpAutopay}
                     >
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Set Up Auto-Pay
+                      {isSettingUpAutopay ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Setting up...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Set Up Auto-Pay
+                        </>
+                      )}
                     </Button>
                   )}
                   <Button

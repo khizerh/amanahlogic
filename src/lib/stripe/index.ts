@@ -111,3 +111,270 @@ export function isStripeResourceMissingError(error: unknown): boolean {
   }
   return false;
 }
+
+/**
+ * Create a Stripe Checkout Session for subscription setup
+ */
+export async function createSubscriptionCheckoutSession(params: {
+  customerId: string;
+  priceAmountCents: number;
+  membershipId: string;
+  memberId: string;
+  organizationId: string;
+  successUrl: string;
+  cancelUrl: string;
+  billingAnchorDay?: number;
+}): Promise<{ url: string; sessionId: string }> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const {
+    customerId,
+    priceAmountCents,
+    membershipId,
+    memberId,
+    organizationId,
+    successUrl,
+    cancelUrl,
+    billingAnchorDay,
+  } = params;
+
+  // Create an ad-hoc price for this subscription
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: "subscription",
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: "Membership Dues",
+            description: "Monthly membership dues",
+          },
+          unit_amount: priceAmountCents,
+          recurring: {
+            interval: "month",
+          },
+        },
+        quantity: 1,
+      },
+    ],
+    subscription_data: {
+      metadata: {
+        membership_id: membershipId,
+        member_id: memberId,
+        organization_id: organizationId,
+      },
+      // Set billing anchor if provided (1-28)
+      ...(billingAnchorDay && {
+        billing_cycle_anchor_config: {
+          day_of_month: billingAnchorDay,
+        },
+      }),
+    },
+    metadata: {
+      membership_id: membershipId,
+      member_id: memberId,
+      organization_id: organizationId,
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    payment_method_types: ["card"],
+  });
+
+  if (!session.url) {
+    throw new Error("Failed to create checkout session URL");
+  }
+
+  return { url: session.url, sessionId: session.id };
+}
+
+/**
+ * Create a PaymentIntent for a one-time charge
+ */
+export async function createPaymentIntent(params: {
+  customerId: string;
+  amountCents: number;
+  membershipId: string;
+  memberId: string;
+  organizationId: string;
+  paymentId?: string;
+  description?: string;
+}): Promise<{ clientSecret: string; paymentIntentId: string }> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const {
+    customerId,
+    amountCents,
+    membershipId,
+    memberId,
+    organizationId,
+    paymentId,
+    description,
+  } = params;
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amountCents,
+    currency: "usd",
+    customer: customerId,
+    description: description || "Membership payment",
+    metadata: {
+      membership_id: membershipId,
+      member_id: memberId,
+      organization_id: organizationId,
+      ...(paymentId && { payment_id: paymentId }),
+    },
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  if (!paymentIntent.client_secret) {
+    throw new Error("Failed to create payment intent");
+  }
+
+  return {
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+  };
+}
+
+/**
+ * Confirm a PaymentIntent with the customer's default payment method
+ */
+export async function confirmPaymentIntent(params: {
+  paymentIntentId: string;
+  paymentMethodId?: string;
+}): Promise<{ status: string; succeeded: boolean }> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const { paymentIntentId, paymentMethodId } = params;
+
+  // Get the payment intent first to check its current state
+  const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+  if (intent.status === "succeeded") {
+    return { status: "succeeded", succeeded: true };
+  }
+
+  // Confirm with payment method if provided, otherwise use default
+  const confirmed = await stripe.paymentIntents.confirm(paymentIntentId, {
+    ...(paymentMethodId && { payment_method: paymentMethodId }),
+  });
+
+  return {
+    status: confirmed.status,
+    succeeded: confirmed.status === "succeeded",
+  };
+}
+
+/**
+ * Pause a Stripe subscription
+ */
+export async function pauseSubscription(subscriptionId: string): Promise<void> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  await stripe.subscriptions.update(subscriptionId, {
+    pause_collection: {
+      behavior: "mark_uncollectible",
+    },
+  });
+}
+
+/**
+ * Resume a paused Stripe subscription
+ */
+export async function resumeSubscription(subscriptionId: string): Promise<void> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  await stripe.subscriptions.update(subscriptionId, {
+    pause_collection: null,
+  });
+}
+
+/**
+ * Cancel a Stripe subscription
+ */
+export async function cancelSubscription(subscriptionId: string): Promise<boolean> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    if (subscription.status === "canceled") {
+      return true; // Already canceled
+    }
+
+    await stripe.subscriptions.cancel(subscriptionId);
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // If subscription doesn't exist, treat as success
+    if (errorMessage.includes("No such subscription")) {
+      return true;
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Get a customer's default payment method
+ */
+export async function getCustomerDefaultPaymentMethod(
+  customerId: string
+): Promise<{ id: string; type: string; last4: string; brand?: string } | null> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const customer = await stripe.customers.retrieve(customerId);
+
+  if (customer.deleted) {
+    return null;
+  }
+
+  const defaultPaymentMethodId = customer.invoice_settings?.default_payment_method;
+
+  if (!defaultPaymentMethodId || typeof defaultPaymentMethodId !== "string") {
+    // Try to get from payment methods list
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: "card",
+      limit: 1,
+    });
+
+    if (paymentMethods.data.length === 0) {
+      return null;
+    }
+
+    const pm = paymentMethods.data[0];
+    return {
+      id: pm.id,
+      type: pm.type,
+      last4: pm.card?.last4 || "****",
+      brand: pm.card?.brand,
+    };
+  }
+
+  const paymentMethod = await stripe.paymentMethods.retrieve(defaultPaymentMethodId);
+
+  return {
+    id: paymentMethod.id,
+    type: paymentMethod.type,
+    last4: paymentMethod.card?.last4 || "****",
+    brand: paymentMethod.card?.brand,
+  };
+}

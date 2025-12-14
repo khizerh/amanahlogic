@@ -16,8 +16,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MemberWithMembership, PaymentType, Plan } from "@/lib/types";
 import { formatCurrency } from "@/lib/mock-data";
-import { recordPayment, type RecordPaymentResult } from "@/lib/mock-data/billing-service";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import {
   CreditCard,
   Building2,
@@ -45,6 +45,7 @@ export function ChargeCardSheet({
   onOpenChange,
   onPaymentRecorded,
 }: ChargeCardSheetProps) {
+  const router = useRouter();
   const [paymentType, setPaymentType] = useState<PaymentType>("dues");
   const [monthsCount, setMonthsCount] = useState<number>(1);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -129,23 +130,21 @@ export function ChargeCardSheet({
     setIsProcessing(true);
 
     try {
-      // Simulate Stripe API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Record the payment via billing service
-      const result: RecordPaymentResult = recordPayment({
-        memberId: member.id,
-        membershipId: membership.id,
-        planId: plan.id,
-        type: paymentType,
-        method: "stripe",
-        amount: baseAmount,
-        monthsCredited,
-        notes: `Charged ${paymentMethod.type === "card" ? paymentMethod.brand?.toUpperCase() : paymentMethod.bankName} •••• ${paymentMethod.last4}`,
-        recordedBy: "Admin User",
+      const response = await fetch("/api/stripe/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          memberId: member.id,
+          type: paymentType,
+          amount: baseAmount,
+          monthsCredited,
+        }),
       });
 
-      if (!result.success) {
+      const result = await response.json();
+
+      if (!response.ok) {
         throw new Error(result.error || "Payment failed");
       }
 
@@ -153,21 +152,22 @@ export function ChargeCardSheet({
       const paymentTypeLabel =
         paymentType === "enrollment_fee" ? "Enrollment fee" : "Dues";
 
-      if (result.statusChanged && result.newStatus === "active") {
+      if (result.becameEligible) {
         toast.success(`${paymentTypeLabel} of ${formatCurrency(baseAmount)} charged successfully`, {
           duration: 5000,
           description: `${member.firstName} has reached 60 paid months and is now fully eligible for benefits!`,
         });
       } else {
         toast.success(`${paymentTypeLabel} of ${formatCurrency(baseAmount)} charged successfully`, {
-          description: result.membership
-            ? `Progress: ${result.membership.paidMonths}/60 months`
+          description: result.newPaidMonths
+            ? `Progress: ${result.newPaidMonths}/60 months`
             : undefined,
         });
       }
 
       onOpenChange(false);
       onPaymentRecorded?.();
+      router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Payment failed";
       toast.error("Failed to process payment", {
