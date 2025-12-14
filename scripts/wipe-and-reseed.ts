@@ -501,6 +501,17 @@ async function seedDatabase(): Promise<void> {
       eligible_date: "2024-12-15",
       agreement_signed_at: "2019-07-15T10:00:00Z",
       auto_pay_enabled: true,
+      // Stripe autopay fields - use test IDs (won't work with real Stripe)
+      stripe_customer_id: "cus_test_ahmed_khan",
+      stripe_subscription_id: "sub_test_ahmed_khan",
+      subscription_status: "active",
+      payment_method: {
+        type: "card",
+        last4: "4242",
+        brand: "visa",
+        expiryMonth: 12,
+        expiryYear: 2027,
+      },
     },
     {
       id: MEMBERSHIP_IDS.muhammad,
@@ -803,6 +814,13 @@ async function seedDatabase(): Promise<void> {
   console.log("   • 1 Agreement (awaiting signature)");
   console.log("   • 3 Email Logs");
   console.log("   • 1 Auto Pay Invite");
+  console.log("\n🧪 Test Scenarios:");
+  console.log("   1. Ahmed Khan: Active with Stripe autopay - test payment blocking");
+  console.log("   2. Muhammad Ali: Waiting period with manual payments");
+  console.log("   3. Fatima Hassan: Lapsed - test payment reminders");
+  console.log("   4. Omar Syed: Pending (no enrollment fee) - test 'Set Up Auto-Pay' includes fee");
+  console.log("   5. Aisha Rahman: Awaiting signature - test agreement flow");
+  console.log("   6. Create NEW member with Stripe -> checkout includes enrollment fee + subscription");
 }
 
 async function main(): Promise<void> {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -905,27 +906,16 @@ export function SettingsPageClient({
                               : "Your organization absorbs all processing fees"}
                           </p>
                         </div>
-                        <Button
-                          variant={organization.passFeesToMember ? "default" : "outline"}
-                          size="sm"
-                          onClick={handleTogglePassFees}
-                          disabled={savingFeeSettings}
-                          className="gap-2 ml-4"
-                        >
-                          {savingFeeSettings ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : organization.passFeesToMember ? (
-                            <>
-                              <ToggleRight className="h-4 w-4" />
-                              Enabled
-                            </>
-                          ) : (
-                            <>
-                              <ToggleLeft className="h-4 w-4" />
-                              Disabled
-                            </>
+                        <div className="flex items-center gap-2 ml-4">
+                          {savingFeeSettings && (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           )}
-                        </Button>
+                          <Switch
+                            checked={organization.passFeesToMember}
+                            onCheckedChange={handleTogglePassFees}
+                            disabled={savingFeeSettings}
+                          />
+                        </div>
                       </div>
 
                       {/* Fee Breakdown */}

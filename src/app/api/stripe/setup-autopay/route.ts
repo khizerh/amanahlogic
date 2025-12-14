@@ -15,6 +15,8 @@ import {
 interface SetupAutopayBody {
   membershipId: string;
   memberId: string;
+  /** If true, skip enrollment fee even if not paid (for special cases) */
+  skipEnrollmentFee?: boolean;
 }
 
 /**
@@ -34,7 +36,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { membershipId, memberId }: SetupAutopayBody = await req.json();
+    const { membershipId, memberId, skipEnrollmentFee }: SetupAutopayBody = await req.json();
 
     if (!membershipId || !memberId) {
       return NextResponse.json(
@@ -120,6 +122,31 @@ export async function POST(req: Request) {
       ? `Member pays $${(fees.chargeAmountCents / 100).toFixed(2)} so org receives $${priceAmount.toFixed(2)}`
       : undefined;
 
+    // Check if enrollment fee should be included
+    // Include if: not paid AND not explicitly skipped
+    const includeEnrollmentFee = !membership.enrollmentFeePaid && !skipEnrollmentFee;
+
+    // Calculate enrollment fee with fees if applicable
+    let enrollmentFeeConfig: { amountCents: number; description?: string } | undefined;
+    if (includeEnrollmentFee) {
+      const enrollmentFeeBase = plan.enrollmentFee; // e.g., $500
+      const enrollmentFeeCents = Math.round(enrollmentFeeBase * 100);
+
+      if (org.passFeesToMember) {
+        // Gross up enrollment fee so org receives full amount
+        const enrollmentFees = calculateFees(enrollmentFeeCents, org.platformFee || 0, true);
+        enrollmentFeeConfig = {
+          amountCents: enrollmentFees.chargeAmountCents,
+          description: `${plan.name} Enrollment Fee ($${enrollmentFeeBase.toFixed(2)} + $${enrollmentFees.breakdown.totalFees.toFixed(2)} fees)`,
+        };
+      } else {
+        enrollmentFeeConfig = {
+          amountCents: enrollmentFeeCents,
+          description: `${plan.name} Enrollment Fee`,
+        };
+      }
+    }
+
     // Create checkout session with correct billing frequency (with Connect if org is onboarded)
     // Use chargeAmountCents which includes fees if passFeesToMember is enabled
     const session = await createSubscriptionCheckoutSession({
@@ -135,6 +162,8 @@ export async function POST(req: Request) {
       planName: plan.name,
       lineItemName,
       lineItemDescription,
+      // Include enrollment fee if not paid
+      enrollmentFee: enrollmentFeeConfig,
     });
 
     // Update membership with customer ID (subscription ID will be set by webhook)
@@ -147,6 +176,8 @@ export async function POST(req: Request) {
       success: true,
       checkoutUrl: session.url,
       sessionId: session.sessionId,
+      includesEnrollmentFee: includeEnrollmentFee,
+      enrollmentFeeAmount: includeEnrollmentFee ? enrollmentFeeConfig?.amountCents : undefined,
     });
   } catch (error) {
     console.error("Error creating autopay checkout:", error);

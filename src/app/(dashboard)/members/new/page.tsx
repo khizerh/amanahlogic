@@ -53,6 +53,7 @@ export default function NewMemberPage() {
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>("monthly");
   const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
 
   const addChild = () => {
     setChildren([
@@ -73,7 +74,9 @@ export default function NewMemberPage() {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Basic validation
@@ -82,9 +85,80 @@ export default function NewMemberPage() {
       return;
     }
 
-    // In a real app, this would save to the database
-    toast.success("Member created successfully");
-    router.push("/members");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/members", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          phone,
+          street,
+          city,
+          state,
+          zip,
+          spouseName: spouseName || undefined,
+          emergencyName,
+          emergencyPhone,
+          planType,
+          billingFrequency,
+          preferredLanguage,
+          children: children.map((c) => ({
+            id: c.id,
+            name: c.name,
+            dateOfBirth: c.dateOfBirth,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create member");
+      }
+
+      // If Stripe payment method selected, redirect to Stripe Checkout
+      if (paymentMethod === "stripe") {
+        toast.success("Member created! Redirecting to payment setup...");
+
+        // Call setup-autopay to get Stripe Checkout URL
+        const autopayResponse = await fetch("/api/stripe/setup-autopay", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            membershipId: data.membership.id,
+            memberId: data.member.id,
+          }),
+        });
+
+        const autopayData = await autopayResponse.json();
+
+        if (!autopayResponse.ok) {
+          // Stripe setup failed, but member was created - redirect to detail page
+          toast.error(autopayData.error || "Failed to set up Stripe. You can try again from the member page.");
+          router.push(`/members/${data.member.id}`);
+          return;
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = autopayData.checkoutUrl;
+        return;
+      }
+
+      // Manual payment - just redirect to member page
+      toast.success("Member created successfully");
+      router.push(`/members/${data.member.id}`);
+    } catch (error) {
+      console.error("Error creating member:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create member");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -390,17 +464,64 @@ export default function NewMemberPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-3 pt-4 border-t">
+                  <Label>Payment Method</Label>
+                  <RadioGroup
+                    value={paymentMethod}
+                    onValueChange={(value) => setPaymentMethod(value as "manual" | "stripe")}
+                  >
+                    <div className="flex items-start space-x-2">
+                      <RadioGroupItem value="manual" id="manual" className="mt-1" />
+                      <div>
+                        <Label htmlFor="manual" className="font-normal cursor-pointer">
+                          Manual Payments
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Collect payments via cash, check, or Zelle
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <RadioGroupItem value="stripe" id="stripe" className="mt-1" />
+                      <div>
+                        <Label htmlFor="stripe" className="font-normal cursor-pointer">
+                          Stripe Auto-Pay
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Set up automatic card payments (includes $500 enrollment fee)
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+
+                  {paymentMethod === "stripe" && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                      <p className="text-blue-800">
+                        After creating the member, you&apos;ll be redirected to Stripe Checkout to collect the <strong>$500 enrollment fee</strong> and set up <strong>recurring dues</strong>.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-3">
               <Link href="/members">
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" disabled={isSubmitting}>
                   Cancel
                 </Button>
               </Link>
-              <Button type="submit">Create Member</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting
+                  ? paymentMethod === "stripe"
+                    ? "Creating & Setting Up Payment..."
+                    : "Creating..."
+                  : paymentMethod === "stripe"
+                  ? "Create Member & Set Up Payment"
+                  : "Create Member"}
+              </Button>
             </div>
           </form>
         </div>

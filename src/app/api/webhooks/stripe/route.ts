@@ -186,6 +186,7 @@ export async function POST(req: Request) {
 /**
  * Handle checkout.session.completed
  * When a subscription checkout completes, save the subscription ID to the membership
+ * Also handles enrollment fee if included in the checkout
  */
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
@@ -205,14 +206,56 @@ async function handleCheckoutCompleted(
 
     console.log(`[Webhook] Saving subscription ${subscriptionId} to membership ${metadata.membership_id}`);
 
+    // Check if enrollment fee was included in this checkout
+    const includesEnrollmentFee = metadata.includes_enrollment_fee === "true";
+    const enrollmentFeeAmountCents = metadata.enrollment_fee_amount_cents
+      ? parseInt(metadata.enrollment_fee_amount_cents, 10)
+      : null;
+
+    // Build update object
+    const membershipUpdate: Record<string, unknown> = {
+      stripe_subscription_id: subscriptionId,
+      auto_pay_enabled: true,
+      subscription_status: "active",
+      updated_at: new Date().toISOString(),
+    };
+
+    // If enrollment fee was included, mark it as paid
+    if (includesEnrollmentFee) {
+      membershipUpdate.enrollment_fee_paid = true;
+      console.log(`[Webhook] Marking enrollment fee as paid for membership ${metadata.membership_id}`);
+
+      // Create enrollment fee payment record
+      if (enrollmentFeeAmountCents && metadata.organization_id && metadata.member_id) {
+        const enrollmentFeeAmount = enrollmentFeeAmountCents / 100;
+
+        const { error: paymentError } = await supabase
+          .from("payments")
+          .insert({
+            organization_id: metadata.organization_id,
+            membership_id: metadata.membership_id,
+            member_id: metadata.member_id,
+            type: "enrollment_fee",
+            method: "stripe",
+            status: "completed",
+            amount: enrollmentFeeAmount,
+            months_credited: 0, // Enrollment fee doesn't credit months
+            notes: "Enrollment fee collected via Stripe Checkout (with subscription setup)",
+            paid_at: new Date().toISOString(),
+          });
+
+        if (paymentError) {
+          console.error("[Webhook] Failed to create enrollment fee payment record:", paymentError);
+          // Don't throw - continue with membership update
+        } else {
+          console.log(`[Webhook] Created enrollment fee payment record for ${metadata.membership_id}`);
+        }
+      }
+    }
+
     const { error } = await supabase
       .from("memberships")
-      .update({
-        stripe_subscription_id: subscriptionId,
-        auto_pay_enabled: true,
-        subscription_status: "active",
-        updated_at: new Date().toISOString(),
-      })
+      .update(membershipUpdate)
       .eq("id", metadata.membership_id);
 
     if (error) {
@@ -220,7 +263,7 @@ async function handleCheckoutCompleted(
       throw error;
     }
 
-    console.log(`[Webhook] Membership ${metadata.membership_id} updated with subscription`);
+    console.log(`[Webhook] Membership ${metadata.membership_id} updated with subscription${includesEnrollmentFee ? " and enrollment fee marked paid" : ""}`);
   }
 }
 
@@ -353,7 +396,29 @@ async function handleInvoicePaid(
     return;
   }
 
-  const amount = invoice.amount_paid / 100;
+  // Check if this invoice includes enrollment fee (from subscription metadata)
+  // We need to subtract it since enrollment fee is handled separately in checkout.session.completed
+  let enrollmentFeeAmountCents = 0;
+  const subscriptionMetadata = (invoice as any).subscription_details?.metadata || {};
+  if (subscriptionMetadata.includes_enrollment_fee === "true" && invoice.billing_reason === "subscription_create") {
+    // This is the first invoice with enrollment fee - we need to exclude it from dues calculation
+    enrollmentFeeAmountCents = subscriptionMetadata.enrollment_fee_amount_cents
+      ? parseInt(subscriptionMetadata.enrollment_fee_amount_cents, 10)
+      : 0;
+    console.log(`[Webhook] First invoice includes enrollment fee of ${enrollmentFeeAmountCents} cents - will exclude from dues`);
+  }
+
+  // Calculate dues amount (total paid minus enrollment fee if applicable)
+  const totalAmountCents = invoice.amount_paid;
+  const duesAmountCents = totalAmountCents - enrollmentFeeAmountCents;
+
+  // If after subtracting enrollment fee there's nothing left for dues, skip
+  if (duesAmountCents <= 0) {
+    console.log("[Webhook] invoice.paid - no dues amount after enrollment fee, skipping");
+    return;
+  }
+
+  const amount = duesAmountCents / 100;
   const paymentIntentId = typeof invoice.payment_intent === "string"
     ? invoice.payment_intent
     : invoice.payment_intent?.id;

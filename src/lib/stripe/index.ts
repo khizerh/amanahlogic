@@ -159,6 +159,11 @@ export async function createSubscriptionCheckoutSession(params: {
   lineItemDescription?: string;
   /** Optional Connect params for destination charges */
   connectParams?: ConnectParams;
+  /** Optional enrollment fee to add as one-time charge on first invoice */
+  enrollmentFee?: {
+    amountCents: number;
+    description?: string;
+  };
 }): Promise<{ url: string; sessionId: string }> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
@@ -178,6 +183,7 @@ export async function createSubscriptionCheckoutSession(params: {
     lineItemName,
     lineItemDescription,
     connectParams,
+    enrollmentFee,
   } = params;
 
   // Determine Stripe interval based on billing frequency
@@ -202,6 +208,22 @@ export async function createSubscriptionCheckoutSession(params: {
       defaultDescription = "Annual membership dues";
       break;
   }
+
+  // If enrollment fee is provided, add it as a one-time invoice item on first invoice
+  const enrollmentFeeInvoiceItems = enrollmentFee
+    ? [
+        {
+          price_data: {
+            currency: "usd" as const,
+            product_data: {
+              name: enrollmentFee.description || `${planName} Enrollment Fee`,
+            },
+            unit_amount: enrollmentFee.amountCents,
+          },
+          quantity: 1,
+        },
+      ]
+    : [];
 
   // Create an ad-hoc price for this subscription
   const session = await stripe.checkout.sessions.create({
@@ -230,12 +252,21 @@ export async function createSubscriptionCheckoutSession(params: {
         member_id: memberId,
         organization_id: organizationId,
         billing_frequency: billingFrequency,
+        // Track if enrollment fee is included
+        ...(enrollmentFee && {
+          includes_enrollment_fee: "true",
+          enrollment_fee_amount_cents: String(enrollmentFee.amountCents),
+        }),
       },
       // Set billing anchor if provided (1-28)
       ...(billingAnchorDay && {
         billing_cycle_anchor_config: {
           day_of_month: billingAnchorDay,
         },
+      }),
+      // Add enrollment fee as one-time item on first invoice
+      ...(enrollmentFeeInvoiceItems.length > 0 && {
+        add_invoice_items: enrollmentFeeInvoiceItems,
       }),
       // Stripe Connect: Destination charges for subscriptions
       // Each invoice payment will be split automatically
@@ -253,6 +284,11 @@ export async function createSubscriptionCheckoutSession(params: {
       member_id: memberId,
       organization_id: organizationId,
       billing_frequency: billingFrequency,
+      // Also track in session metadata for checkout.session.completed
+      ...(enrollmentFee && {
+        includes_enrollment_fee: "true",
+        enrollment_fee_amount_cents: String(enrollmentFee.amountCents),
+      }),
     },
     success_url: successUrl,
     cancel_url: cancelUrl,
