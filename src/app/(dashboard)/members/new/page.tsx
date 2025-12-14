@@ -525,10 +525,12 @@ export default function NewMemberPage() {
                           {billingFrequency === "annual" && "/year"}
                         </span>
                       </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-muted-foreground">Enrollment Fee:</span>
-                        <span className="font-medium">${enrollmentFeeAmount} (one-time)</span>
-                      </div>
+                      {!waiveEnrollmentFee && (
+                        <div className="flex justify-between mt-1">
+                          <span className="text-muted-foreground">Enrollment Fee:</span>
+                          <span className="font-medium">${enrollmentFeeAmount} (one-time)</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-3 pt-4 border-t">
@@ -563,7 +565,9 @@ export default function NewMemberPage() {
 
                       {/* Enrollment Fee Option - same for both payment methods */}
                       <div className="space-y-3 mt-3 pt-3 border-t">
-                        <Label className="text-sm">Enrollment Fee (${enrollmentFeeAmount})</Label>
+                        <Label className="text-sm">
+                          Enrollment Fee {!waiveEnrollmentFee && `($${enrollmentFeeAmount})`}
+                        </Label>
 
                         <div className="flex items-start space-x-3">
                           <Checkbox
