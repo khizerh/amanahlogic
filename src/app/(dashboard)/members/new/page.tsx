@@ -81,7 +81,7 @@ export default function NewMemberPage() {
   const [children, setChildren] = useState<ChildFormData[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
   const [includeEnrollmentFee, setIncludeEnrollmentFee] = useState(true);
-  const [enrollmentFeePaid, setEnrollmentFeePaid] = useState(true);
+  const [enrollmentFeePaid, setEnrollmentFeePaid] = useState(false);
 
   // Get current plan and pricing based on selections
   const currentPlan = plans.find((p) => p.type === planType);
