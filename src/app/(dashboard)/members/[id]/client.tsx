@@ -130,6 +130,12 @@ export function MemberDetailClient({
   // State for sending agreement
   const [isSendingAgreement, setIsSendingAgreement] = useState(false);
 
+  // State for sending portal link
+  const [isSendingPortalLink, setIsSendingPortalLink] = useState(false);
+
+  // State for switching to manual payments
+  const [isSwitchingToManual, setIsSwitchingToManual] = useState(false);
+
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<{
@@ -206,6 +212,92 @@ export function MemberDetailClient({
       setIsSendingAgreement(false);
     }
   }, [membership, memberData.id, memberData.preferredLanguage, router]);
+
+  // Send Stripe portal link to member
+  const handleSendPortalLink = useCallback(async () => {
+    if (!membership) return;
+
+    setIsSendingPortalLink(true);
+    try {
+      const response = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          memberId: memberData.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send portal link");
+      }
+
+      if (result.emailSent) {
+        toast.success("Portal link sent! Member can now update their payment method.");
+      } else {
+        toast.success("Portal link generated", {
+          description: "Email not configured - copy the link manually.",
+          action: {
+            label: "Copy Link",
+            onClick: () => {
+              navigator.clipboard.writeText(result.portalUrl);
+              toast.info("Portal link copied to clipboard");
+            },
+          },
+        });
+      }
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send portal link");
+    } finally {
+      setIsSendingPortalLink(false);
+    }
+  }, [membership, memberData.id, router]);
+
+  // Switch from Stripe autopay to manual payments
+  const handleSwitchToManual = useCallback(async () => {
+    if (!membership) return;
+
+    setIsSwitchingToManual(true);
+    try {
+      const response = await fetch("/api/memberships/switch-to-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to switch to manual payments");
+      }
+
+      if (result.alreadyManual) {
+        toast.info("Member is already on manual payments");
+      } else {
+        toast.success("Switched to manual payments", {
+          description: result.subscriptionCanceled
+            ? "Stripe subscription has been cancelled. You can now record manual payments."
+            : "Autopay has been disabled.",
+        });
+      }
+
+      if (result.stripeWarning) {
+        toast.warning("Stripe warning", { description: result.stripeWarning });
+      }
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to switch to manual payments");
+    } finally {
+      setIsSwitchingToManual(false);
+    }
+  }, [membership, router]);
 
   const handleStartEdit = () => {
     setEditForm({
@@ -787,10 +879,20 @@ export function MemberDetailClient({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toast.info("Update payment method - Stripe integration coming soon")}
+                        onClick={handleSendPortalLink}
+                        disabled={isSendingPortalLink}
                       >
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Update Payment Method
+                        {isSendingPortalLink ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-2" />
+                            Send Portal Link
+                          </>
+                        )}
                       </Button>
                       {membership.subscriptionStatus === 'active' ? (
                         <Button
@@ -814,10 +916,20 @@ export function MemberDetailClient({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => toast.info("Switched to manual payments")}
+                        onClick={handleSwitchToManual}
+                        disabled={isSwitchingToManual}
                       >
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        Switch to Manual
+                        {isSwitchingToManual ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Switching...
+                          </>
+                        ) : (
+                          <>
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            Switch to Manual
+                          </>
+                        )}
                       </Button>
                     </>
                   ) : (

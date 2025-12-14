@@ -75,6 +75,7 @@ export function getEmailTemplateTypeLabel(type: EmailTemplateType | "custom"): s
     agreement_sent: "Agreement Sent",
     agreement_signed: "Agreement Signed",
     membership_cancelled: "Membership Cancelled",
+    portal_link: "Portal Link",
     custom: "Custom",
   };
   return labels[type];

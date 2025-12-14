@@ -68,10 +68,45 @@ export async function POST(request: NextRequest) {
       .select(`
         billing_frequency,
         next_payment_due,
+        auto_pay_enabled,
+        stripe_customer_id,
+        stripe_subscription_id,
+        subscription_status,
         plan:plans(pricing)
       `)
       .eq("id", membershipId)
       .single();
+
+    // CRITICAL: Block manual payments for members with active Stripe autopay
+    // Recording manual payment while Stripe subscription is active = double charge
+    if (membershipWithPlan?.auto_pay_enabled) {
+      const hasActiveSubscription =
+        membershipWithPlan.stripe_subscription_id &&
+        (membershipWithPlan.subscription_status === "active" ||
+         membershipWithPlan.subscription_status === "trialing" ||
+         membershipWithPlan.subscription_status === "past_due");
+
+      if (hasActiveSubscription) {
+        return NextResponse.json(
+          {
+            error: "Cannot record manual payment for autopay member",
+            details: "This member has an active Stripe subscription. Recording a manual payment would cause double billing. Please cancel their Stripe subscription first, or use 'Switch to Manual' to disable autopay before recording manual payments.",
+            subscriptionId: membershipWithPlan.stripe_subscription_id,
+            subscriptionStatus: membershipWithPlan.subscription_status,
+          },
+          { status: 409 } // Conflict
+        );
+      }
+
+      // Autopay enabled but no active subscription - warn but allow
+      // This could happen if subscription was cancelled in Stripe but not synced
+      if (!membershipWithPlan.stripe_subscription_id) {
+        console.warn("Autopay enabled but no subscription ID - data may be out of sync", {
+          membershipId,
+          autoPayEnabled: membershipWithPlan.auto_pay_enabled,
+        });
+      }
+    }
 
     // Validate amount matches expected plan pricing (for dues payments)
     let amountWarning: string | null = null;

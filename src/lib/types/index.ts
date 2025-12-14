@@ -364,7 +364,8 @@ export type EmailTemplateType =
   | 'eligibility_reached'
   | 'agreement_sent'
   | 'agreement_signed'
-  | 'membership_cancelled';
+  | 'membership_cancelled'
+  | 'portal_link';
 
 export type EmailStatus = 'queued' | 'sent' | 'delivered' | 'failed' | 'bounced';
 
