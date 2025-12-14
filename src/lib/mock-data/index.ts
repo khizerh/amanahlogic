@@ -373,7 +373,7 @@ function generatePayments(memberships: Membership[], _members: Member[]): Paymen
 
     // Generate enrollment fee payment if paid
     if (membership.enrollmentFeePaid) {
-      const enrollMethod: PaymentMethod = randomChoice(['card', 'card', 'card', 'ach', 'check']);
+      const enrollMethod: PaymentMethod = randomChoice(['stripe', 'stripe', 'stripe', 'stripe', 'check']);
       const enrollIsManual = enrollMethod === 'check';
       payments.push({
         id: generateId('pay', paymentIdx++),
@@ -403,7 +403,7 @@ function generatePayments(memberships: Membership[], _members: Member[]): Paymen
     // Generate some dues payments based on paid months
     const numPayments = Math.min(membership.paidMonths, 12); // Last 12 payments max
     for (let i = 0; i < numPayments; i++) {
-      const method: PaymentMethod = randomChoice(['card', 'card', 'ach', 'cash', 'check', 'zelle']);
+      const method: PaymentMethod = randomChoice(['stripe', 'stripe', 'stripe', 'cash', 'check', 'zelle']);
       const isManual = ['cash', 'check', 'zelle'].includes(method);
 
       let amount: number;

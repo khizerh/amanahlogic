@@ -25,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${figtree.variable} font-sans antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${figtree.variable} font-sans antialiased`} suppressHydrationWarning>
         {children}
         <Toaster richColors position="top-right" />
       </body>

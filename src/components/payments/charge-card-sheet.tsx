@@ -138,7 +138,7 @@ export function ChargeCardSheet({
         membershipId: membership.id,
         planId: plan.id,
         type: paymentType,
-        method: paymentMethod.type === "card" ? "card" : "ach",
+        method: "stripe",
         amount: baseAmount,
         monthsCredited,
         notes: `Charged ${paymentMethod.type === "card" ? paymentMethod.brand?.toUpperCase() : paymentMethod.bankName} •••• ${paymentMethod.last4}`,

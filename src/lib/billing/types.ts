@@ -219,7 +219,7 @@ export interface ManualPaymentInput {
   membershipId: string;
   memberId: string;
   amount: number;
-  method: Exclude<PaymentMethod, "card">;
+  method: Exclude<PaymentMethod, "stripe">;
   type: "enrollment_fee" | "dues" | "back_dues";
   monthsCredited: number;
   notes?: string;

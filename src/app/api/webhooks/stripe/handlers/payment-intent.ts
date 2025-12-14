@@ -40,9 +40,8 @@ export async function handlePaymentIntentSucceeded(
 
   const amountReceived = paymentIntent.amount / 100; // Convert from cents to dollars
 
-  // Determine payment method from Stripe payment method types
-  const stripeMethod = paymentIntent.payment_method_types[0];
-  const paymentMethod = stripeMethod === "us_bank_account" ? "ach" : "card";
+  // All Stripe payments are stored as 'stripe' method
+  const paymentMethod = "stripe";
 
   // If we have a specific payment_id in metadata, settle that payment
   if (paymentId) {

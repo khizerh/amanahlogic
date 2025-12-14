@@ -61,7 +61,7 @@ import {
   getEmailTemplateTypeLabel,
   getEmailStatusVariant,
 } from "@/lib/mock-data";
-import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage } from "@/lib/types";
+import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage, Agreement } from "@/lib/types";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import {
   CheckCircle2,
@@ -88,9 +88,17 @@ interface MemberDetailClientProps {
   initialMember: MemberWithMembership;
   initialPayments: Payment[];
   initialEmails: EmailLog[];
+  initialAgreement: Agreement | null;
+  agreementTemplateUrl: string | null;
 }
 
-export function MemberDetailClient({ initialMember, initialPayments, initialEmails }: MemberDetailClientProps) {
+export function MemberDetailClient({
+  initialMember,
+  initialPayments,
+  initialEmails,
+  initialAgreement,
+  agreementTemplateUrl,
+}: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
   const recentPayments = initialPayments.slice(0, 10);
@@ -115,6 +123,9 @@ export function MemberDetailClient({ initialMember, initialPayments, initialEmai
 
   // State for agreement dialog
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
+  const [agreementUrl, setAgreementUrl] = useState<string | null>(
+    initialAgreement?.pdfUrl || agreementTemplateUrl || null
+  );
 
   // State for sending agreement
   const [isSendingAgreement, setIsSendingAgreement] = useState(false);
@@ -1092,79 +1103,96 @@ export function MemberDetailClient({ initialMember, initialPayments, initialEmai
               Membership Agreement
             </DialogTitle>
             <DialogDescription>
-              Signed by {memberData.firstName} {memberData.lastName}
+              {membership?.agreementSignedAt
+                ? `Signed by ${memberData.firstName} ${memberData.lastName}`
+                : "Agreement details"}
             </DialogDescription>
           </DialogHeader>
 
-          {membership?.agreementSignedAt && (
-            <div className="space-y-6">
-              {/* Signature Preview */}
-              <div className="border rounded-lg p-6 bg-muted/30">
-                <p className="text-sm text-muted-foreground mb-3">Signature</p>
-                <div className="h-24 bg-white border rounded flex items-center justify-center">
-                  <p className="font-signature text-2xl italic text-gray-700">
-                    {memberData.firstName} {memberData.lastName}
-                  </p>
+          <div className="space-y-6">
+            {/* Agreement preview */}
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Agreement document</p>
+              {agreementUrl ? (
+                <div className="border rounded-lg overflow-hidden bg-white">
+                  <iframe
+                    src={`${agreementUrl}#view=FitH`}
+                    className="w-full h-[500px]"
+                    title="Agreement PDF"
+                  />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Signed on {formatDate(membership.agreementSignedAt)}
+              ) : (
+                <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
+                  No agreement document available yet.
+                </div>
+              )}
+            </div>
+
+            {/* Agreement Details */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Agreement ID</p>
+                <p className="font-mono text-sm">{initialAgreement?.id || "—"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Template Version</p>
+                <p className="font-medium">{initialAgreement?.templateVersion || "—"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge variant={initialAgreement?.signedAt ? "success" : "info"}>
+                  {initialAgreement?.signedAt ? "Signed" : "Pending"}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Signed At</p>
+                <p className="font-medium">
+                  {initialAgreement?.signedAt ? formatDate(initialAgreement.signedAt) : "—"}
                 </p>
               </div>
+            </div>
 
-              {/* Agreement Details */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Agreement ID</p>
-                  <p className="font-mono text-sm">{membership.agreementId}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Template Version</p>
-                  <p className="font-medium">1.0</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Plan at Signing</p>
-                  <p className="font-medium">{plan?.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant="success">Valid</Badge>
-                </div>
-              </div>
-
-              {/* Audit Trail */}
+            {/* Audit Trail */}
+            {initialAgreement?.ipAddress && (
               <div className="border-t pt-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Shield className="h-4 w-4 text-muted-foreground" />
                   <p className="text-sm font-medium">Audit Trail</p>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1 bg-muted/50 rounded-lg p-3">
-                  <p>IP Address: 192.168.1.xxx</p>
-                  <p>Consent checkbox: Confirmed</p>
-                  <p>User Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_0...)</p>
+                  <p>IP Address: {initialAgreement.ipAddress}</p>
+                  <p>User Agent: {initialAgreement.userAgent || "—"}</p>
+                  <p>Consent checkbox: {initialAgreement.consentChecked ? "Yes" : "No"}</p>
                 </div>
               </div>
+            )}
 
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => toast.info("Download PDF - coming soon")}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => toast.info("Send copy to member - coming soon")}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Email Copy
-                </Button>
-              </div>
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  if (agreementUrl) {
+                    window.open(agreementUrl, "_blank");
+                  } else {
+                    toast.info("No agreement to download yet");
+                  }
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => toast.info("Send copy to member - coming soon")}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Email Copy
+              </Button>
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
     </>

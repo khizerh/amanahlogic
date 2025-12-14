@@ -21,6 +21,7 @@ export interface SignAgreementInput {
   signedName: string;
   signatureImageUrl?: string;
   pdfUrl?: string;
+  templateLanguage?: "en" | "fa";
   ipAddress?: string;
   userAgent?: string;
   consentChecked?: boolean;
@@ -147,6 +148,7 @@ export class AgreementsService {
         signed_name: input.signedName,
         signature_image_url: input.signatureImageUrl || null,
         pdf_url: input.pdfUrl || null,
+        template_language: input.templateLanguage || null,
         ip_address: input.ipAddress || null,
         user_agent: input.userAgent || null,
         consent_checked: input.consentChecked ?? false,
@@ -203,6 +205,7 @@ function transformAgreement(dbAgreement: any): Agreement {
     membershipId: dbAgreement.membership_id,
     memberId: dbAgreement.member_id,
     templateVersion: dbAgreement.template_version,
+    templateLanguage: dbAgreement.template_language || undefined,
     pdfUrl: dbAgreement.pdf_url,
     signatureImageUrl: dbAgreement.signature_image_url,
     signedName: dbAgreement.signed_name,

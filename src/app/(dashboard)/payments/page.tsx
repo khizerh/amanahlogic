@@ -7,14 +7,13 @@ export default async function PaymentsPage() {
   const { organizationId, billingConfig } = await getOrgContext();
 
   // Fetch all data in parallel using org config
-  const [payments, overduePayments, autoPayInvites] = await Promise.all([
+  const [payments, outstandingPayments, autoPayInvites] = await Promise.all([
     PaymentsService.getAllDetailed(organizationId),
-    PaymentsService.getOverdue(organizationId, billingConfig.lapseDays),
+    PaymentsService.getOutstanding(organizationId, billingConfig.lapseDays),
     AutoPayInvitesService.getAllWithDetails(organizationId),
   ]);
 
-  // Calculate aging buckets from overdue payments
-  const now = new Date();
+  // Calculate aging buckets from outstanding payments
   const agingBuckets = [
     { range: "1-7 days", count: 0, totalAmount: 0 },
     { range: "8-14 days", count: 0, totalAmount: 0 },
@@ -23,22 +22,20 @@ export default async function PaymentsPage() {
     { range: "60+ days", count: 0, totalAmount: 0 },
   ];
 
-  overduePayments.forEach((payment) => {
-    if (!payment.dueDate) return;
-    const dueDate = new Date(payment.dueDate);
-    const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-    const amount = payment.amount;
+  outstandingPayments.forEach((payment) => {
+    const days = payment.daysOverdue;
+    const amount = payment.amountDue;
 
-    if (daysOverdue <= 7) {
+    if (days <= 7) {
       agingBuckets[0].count++;
       agingBuckets[0].totalAmount += amount;
-    } else if (daysOverdue <= 14) {
+    } else if (days <= 14) {
       agingBuckets[1].count++;
       agingBuckets[1].totalAmount += amount;
-    } else if (daysOverdue <= 30) {
+    } else if (days <= 30) {
       agingBuckets[2].count++;
       agingBuckets[2].totalAmount += amount;
-    } else if (daysOverdue <= 60) {
+    } else if (days <= 60) {
       agingBuckets[3].count++;
       agingBuckets[3].totalAmount += amount;
     } else {
@@ -47,31 +44,19 @@ export default async function PaymentsPage() {
     }
   });
 
-  // Transform overdue payments for the UI
-  const overduePaymentsForUI = overduePayments.map((payment) => {
-    return {
-      id: payment.id,
-      memberId: payment.memberId,
-      memberName: payment.member ? `${payment.member.firstName} ${payment.member.lastName}` : "Unknown",
-      memberEmail: payment.member?.email || "",
-      planName: payment.membership?.plan?.name || "Unknown Plan",
-      amountDue: payment.amount,
-      dueDate: payment.dueDate || "",
-      daysOverdue: payment.daysPastDue,
-      reminderCount: 0, // TODO: Get from payments table
-      remindersPaused: false,
-    };
-  });
-
   const pendingInvitesCount = autoPayInvites.filter((i) => i.status === "pending").length;
+  const totalOutstanding = outstandingPayments.reduce((sum, p) => sum + p.amountDue, 0);
+  const failedChargesCount = outstandingPayments.filter((p) => p.type === "failed").length;
 
   return (
     <PaymentsPageClient
       initialPayments={payments}
-      initialOverduePayments={overduePaymentsForUI}
+      initialOutstandingPayments={outstandingPayments}
       initialAgingBuckets={agingBuckets}
       initialAutoPayInvites={autoPayInvites}
       pendingInvitesCount={pendingInvitesCount}
+      totalOutstanding={totalOutstanding}
+      failedChargesCount={failedChargesCount}
     />
   );
 }

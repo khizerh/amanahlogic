@@ -2,6 +2,11 @@ import { MembersService } from "@/lib/database/members";
 import { PaymentsService } from "@/lib/database/payments";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { MemberDetailClient } from "./client";
+import { AgreementsService } from "@/lib/database/agreements";
+import {
+  AgreementTemplatesService,
+  resolveTemplateUrl,
+} from "@/lib/database/agreement-templates";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import Header from "@/components/Header";
 import { Card } from "@/components/ui/card";
@@ -17,10 +22,11 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   const organizationId = await getOrganizationId();
 
   // Fetch all data in parallel - with org scoping for security
-  const [memberData, payments, emailLogs] = await Promise.all([
+  const [memberData, payments, emailLogs, agreement] = await Promise.all([
     MembersService.getByIdWithMembership(id, organizationId),
     PaymentsService.getByMember(id, organizationId),
     EmailLogsService.getByMemberId(id, organizationId),
+    AgreementsService.getByMembershipId(id),
   ]);
 
   if (!memberData) {
@@ -41,11 +47,27 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
     );
   }
 
+  // Resolve template URL for preview (fallback to public PDFs if not found)
+  let agreementTemplateUrl: string | null = null;
+  if (agreement?.templateVersion) {
+    const template = await AgreementTemplatesService.getByVersion(organizationId, agreement.templateVersion);
+    if (template) {
+      agreementTemplateUrl = await resolveTemplateUrl(template.storagePath);
+    } else {
+      // Fallback to public files
+      agreementTemplateUrl = agreement.templateVersion.includes("fa")
+        ? "/Masjid Muhajireen Bylaws 2 (Dari).pdf"
+        : "/Masjid Muhajireen Agreement.pdf";
+    }
+  }
+
   return (
     <MemberDetailClient
       initialMember={memberData}
       initialPayments={payments}
       initialEmails={emailLogs}
+      initialAgreement={agreement || null}
+      agreementTemplateUrl={agreementTemplateUrl}
     />
   );
 }

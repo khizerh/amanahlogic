@@ -18,7 +18,7 @@ export type PlanType = 'single' | 'married' | 'widow';
 
 export type BillingFrequency = 'monthly' | 'biannual' | 'annual';
 
-export type PaymentMethod = 'card' | 'ach' | 'cash' | 'check' | 'zelle';
+export type PaymentMethod = 'stripe' | 'cash' | 'check' | 'zelle';
 
 export type PaymentType = 'enrollment_fee' | 'dues' | 'back_dues';
 

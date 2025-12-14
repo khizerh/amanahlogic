@@ -115,8 +115,7 @@ export function formatBillingFrequency(frequency: "monthly" | "biannual" | "annu
 // Payment method labels
 export function formatPaymentMethod(method: string): string {
   const labels: Record<string, string> = {
-    card: "Credit/Debit Card",
-    ach: "Bank Transfer (ACH)",
+    stripe: "Stripe",
     cash: "Cash",
     check: "Check",
     zelle: "Zelle",

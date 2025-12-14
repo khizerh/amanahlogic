@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Mail, CreditCard, Building2, Banknote, FileText, Smartphone } from "lucide-react";
+import { MoreHorizontal, Eye, Mail, CreditCard, Banknote, FileText, Smartphone } from "lucide-react";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 
@@ -29,10 +29,8 @@ const getPaymentTypeBadge = (type: string) => {
 
 const getPaymentMethodIcon = (method: string) => {
   switch (method) {
-    case "card":
+    case "stripe":
       return <CreditCard className="h-4 w-4" />;
-    case "ach":
-      return <Building2 className="h-4 w-4" />;
     case "cash":
       return <Banknote className="h-4 w-4" />;
     case "check":
@@ -46,10 +44,8 @@ const getPaymentMethodIcon = (method: string) => {
 
 const getPaymentMethodLabel = (method: string) => {
   switch (method) {
-    case "card":
-      return "Card";
-    case "ach":
-      return "ACH";
+    case "stripe":
+      return "Stripe";
     case "cash":
       return "Cash";
     case "check":
@@ -61,7 +57,21 @@ const getPaymentMethodLabel = (method: string) => {
   }
 };
 
-const getStatusBadge = (status: string) => {
+// Check if a payment is overdue (pending + past due date)
+const isOverdue = (status: string, dueDate: string | null | undefined): boolean => {
+  if (status !== "pending" || !dueDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  return due < today;
+};
+
+const getStatusBadge = (status: string, dueDate?: string | null) => {
+  // Check if pending payment is overdue
+  if (status === "pending" && isOverdue(status, dueDate)) {
+    return <Badge variant="destructive">Overdue</Badge>;
+  }
+
   switch (status) {
     case "completed":
       return <Badge variant="success">Completed</Badge>;
@@ -165,10 +175,20 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      return getStatusBadge(row.original.status);
+      const payment = row.original;
+      return getStatusBadge(payment.status, payment.dueDate);
     },
     filterFn: (row, id, value) => {
-      return row.original.status === value;
+      const payment = row.original;
+      // Special handling for "overdue" filter
+      if (value === "overdue") {
+        return isOverdue(payment.status, payment.dueDate);
+      }
+      // For "pending" filter, exclude overdue payments
+      if (value === "pending") {
+        return payment.status === "pending" && !isOverdue(payment.status, payment.dueDate);
+      }
+      return payment.status === value;
     },
   },
   {

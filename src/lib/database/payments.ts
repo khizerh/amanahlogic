@@ -166,6 +166,26 @@ export interface OverduePaymentInfo {
   } | null;
 }
 
+/**
+ * Outstanding payment info (combines overdue + failed Stripe payments)
+ */
+export interface OutstandingPaymentInfo {
+  id: string;
+  memberId: string;
+  membershipId: string;
+  memberName: string;
+  memberEmail: string;
+  planName: string;
+  amountDue: number;
+  dueDate: string;
+  daysOverdue: number;
+  type: "overdue" | "failed";
+  reminderCount: number;
+  remindersPaused: boolean;
+  failureReason?: string;
+  lastAttempt?: string;
+}
+
 // =============================================================================
 // PaymentsService
 // =============================================================================
@@ -591,6 +611,157 @@ export class PaymentsService {
         },
       };
     });
+  }
+
+  /**
+   * Get all outstanding payments (overdue + failed Stripe charges)
+   * This is used for the Outstanding tab DataTable
+   */
+  static async getOutstanding(
+    organizationId: string,
+    gracePeriodDays: number = 7
+  ): Promise<OutstandingPaymentInfo[]> {
+    const supabase = await createClientForContext();
+    const results: OutstandingPaymentInfo[] = [];
+    const now = new Date();
+
+    // Calculate threshold date (today minus grace period)
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - gracePeriodDays);
+    const threshold = thresholdDate.toISOString().split("T")[0];
+
+    // 1. Get overdue memberships (past due date)
+    const { data: overdueMemberships, error: overdueError } = await supabase
+      .from("memberships")
+      .select(
+        `
+        id,
+        member_id,
+        status,
+        paid_months,
+        billing_frequency,
+        next_payment_due,
+        member:members(id, first_name, last_name, email),
+        plan:plans(id, name, pricing)
+      `
+      )
+      .eq("organization_id", organizationId)
+      .in("status", ["waiting_period", "active", "lapsed"])
+      .not("next_payment_due", "is", null)
+      .lt("next_payment_due", threshold);
+
+    if (overdueError) throw overdueError;
+
+    // Transform overdue memberships
+    for (const membership of overdueMemberships || []) {
+      const dueDate = new Date(membership.next_payment_due);
+      const daysPastDue = Math.floor(
+        (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      const member = Array.isArray(membership.member) ? membership.member[0] : membership.member;
+      const plan = Array.isArray(membership.plan) ? membership.plan[0] : membership.plan;
+
+      // Calculate amount based on billing frequency and plan pricing
+      let amount = 0;
+      if (plan?.pricing) {
+        const pricing = plan.pricing as { monthly?: number; biannual?: number; annual?: number };
+        switch (membership.billing_frequency) {
+          case "monthly":
+            amount = pricing.monthly || 0;
+            break;
+          case "biannual":
+            amount = pricing.biannual || 0;
+            break;
+          case "annual":
+            amount = pricing.annual || 0;
+            break;
+          default:
+            amount = pricing.monthly || 0;
+        }
+      }
+
+      if (member) {
+        results.push({
+          id: `overdue_${membership.id}`,
+          memberId: membership.member_id,
+          membershipId: membership.id,
+          memberName: `${member.first_name} ${member.last_name}`,
+          memberEmail: member.email,
+          planName: plan?.name || "Unknown Plan",
+          amountDue: amount,
+          dueDate: membership.next_payment_due,
+          daysOverdue: daysPastDue,
+          type: "overdue",
+          reminderCount: 0, // TODO: Track in memberships table
+          remindersPaused: false,
+        });
+      }
+    }
+
+    // 2. Get failed Stripe payments
+    const { data: failedPayments, error: failedError } = await supabase
+      .from("payments")
+      .select(
+        `
+        id,
+        member_id,
+        membership_id,
+        amount,
+        created_at,
+        due_date,
+        reminder_count,
+        reminders_paused,
+        notes,
+        member:members(id, first_name, last_name, email),
+        membership:memberships(
+          id,
+          plan:plans(id, name)
+        )
+      `
+      )
+      .eq("organization_id", organizationId)
+      .eq("status", "failed")
+      .not("stripe_payment_intent_id", "is", null); // Only Stripe failures
+
+    if (failedError) throw failedError;
+
+    // Transform failed payments
+    for (const payment of failedPayments || []) {
+      const member = Array.isArray(payment.member) ? payment.member[0] : payment.member;
+      const membership = Array.isArray(payment.membership) ? payment.membership[0] : payment.membership;
+      const plan = membership?.plan;
+      const planData = Array.isArray(plan) ? plan[0] : plan;
+
+      const failedDate = new Date(payment.due_date || payment.created_at);
+      const daysSinceFailed = Math.floor(
+        (now.getTime() - failedDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (member) {
+        results.push({
+          id: payment.id,
+          memberId: payment.member_id,
+          membershipId: payment.membership_id,
+          memberName: `${member.first_name} ${member.last_name}`,
+          memberEmail: member.email,
+          planName: planData?.name || "Unknown Plan",
+          amountDue: payment.amount,
+          dueDate: payment.due_date || payment.created_at,
+          daysOverdue: daysSinceFailed,
+          type: "failed",
+          reminderCount: payment.reminder_count || 0,
+          remindersPaused: payment.reminders_paused || false,
+          failureReason: payment.notes || undefined,
+          lastAttempt: payment.created_at,
+        });
+      }
+    }
+
+    // Sort by days overdue (most overdue first)
+    results.sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+    return results;
   }
 
   /**
