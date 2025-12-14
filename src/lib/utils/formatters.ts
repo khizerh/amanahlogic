@@ -70,6 +70,7 @@ export function getEmailTemplateTypeLabel(type: EmailTemplateType | "custom"): s
     payment_receipt: "Payment Receipt",
     payment_reminder: "Payment Reminder",
     payment_failed: "Payment Failed",
+    payment_setup: "Payment Setup",
     overdue_notice: "Overdue Notice",
     eligibility_reached: "Eligibility Reached",
     agreement_sent: "Agreement Sent",

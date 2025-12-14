@@ -362,6 +362,7 @@ export type EmailTemplateType =
   | 'payment_receipt'
   | 'payment_reminder'
   | 'payment_failed'
+  | 'payment_setup'
   | 'overdue_notice'
   | 'eligibility_reached'
   | 'agreement_sent'

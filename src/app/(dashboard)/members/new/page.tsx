@@ -24,9 +24,17 @@ import {
 } from "@/components/ui/breadcrumb";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Link from "next/link";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
+
+// Plan pricing data (should match database)
+const PLAN_PRICING = {
+  single: { monthly: 20, biannual: 120, annual: 240, enrollmentFee: 500 },
+  married: { monthly: 40, biannual: 240, annual: 480, enrollmentFee: 500 },
+  widow: { monthly: 40, biannual: 240, annual: 480, enrollmentFee: 500 },
+};
 
 interface ChildFormData {
   id: string;
@@ -54,6 +62,18 @@ export default function NewMemberPage() {
   const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
+  const [includeEnrollmentFee, setIncludeEnrollmentFee] = useState(true);
+  const [enrollmentFeePaid, setEnrollmentFeePaid] = useState(true);
+
+  // Get current pricing based on selections
+  const currentPricing = PLAN_PRICING[planType];
+  const currentDuesAmount =
+    billingFrequency === "monthly"
+      ? currentPricing.monthly
+      : billingFrequency === "biannual"
+      ? currentPricing.biannual
+      : currentPricing.annual;
+  const enrollmentFeeAmount = currentPricing.enrollmentFee;
 
   const addChild = () => {
     setChildren([
@@ -113,6 +133,8 @@ export default function NewMemberPage() {
             name: c.name,
             dateOfBirth: c.dateOfBirth,
           })),
+          // For manual payments, pass if enrollment fee is already paid/waived
+          enrollmentFeePaid: paymentMethod === "manual" ? enrollmentFeePaid : false,
         }),
       });
 
@@ -122,31 +144,38 @@ export default function NewMemberPage() {
         throw new Error(data.error || "Failed to create member");
       }
 
-      // If Stripe payment method selected, redirect to Stripe Checkout
+      // If Stripe payment method selected, send payment link to member
       if (paymentMethod === "stripe") {
-        toast.success("Member created! Redirecting to payment setup...");
+        toast.loading("Sending payment setup link...", { id: "payment-setup" });
 
-        // Call setup-autopay to get Stripe Checkout URL
-        const autopayResponse = await fetch("/api/stripe/setup-autopay", {
+        // Call send-payment-setup to create checkout and email member
+        const setupResponse = await fetch("/api/stripe/send-payment-setup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             membershipId: data.membership.id,
             memberId: data.member.id,
+            includeEnrollmentFee,
           }),
         });
 
-        const autopayData = await autopayResponse.json();
+        const setupData = await setupResponse.json();
+        toast.dismiss("payment-setup");
 
-        if (!autopayResponse.ok) {
-          // Stripe setup failed, but member was created - redirect to detail page
-          toast.error(autopayData.error || "Failed to set up Stripe. You can try again from the member page.");
+        if (!setupResponse.ok) {
+          // Email failed, but member was created - redirect to detail page
+          toast.error(setupData.error || "Failed to send payment link. You can try again from the member page.");
           router.push(`/members/${data.member.id}`);
           return;
         }
 
-        // Redirect to Stripe Checkout
-        window.location.href = autopayData.checkoutUrl;
+        // Success - payment link sent to member
+        toast.success(`Payment setup link sent to ${email}`, {
+          description: includeEnrollmentFee
+            ? "Member will complete enrollment fee and subscription setup"
+            : "Member will complete subscription setup",
+        });
+        router.push(`/members/${data.member.id}`);
         return;
       }
 
@@ -430,19 +459,19 @@ export default function NewMemberPage() {
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="single" id="single" />
                       <Label htmlFor="single" className="font-normal cursor-pointer">
-                        Single - Individual coverage only ($20/month)
+                        Single - Individual coverage only
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="married" id="married" />
                       <Label htmlFor="married" className="font-normal cursor-pointer">
-                        Married - Member + spouse + children ($40/month)
+                        Married - Member + spouse + children
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="widow" id="widow" />
                       <Label htmlFor="widow" className="font-normal cursor-pointer">
-                        Widow/Widower - Member + children ($40/month)
+                        Widow/Widower - Member + children
                       </Label>
                     </div>
                   </RadioGroup>
@@ -458,11 +487,34 @@ export default function NewMemberPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="biannual">Biannual (6 months)</SelectItem>
-                      <SelectItem value="annual">Annual (12 months)</SelectItem>
+                      <SelectItem value="monthly">
+                        Monthly - ${currentPricing.monthly}/mo
+                      </SelectItem>
+                      <SelectItem value="biannual">
+                        Biannual - ${currentPricing.biannual}/6mo
+                      </SelectItem>
+                      <SelectItem value="annual">
+                        Annual - ${currentPricing.annual}/yr
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Pricing Summary */}
+                <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Dues Amount:</span>
+                    <span className="font-medium">
+                      ${currentDuesAmount}
+                      {billingFrequency === "monthly" && "/month"}
+                      {billingFrequency === "biannual" && " every 6 months"}
+                      {billingFrequency === "annual" && "/year"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-muted-foreground">Enrollment Fee:</span>
+                    <span className="font-medium">${enrollmentFeeAmount} (one-time)</span>
+                  </div>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t">
@@ -489,19 +541,83 @@ export default function NewMemberPage() {
                           Stripe Auto-Pay
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Set up automatic card payments (includes $500 enrollment fee)
+                          Set up automatic card payments via email link
                         </p>
                       </div>
                     </div>
                   </RadioGroup>
 
-                  {paymentMethod === "stripe" && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                      <p className="text-blue-800">
-                        After creating the member, you&apos;ll be redirected to Stripe Checkout to collect the <strong>$500 enrollment fee</strong> and set up <strong>recurring dues</strong>.
-                      </p>
-                    </div>
-                  )}
+                  {/* Enrollment Fee Options - shown for both payment methods */}
+                  <div className="space-y-3 mt-3 pt-3 border-t">
+                    <Label className="text-sm">Enrollment Fee (${enrollmentFeeAmount})</Label>
+
+                    {paymentMethod === "manual" ? (
+                      <>
+                        {/* Manual Payment - Option to mark as already paid/waived */}
+                        <div className="flex items-start space-x-3">
+                          <Checkbox
+                            id="enrollmentFeePaid"
+                            checked={enrollmentFeePaid}
+                            onCheckedChange={(checked) => setEnrollmentFeePaid(checked as boolean)}
+                          />
+                          <div className="space-y-1">
+                            <Label
+                              htmlFor="enrollmentFeePaid"
+                              className="font-normal cursor-pointer"
+                            >
+                              Enrollment fee already paid or waived
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Check if fee was already collected or you want to waive it
+                            </p>
+                          </div>
+                        </div>
+
+                        {!enrollmentFeePaid && (
+                          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                            Enrollment fee will need to be collected from the member page
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Stripe - Option to include in checkout */}
+                        <div className="flex items-start space-x-3">
+                          <Checkbox
+                            id="includeEnrollmentFee"
+                            checked={includeEnrollmentFee}
+                            onCheckedChange={(checked) => setIncludeEnrollmentFee(checked as boolean)}
+                          />
+                          <div className="space-y-1">
+                            <Label
+                              htmlFor="includeEnrollmentFee"
+                              className="font-normal cursor-pointer"
+                            >
+                              Include enrollment fee in payment link
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Uncheck to set up subscription only (collect fee later or waive)
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Info Box */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                          <div className="flex items-start gap-2">
+                            <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="text-blue-800">
+                              <p className="font-medium">Payment link will be emailed to member</p>
+                              <p className="mt-1 text-blue-700">
+                                {includeEnrollmentFee
+                                  ? `Member will receive an email to pay the $${enrollmentFeeAmount} enrollment fee and set up $${currentDuesAmount} recurring dues.`
+                                  : `Member will receive an email to set up $${currentDuesAmount} recurring dues.`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -516,10 +632,10 @@ export default function NewMemberPage() {
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting
                   ? paymentMethod === "stripe"
-                    ? "Creating & Setting Up Payment..."
+                    ? "Creating & Sending Link..."
                     : "Creating..."
                   : paymentMethod === "stripe"
-                  ? "Create Member & Set Up Payment"
+                  ? "Create Member & Send Payment Link"
                   : "Create Member"}
               </Button>
             </div>

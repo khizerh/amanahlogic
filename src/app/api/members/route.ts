@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       billingFrequency,
       preferredLanguage,
       children,
+      enrollmentFeePaid,
     } = body as {
       firstName: string;
       lastName: string;
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       billingFrequency: BillingFrequency;
       preferredLanguage: CommunicationLanguage;
       children?: { id: string; name: string; dateOfBirth: string }[];
+      enrollmentFeePaid?: boolean;
     };
 
     // Validate required fields
@@ -130,7 +132,7 @@ export async function POST(request: Request) {
       billingFrequency: billingFrequency || "monthly",
       billingAnniversaryDay,
       paidMonths: 0,
-      enrollmentFeePaid: false,
+      enrollmentFeePaid: enrollmentFeePaid || false,
       joinDate: today.toISOString().split("T")[0],
     });
 
