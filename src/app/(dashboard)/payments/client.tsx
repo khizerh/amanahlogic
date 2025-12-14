@@ -28,7 +28,7 @@ import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
 import { PaymentWithDetails, OutstandingPaymentInfo } from "@/lib/database/payments";
-import { AutoPayInviteWithMember, MemberWithMembership, Plan } from "@/lib/types";
+import { OnboardingInviteWithMember, MemberWithMembership, Plan } from "@/lib/types";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 import {
@@ -56,20 +56,20 @@ interface PaymentsPageClientProps {
   initialPayments: PaymentWithDetails[];
   initialOutstandingPayments: OutstandingPaymentInfo[];
   initialAgingBuckets: AgingBucket[];
-  initialAutoPayInvites: AutoPayInviteWithMember[];
+  initialOnboardingInvites: OnboardingInviteWithMember[];
   pendingInvitesCount: number;
   totalOutstanding: number;
   failedChargesCount: number;
 }
 
-const VALID_TABS = ["all", "outstanding", "invites"] as const;
+const VALID_TABS = ["all", "outstanding", "onboarding"] as const;
 type TabValue = typeof VALID_TABS[number];
 
 export function PaymentsPageClient({
   initialPayments,
   initialOutstandingPayments,
   initialAgingBuckets,
-  initialAutoPayInvites,
+  initialOnboardingInvites,
   pendingInvitesCount,
   totalOutstanding,
   failedChargesCount,
@@ -175,7 +175,7 @@ export function PaymentsPageClient({
   const payments = initialPayments;
   const outstandingPayments = initialOutstandingPayments;
   const agingBuckets = initialAgingBuckets;
-  const allInvites = initialAutoPayInvites;
+  const allInvites = initialOnboardingInvites;
 
   // Filter invites based on selected filter
   const filteredInvites = useMemo(() => {
@@ -233,13 +233,15 @@ export function PaymentsPageClient({
     []
   );
 
-  const handleCopyInviteLink = (invite: AutoPayInviteWithMember) => {
-    navigator.clipboard.writeText(`https://checkout.stripe.com/${invite.stripeCheckoutSessionId}`);
-    toast.success("Link copied to clipboard");
+  const handleCopyInviteLink = (invite: OnboardingInviteWithMember) => {
+    if (invite.stripeCheckoutSessionId) {
+      navigator.clipboard.writeText(`https://checkout.stripe.com/${invite.stripeCheckoutSessionId}`);
+      toast.success("Link copied to clipboard");
+    }
   };
 
-  const handleResendInvite = (invite: AutoPayInviteWithMember) => {
-    toast.success(`Auto-pay setup link resent to ${invite.member.email}`);
+  const handleResendInvite = (invite: OnboardingInviteWithMember) => {
+    toast.success(`Payment setup link resent to ${invite.member.email}`);
   };
 
   // Get invite status badge
@@ -268,7 +270,7 @@ export function PaymentsPageClient({
             <div>
               <h1 className="text-3xl font-bold">Payments</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Manage payments, track overdue accounts, and auto-pay invites
+                Manage payments, track overdue accounts, and onboarding payments
               </p>
             </div>
             <Button onClick={() => setMemberSelectorOpen(true)} disabled={memberLoading}>
@@ -297,8 +299,8 @@ export function PaymentsPageClient({
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="invites" className="gap-2">
-                Auto-Pay Invites
+              <TabsTrigger value="onboarding" className="gap-2">
+                Onboarding
                 {pendingInvitesCount > 0 && (
                   <Badge variant="warning" className="ml-1 h-5 px-1.5">
                     {pendingInvitesCount}
@@ -491,18 +493,18 @@ export function PaymentsPageClient({
               </div>
             </TabsContent>
 
-            {/* Auto-Pay Invites Tab */}
-            <TabsContent value="invites">
+            {/* Onboarding Payments Tab */}
+            <TabsContent value="onboarding">
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <CreditCard className="h-5 w-5" />
-                        Auto-Pay Setup Invites
+                        Onboarding Payments
                       </CardTitle>
                       <CardDescription>
-                        Track Stripe checkout links sent to members to set up automatic payments
+                        Track initial payment setup for new members (Stripe and Manual)
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
@@ -528,24 +530,23 @@ export function PaymentsPageClient({
                   {/* Info about what this tab shows */}
                   <div className="bg-muted/50 rounded-lg p-4 mb-6">
                     <p className="text-sm text-muted-foreground">
-                      This shows checkout links that have been <strong>sent</strong> to members to set up auto-pay.
-                      Links expire after 24 hours. Pending invites are members who received a link but haven&apos;t completed setup yet.
-                      To invite a new member, go to their profile and click &quot;Send Payment Link&quot; with auto-pay enabled.
+                      Track initial onboarding payments (enrollment fee + first dues) for new members.
+                      Stripe invites include checkout links. Manual invites track payments to be collected by admin.
                     </p>
                   </div>
 
                   {filteredInvites.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">No {inviteFilter !== 'all' ? inviteFilter : ''} invites</p>
+                      <p className="text-lg font-medium">No {inviteFilter !== 'all' ? inviteFilter : ''} onboarding payments</p>
                       <p className="text-sm">
                         {inviteFilter === 'pending'
-                          ? "No pending auto-pay setup invites."
+                          ? "No pending onboarding payments."
                           : inviteFilter === 'completed'
-                          ? "No completed auto-pay setups yet."
+                          ? "No completed onboarding yet."
                           : inviteFilter === 'expired'
                           ? "No expired invites."
-                          : "No auto-pay invites have been sent yet."}
+                          : "No onboarding payments have been created yet."}
                       </p>
                     </div>
                   ) : (

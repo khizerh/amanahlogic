@@ -1,5 +1,5 @@
-import { PaymentsService } from "@/lib/database/payments";
-import { AutoPayInvitesService } from "@/lib/database/auto-pay-invites";
+import { PaymentsService, type OutstandingPaymentInfo } from "@/lib/database/payments";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { PaymentsPageClient } from "./client";
 import { getOrgContext } from "@/lib/auth/get-organization-id";
 
@@ -7,10 +7,10 @@ export default async function PaymentsPage() {
   const { organizationId, billingConfig } = await getOrgContext();
 
   // Fetch all data in parallel using org config
-  const [payments, outstandingPayments, autoPayInvites] = await Promise.all([
+  const [payments, outstandingPayments, onboardingInvites] = await Promise.all([
     PaymentsService.getAllDetailed(organizationId),
     PaymentsService.getOutstanding(organizationId, billingConfig.lapseDays),
-    AutoPayInvitesService.getAllWithDetails(organizationId),
+    OnboardingInvitesService.getAllWithDetails(organizationId),
   ]);
 
   // Calculate aging buckets from outstanding payments
@@ -22,7 +22,7 @@ export default async function PaymentsPage() {
     { range: "60+ days", count: 0, totalAmount: 0 },
   ];
 
-  outstandingPayments.forEach((payment) => {
+  outstandingPayments.forEach((payment: OutstandingPaymentInfo) => {
     const days = payment.daysOverdue;
     const amount = payment.amountDue;
 
@@ -44,16 +44,16 @@ export default async function PaymentsPage() {
     }
   });
 
-  const pendingInvitesCount = autoPayInvites.filter((i) => i.status === "pending").length;
-  const totalOutstanding = outstandingPayments.reduce((sum, p) => sum + p.amountDue, 0);
-  const failedChargesCount = outstandingPayments.filter((p) => p.type === "failed").length;
+  const pendingInvitesCount = onboardingInvites.filter((i) => i.status === "pending").length;
+  const totalOutstanding = outstandingPayments.reduce((sum: number, p: OutstandingPaymentInfo) => sum + p.amountDue, 0);
+  const failedChargesCount = outstandingPayments.filter((p: OutstandingPaymentInfo) => p.type === "failed").length;
 
   return (
     <PaymentsPageClient
       initialPayments={payments}
       initialOutstandingPayments={outstandingPayments}
       initialAgingBuckets={agingBuckets}
-      initialAutoPayInvites={autoPayInvites}
+      initialOnboardingInvites={onboardingInvites}
       pendingInvitesCount={pendingInvitesCount}
       totalOutstanding={totalOutstanding}
       failedChargesCount={failedChargesCount}

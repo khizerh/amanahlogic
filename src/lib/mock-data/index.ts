@@ -25,9 +25,9 @@ import {
   EmailTemplateType,
   EmailLog,
   EmailStatus,
-  AutoPayInvite,
-  AutoPayInviteWithMember,
-  AutoPayInviteStatus,
+  OnboardingInvite,
+  OnboardingInviteWithMember,
+  OnboardingInviteStatus,
   OverduePaymentInfo,
   AgingBucket,
 } from '@/lib/types';
@@ -470,8 +470,8 @@ export const mockPayments: Payment[] = generatePayments(mockMemberships, mockMem
 // Auto-Pay Invites (Stripe Checkout Session Tracking)
 // -----------------------------------------------------------------------------
 
-function generateAutoPayInvites(): AutoPayInvite[] {
-  const invites: AutoPayInvite[] = [];
+function generateOnboardingInvites(): OnboardingInvite[] {
+  const invites: OnboardingInvite[] = [];
   const now = new Date();
 
   // Find members without auto-pay to create invites for
@@ -491,7 +491,14 @@ function generateAutoPayInvites(): AutoPayInvite[] {
       organizationId: 'org_1',
       membershipId: membership.id,
       memberId: membership.memberId,
+      paymentMethod: 'stripe',
       stripeCheckoutSessionId: `cs_live_${Math.random().toString(36).substring(2, 15)}`,
+      enrollmentFeeAmount: plan?.enrollmentFee || 500,
+      includesEnrollmentFee: true,
+      enrollmentFeePaidAt: null,
+      duesAmount: plan?.pricing.monthly || 20,
+      billingFrequency: membership.billingFrequency,
+      duesPaidAt: null,
       plannedAmount: plan?.pricing.monthly || 20,
       firstChargeDate: new Date(now.getFullYear(), now.getMonth() + 1, membership.billingAnniversaryDay).toISOString(),
       status: 'pending',
@@ -519,7 +526,14 @@ function generateAutoPayInvites(): AutoPayInvite[] {
       organizationId: 'org_1',
       membershipId: membership.id,
       memberId: membership.memberId,
+      paymentMethod: 'stripe',
       stripeCheckoutSessionId: `cs_live_${Math.random().toString(36).substring(2, 15)}`,
+      enrollmentFeeAmount: plan?.enrollmentFee || 500,
+      includesEnrollmentFee: true,
+      enrollmentFeePaidAt: completedDate.toISOString(),
+      duesAmount: plan?.pricing.monthly || 20,
+      billingFrequency: membership.billingFrequency,
+      duesPaidAt: completedDate.toISOString(),
       plannedAmount: plan?.pricing.monthly || 20,
       firstChargeDate: new Date(completedDate.getFullYear(), completedDate.getMonth() + 1, membership.billingAnniversaryDay).toISOString(),
       status: 'completed',
@@ -546,7 +560,14 @@ function generateAutoPayInvites(): AutoPayInvite[] {
       organizationId: 'org_1',
       membershipId: membership.id,
       memberId: membership.memberId,
+      paymentMethod: 'stripe',
       stripeCheckoutSessionId: `cs_live_${Math.random().toString(36).substring(2, 15)}`,
+      enrollmentFeeAmount: plan?.enrollmentFee || 500,
+      includesEnrollmentFee: true,
+      enrollmentFeePaidAt: null,
+      duesAmount: plan?.pricing.monthly || 20,
+      billingFrequency: membership.billingFrequency,
+      duesPaidAt: null,
       plannedAmount: plan?.pricing.monthly || 20,
       firstChargeDate: null,
       status: 'expired',
@@ -561,7 +582,7 @@ function generateAutoPayInvites(): AutoPayInvite[] {
   return invites;
 }
 
-export const mockAutoPayInvites: AutoPayInvite[] = generateAutoPayInvites();
+export const mockOnboardingInvites: OnboardingInvite[] = generateOnboardingInvites();
 
 // -----------------------------------------------------------------------------
 // Data Access Functions (simulating API calls)
@@ -879,10 +900,10 @@ export function getOverdueMembers(limit: number = 10): MembershipWithDetails[] {
 // -----------------------------------------------------------------------------
 
 /**
- * Get auto-pay invites with member details
+ * Get onboarding invites with member details
  */
-export function getAutoPayInvites(status?: AutoPayInviteStatus): AutoPayInviteWithMember[] {
-  let invites = mockAutoPayInvites;
+export function getOnboardingInvites(status?: OnboardingInviteStatus): OnboardingInviteWithMember[] {
+  let invites = mockOnboardingInvites;
 
   if (status) {
     invites = invites.filter(i => i.status === status);
@@ -896,11 +917,14 @@ export function getAutoPayInvites(status?: AutoPayInviteStatus): AutoPayInviteWi
   }).sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
 }
 
+// Legacy alias for backward compatibility
+export const getAutoPayInvites = getOnboardingInvites;
+
 /**
- * Get pending auto-pay invites count
+ * Get pending onboarding invites count
  */
 export function getPendingInvitesCount(): number {
-  return mockAutoPayInvites.filter(i => i.status === 'pending').length;
+  return mockOnboardingInvites.filter(i => i.status === 'pending').length;
 }
 
 /**
@@ -916,7 +940,7 @@ export function getAutoPayMembers(): MembershipWithDetails[] {
  */
 export function getMembersWithoutAutoPay(): MembershipWithDetails[] {
   const pendingInviteMemberIds = new Set(
-    mockAutoPayInvites
+    mockOnboardingInvites
       .filter(i => i.status === 'pending')
       .map(i => i.memberId)
   );

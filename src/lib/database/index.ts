@@ -20,4 +20,4 @@ export * from "./email-templates";
 
 // Supporting entities
 export * from "./email-logs";
-export * from "./auto-pay-invites";
+export * from "./onboarding-invites";

@@ -270,7 +270,7 @@ async function wipeDatabase(): Promise<void> {
     console.log("(using fallback list)");
     tables = [
       "agreement_signing_links",
-      "auto_pay_invites",
+      "onboarding_invites",
       "email_logs",
       "payments",
       "agreements",
@@ -789,19 +789,24 @@ async function seedDatabase(): Promise<void> {
   if (emailLogsError) throw new Error(`Email Logs: ${emailLogsError.message}`);
   console.log("✓");
 
-  // 9. Auto Pay Invites
-  process.stdout.write("   Creating auto pay invites... ");
-  const { error: autoPayError } = await supabase.from("auto_pay_invites").insert([
+  // 9. Onboarding Invites
+  process.stdout.write("   Creating onboarding invites... ");
+  const { error: onboardingError } = await supabase.from("onboarding_invites").insert([
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.aisha,
       member_id: MEMBER_IDS.aisha,
+      payment_method: "stripe",
+      enrollment_fee_amount: 500.0,
+      includes_enrollment_fee: true,
+      dues_amount: 20.0,
+      billing_frequency: "monthly",
       planned_amount: 20.0,
       status: "pending",
       sent_at: "2024-12-10T11:00:00Z",
     },
   ]);
-  if (autoPayError) throw new Error(`Auto Pay Invites: ${autoPayError.message}`);
+  if (onboardingError) throw new Error(`Onboarding Invites: ${onboardingError.message}`);
   console.log("✓");
 
   console.log("\n✅ Database seeded successfully!");
@@ -813,7 +818,7 @@ async function seedDatabase(): Promise<void> {
   console.log("   • 7 Payments");
   console.log("   • 1 Agreement (awaiting signature)");
   console.log("   • 3 Email Logs");
-  console.log("   • 1 Auto Pay Invite");
+  console.log("   • 1 Onboarding Invite");
   console.log("\n🧪 Test Scenarios:");
   console.log("   1. Ahmed Khan: Active with Stripe autopay - test payment blocking");
   console.log("   2. Muhammad Ali: Waiting period with manual payments");

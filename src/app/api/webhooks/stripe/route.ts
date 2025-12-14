@@ -8,6 +8,7 @@ import {
   getTodayInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
 import { calculateFees, reverseCalculateBaseAmount } from "@/lib/stripe";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import type { BillingFrequency, PaymentMethod } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -264,6 +265,20 @@ async function handleCheckoutCompleted(
     }
 
     console.log(`[Webhook] Membership ${metadata.membership_id} updated with subscription${includesEnrollmentFee ? " and enrollment fee marked paid" : ""}`);
+
+    // Mark onboarding invite as completed if one exists for this checkout session
+    if (session.id) {
+      try {
+        const invite = await OnboardingInvitesService.getByCheckoutSessionId(session.id, supabase);
+        if (invite) {
+          await OnboardingInvitesService.recordFullPayment(invite.id, supabase);
+          console.log(`[Webhook] Marked onboarding invite ${invite.id} as completed`);
+        }
+      } catch (err) {
+        // Log but don't fail the webhook if invite update fails
+        console.error("[Webhook] Failed to update onboarding invite:", err);
+      }
+    }
   }
 }
 

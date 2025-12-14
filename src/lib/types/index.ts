@@ -419,26 +419,41 @@ export interface EmailLogWithMember extends EmailLog {
 }
 
 // -----------------------------------------------------------------------------
-// Auto-Pay Invite (Stripe Checkout Session Tracking)
+// Onboarding Invite (Initial Payment Tracking - Stripe or Manual)
 // -----------------------------------------------------------------------------
 
-export type AutoPayInviteStatus = 'pending' | 'completed' | 'expired' | 'canceled';
+export type OnboardingInviteStatus = 'pending' | 'completed' | 'expired' | 'canceled';
 
-export interface AutoPayInvite {
+export type OnboardingPaymentMethod = 'stripe' | 'manual';
+
+export interface OnboardingInvite {
   id: string;
   organizationId: string;
   membershipId: string;
   memberId: string;
 
-  // Stripe
+  // Payment method
+  paymentMethod: OnboardingPaymentMethod;
+
+  // Stripe (null for manual)
   stripeCheckoutSessionId: string | null;
 
-  // Details
-  plannedAmount: number; // Monthly amount at time of invite
-  firstChargeDate: string | null; // When first recurring charge will occur
+  // Enrollment fee tracking
+  enrollmentFeeAmount: number;        // $500 or 0 if waived
+  includesEnrollmentFee: boolean;     // Whether enrollment fee is part of this
+  enrollmentFeePaidAt: string | null; // When enrollment fee was paid
+
+  // Dues tracking
+  duesAmount: number;                 // First period dues amount
+  billingFrequency: BillingFrequency | null;
+  duesPaidAt: string | null;          // When first dues was paid
+
+  // Legacy fields (keep for compatibility)
+  plannedAmount: number;              // Monthly amount at time of invite
+  firstChargeDate: string | null;     // When first recurring charge will occur
 
   // Status tracking
-  status: AutoPayInviteStatus;
+  status: OnboardingInviteStatus;
   sentAt: string;
   completedAt: string | null;
   expiredAt: string | null;
@@ -447,11 +462,16 @@ export interface AutoPayInvite {
   updatedAt: string;
 }
 
-export interface AutoPayInviteWithMember extends AutoPayInvite {
+export interface OnboardingInviteWithMember extends OnboardingInvite {
   member: Member;
   membership: Membership;
   plan: Plan;
 }
+
+// Legacy type aliases for backward compatibility during migration
+export type AutoPayInviteStatus = OnboardingInviteStatus;
+export type AutoPayInvite = OnboardingInvite;
+export type AutoPayInviteWithMember = OnboardingInviteWithMember;
 
 // -----------------------------------------------------------------------------
 // Overdue Payment (View Type)

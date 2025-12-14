@@ -3,38 +3,51 @@ import "server-only";
 import { createClientForContext } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
-  AutoPayInvite,
-  AutoPayInviteWithMember,
-  AutoPayInviteStatus,
+  OnboardingInvite,
+  OnboardingInviteWithMember,
+  OnboardingInviteStatus,
+  OnboardingPaymentMethod,
+  BillingFrequency,
 } from "@/lib/types";
 
 // =============================================================================
 // Input Types
 // =============================================================================
 
-export interface CreateAutoPayInviteInput {
+export interface CreateOnboardingInviteInput {
   organizationId: string;
   membershipId: string;
   memberId: string;
+  paymentMethod: OnboardingPaymentMethod;
   stripeCheckoutSessionId?: string;
-  plannedAmount: number;
+  enrollmentFeeAmount: number;
+  includesEnrollmentFee: boolean;
+  duesAmount: number;
+  billingFrequency: BillingFrequency;
+  plannedAmount?: number; // Legacy - monthly amount
   firstChargeDate?: string;
   sentAt: string;
 }
 
+export interface RecordManualPaymentInput {
+  inviteId: string;
+  enrollmentFeePaid?: boolean;
+  duesPaid?: boolean;
+}
+
 // =============================================================================
-// AutoPayInvitesService
+// OnboardingInvitesService
 // =============================================================================
 
-export class AutoPayInvitesService {
+export class OnboardingInvitesService {
   /**
-   * Get all auto-pay invites for an organization
+   * Get all onboarding invites for an organization
    */
-  static async getAll(organizationId: string): Promise<AutoPayInvite[]> {
+  static async getAll(organizationId: string): Promise<OnboardingInvite[]> {
     const supabase = await createClientForContext();
 
     const { data, error } = await supabase
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .select("*")
       .eq("organization_id", organizationId)
       .order("sent_at", { ascending: false });
@@ -48,12 +61,13 @@ export class AutoPayInvitesService {
    */
   static async getAllWithDetails(
     organizationId: string,
-    status?: AutoPayInviteStatus
-  ): Promise<AutoPayInviteWithMember[]> {
+    status?: OnboardingInviteStatus,
+    paymentMethod?: OnboardingPaymentMethod
+  ): Promise<OnboardingInviteWithMember[]> {
     const supabase = await createClientForContext();
 
     let query = supabase
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .select(
         `
         *,
@@ -71,6 +85,10 @@ export class AutoPayInvitesService {
       query = query.eq("status", status);
     }
 
+    if (paymentMethod) {
+      query = query.eq("payment_method", paymentMethod);
+    }
+
     const { data, error } = await query;
 
     if (error) throw error;
@@ -80,11 +98,11 @@ export class AutoPayInvitesService {
   /**
    * Get a single invite by ID
    */
-  static async getById(inviteId: string): Promise<AutoPayInvite | null> {
+  static async getById(inviteId: string): Promise<OnboardingInvite | null> {
     const supabase = await createClientForContext();
 
     const { data, error } = await supabase
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .select("*")
       .eq("id", inviteId)
       .single();
@@ -103,11 +121,11 @@ export class AutoPayInvitesService {
   static async getByCheckoutSessionId(
     sessionId: string,
     supabase?: SupabaseClient
-  ): Promise<AutoPayInvite | null> {
+  ): Promise<OnboardingInvite | null> {
     const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .select("*")
       .eq("stripe_checkout_session_id", sessionId)
       .single();
@@ -125,11 +143,11 @@ export class AutoPayInvitesService {
    */
   static async getPendingForMembership(
     membershipId: string
-  ): Promise<AutoPayInvite | null> {
+  ): Promise<OnboardingInvite | null> {
     const supabase = await createClientForContext();
 
     const { data, error } = await supabase
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .select("*")
       .eq("membership_id", membershipId)
       .eq("status", "pending")
@@ -146,22 +164,27 @@ export class AutoPayInvitesService {
   }
 
   /**
-   * Create a new auto-pay invite
+   * Create a new onboarding invite
    */
   static async create(
-    input: CreateAutoPayInviteInput,
+    input: CreateOnboardingInviteInput,
     supabase?: SupabaseClient
-  ): Promise<AutoPayInvite> {
+  ): Promise<OnboardingInvite> {
     const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .insert({
         organization_id: input.organizationId,
         membership_id: input.membershipId,
         member_id: input.memberId,
+        payment_method: input.paymentMethod,
         stripe_checkout_session_id: input.stripeCheckoutSessionId || null,
-        planned_amount: input.plannedAmount,
+        enrollment_fee_amount: input.enrollmentFeeAmount,
+        includes_enrollment_fee: input.includesEnrollmentFee,
+        dues_amount: input.duesAmount,
+        billing_frequency: input.billingFrequency,
+        planned_amount: input.plannedAmount || input.duesAmount,
         first_charge_date: input.firstChargeDate || null,
         sent_at: input.sentAt,
         status: "pending",
@@ -180,14 +203,114 @@ export class AutoPayInvitesService {
     inviteId: string,
     sessionId: string,
     supabase?: SupabaseClient
-  ): Promise<AutoPayInvite> {
+  ): Promise<OnboardingInvite> {
     const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .update({
         stripe_checkout_session_id: sessionId,
+        updated_at: new Date().toISOString(),
       })
+      .eq("id", inviteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return transformInvite(data);
+  }
+
+  /**
+   * Record enrollment fee payment (for manual payments)
+   */
+  static async recordEnrollmentFeePaid(
+    inviteId: string,
+    supabase?: SupabaseClient
+  ): Promise<OnboardingInvite> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { data, error } = await client
+      .from("onboarding_invites")
+      .update({
+        enrollment_fee_paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", inviteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Check if invite is now complete
+    const invite = transformInvite(data);
+    if (isInviteComplete(invite)) {
+      return this.markCompleted(inviteId, client);
+    }
+
+    return invite;
+  }
+
+  /**
+   * Record dues payment (for manual payments)
+   */
+  static async recordDuesPaid(
+    inviteId: string,
+    supabase?: SupabaseClient
+  ): Promise<OnboardingInvite> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { data, error } = await client
+      .from("onboarding_invites")
+      .update({
+        dues_paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", inviteId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Check if invite is now complete
+    const invite = transformInvite(data);
+    if (isInviteComplete(invite)) {
+      return this.markCompleted(inviteId, client);
+    }
+
+    return invite;
+  }
+
+  /**
+   * Record both enrollment fee and dues paid at once
+   */
+  static async recordFullPayment(
+    inviteId: string,
+    supabase?: SupabaseClient
+  ): Promise<OnboardingInvite> {
+    const client = supabase ?? (await createClientForContext());
+    const now = new Date().toISOString();
+
+    // Get the invite to check if it includes enrollment fee
+    const { data: existing } = await client
+      .from("onboarding_invites")
+      .select("includes_enrollment_fee")
+      .eq("id", inviteId)
+      .single();
+
+    const updateData: Record<string, unknown> = {
+      dues_paid_at: now,
+      updated_at: now,
+      status: "completed",
+      completed_at: now,
+    };
+
+    if (existing?.includes_enrollment_fee) {
+      updateData.enrollment_fee_paid_at = now;
+    }
+
+    const { data, error } = await client
+      .from("onboarding_invites")
+      .update(updateData)
       .eq("id", inviteId)
       .select()
       .single();
@@ -202,14 +325,15 @@ export class AutoPayInvitesService {
   static async markCompleted(
     inviteId: string,
     supabase?: SupabaseClient
-  ): Promise<AutoPayInvite> {
+  ): Promise<OnboardingInvite> {
     const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq("id", inviteId)
       .select()
@@ -225,14 +349,15 @@ export class AutoPayInvitesService {
   static async markExpired(
     inviteId: string,
     supabase?: SupabaseClient
-  ): Promise<AutoPayInvite> {
+  ): Promise<OnboardingInvite> {
     const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .update({
         status: "expired",
         expired_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq("id", inviteId)
       .select()
@@ -248,13 +373,14 @@ export class AutoPayInvitesService {
   static async markCanceled(
     inviteId: string,
     supabase?: SupabaseClient
-  ): Promise<AutoPayInvite> {
+  ): Promise<OnboardingInvite> {
     const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .update({
         status: "canceled",
+        updated_at: new Date().toISOString(),
       })
       .eq("id", inviteId)
       .select()
@@ -267,14 +393,23 @@ export class AutoPayInvitesService {
   /**
    * Get count of pending invites
    */
-  static async getPendingCount(organizationId: string): Promise<number> {
+  static async getPendingCount(
+    organizationId: string,
+    paymentMethod?: OnboardingPaymentMethod
+  ): Promise<number> {
     const supabase = await createClientForContext();
 
-    const { count, error } = await supabase
-      .from("auto_pay_invites")
+    let query = supabase
+      .from("onboarding_invites")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("status", "pending");
+
+    if (paymentMethod) {
+      query = query.eq("payment_method", paymentMethod);
+    }
+
+    const { count, error } = await query;
 
     if (error) throw error;
     return count || 0;
@@ -287,7 +422,7 @@ export class AutoPayInvitesService {
     const supabase = await createClientForContext();
 
     const { error } = await supabase
-      .from("auto_pay_invites")
+      .from("onboarding_invites")
       .delete()
       .eq("id", inviteId);
 
@@ -296,16 +431,42 @@ export class AutoPayInvitesService {
 }
 
 // =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Check if an invite is complete (all required payments made)
+ */
+function isInviteComplete(invite: OnboardingInvite): boolean {
+  // Dues must always be paid
+  if (!invite.duesPaidAt) return false;
+
+  // If enrollment fee is included, it must also be paid
+  if (invite.includesEnrollmentFee && !invite.enrollmentFeePaidAt) {
+    return false;
+  }
+
+  return true;
+}
+
+// =============================================================================
 // Transform Functions
 // =============================================================================
 
-function transformInvite(dbInvite: any): AutoPayInvite {
+function transformInvite(dbInvite: any): OnboardingInvite {
   return {
     id: dbInvite.id,
     organizationId: dbInvite.organization_id,
     membershipId: dbInvite.membership_id,
     memberId: dbInvite.member_id,
+    paymentMethod: dbInvite.payment_method || "stripe",
     stripeCheckoutSessionId: dbInvite.stripe_checkout_session_id,
+    enrollmentFeeAmount: parseFloat(dbInvite.enrollment_fee_amount) || 0,
+    includesEnrollmentFee: dbInvite.includes_enrollment_fee || false,
+    enrollmentFeePaidAt: dbInvite.enrollment_fee_paid_at,
+    duesAmount: parseFloat(dbInvite.dues_amount) || 0,
+    billingFrequency: dbInvite.billing_frequency,
+    duesPaidAt: dbInvite.dues_paid_at,
     plannedAmount: dbInvite.planned_amount,
     firstChargeDate: dbInvite.first_charge_date,
     status: dbInvite.status,
@@ -317,13 +478,13 @@ function transformInvite(dbInvite: any): AutoPayInvite {
   };
 }
 
-function transformInvites(dbInvites: any[]): AutoPayInvite[] {
+function transformInvites(dbInvites: any[]): OnboardingInvite[] {
   return dbInvites.map(transformInvite);
 }
 
 function transformInvitesWithDetails(
   dbInvites: any[]
-): AutoPayInviteWithMember[] {
+): OnboardingInviteWithMember[] {
   return dbInvites.map((dbInvite) => {
     const member = Array.isArray(dbInvite.member)
       ? dbInvite.member[0]
@@ -397,3 +558,10 @@ function transformInvitesWithDetails(
     };
   });
 }
+
+// =============================================================================
+// Legacy Exports (for backward compatibility during migration)
+// =============================================================================
+
+export const AutoPayInvitesService = OnboardingInvitesService;
+export type CreateAutoPayInviteInput = CreateOnboardingInviteInput;

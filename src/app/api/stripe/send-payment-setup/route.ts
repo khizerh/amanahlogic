@@ -4,6 +4,7 @@ import { MembershipsService } from "@/lib/database/memberships";
 import { MembersService } from "@/lib/database/members";
 import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import {
   isStripeConfigured,
@@ -155,6 +156,21 @@ export async function POST(req: Request) {
     await MembershipsService.update({
       id: membershipId,
       stripeCustomerId: customerId,
+    });
+
+    // Create onboarding invite record
+    await OnboardingInvitesService.create({
+      organizationId,
+      membershipId: membership.id,
+      memberId: member.id,
+      paymentMethod: "stripe",
+      stripeCheckoutSessionId: session.sessionId,
+      enrollmentFeeAmount: shouldIncludeEnrollmentFee ? plan.enrollmentFee : 0,
+      includesEnrollmentFee: shouldIncludeEnrollmentFee,
+      duesAmount: priceAmount,
+      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
+      plannedAmount: priceAmount,
+      sentAt: new Date().toISOString(),
     });
 
     // Send email to member with checkout link
