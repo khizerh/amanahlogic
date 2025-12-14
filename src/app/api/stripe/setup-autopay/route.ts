@@ -76,24 +76,43 @@ export async function POST(req: Request) {
       organizationId,
     });
 
-    // Calculate monthly price in cents
-    const monthlyPriceCents = Math.round(plan.pricing.monthly * 100);
+    // Calculate price based on membership's billing frequency
+    const billingFrequency = membership.billingFrequency || "monthly";
+    let priceAmount: number;
+
+    switch (billingFrequency) {
+      case "monthly":
+        priceAmount = plan.pricing.monthly;
+        break;
+      case "biannual":
+        priceAmount = plan.pricing.biannual;
+        break;
+      case "annual":
+        priceAmount = plan.pricing.annual;
+        break;
+      default:
+        priceAmount = plan.pricing.monthly;
+    }
+
+    const priceAmountCents = Math.round(priceAmount * 100);
 
     // Build URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003";
     const successUrl = `${baseUrl}/members/${memberId}?autopay=success`;
     const cancelUrl = `${baseUrl}/members/${memberId}?autopay=cancelled`;
 
-    // Create checkout session
+    // Create checkout session with correct billing frequency
     const session = await createSubscriptionCheckoutSession({
       customerId,
-      priceAmountCents: monthlyPriceCents,
+      priceAmountCents,
       membershipId: membership.id,
       memberId: member.id,
       organizationId,
       successUrl,
       cancelUrl,
       billingAnchorDay: membership.billingAnniversaryDay,
+      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
+      planName: plan.name,
     });
 
     // Update membership with customer ID (subscription ID will be set by webhook)

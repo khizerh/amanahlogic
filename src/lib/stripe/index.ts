@@ -22,6 +22,9 @@ export function isStripeConfigured(): boolean {
 
 /**
  * Get or create a Stripe customer for a member
+ *
+ * IMPORTANT: Customer lookup is scoped to organization to prevent cross-org issues.
+ * We search by membership_id in metadata first, then fallback to email within same org.
  */
 export async function getOrCreateStripeCustomer(params: {
   memberId: string;
@@ -36,28 +39,42 @@ export async function getOrCreateStripeCustomer(params: {
 
   const { memberId, membershipId, email, name, organizationId } = params;
 
-  // Search for existing customer by metadata
-  const existingCustomers = await stripe.customers.list({
-    email,
+  // First, search for existing customer by membership_id metadata (most reliable)
+  const customersByMembership = await stripe.customers.search({
+    query: `metadata["membership_id"]:"${membershipId}"`,
     limit: 1,
   });
 
-  if (existingCustomers.data.length > 0) {
-    const customer = existingCustomers.data[0];
-    // Update metadata if needed
-    if (customer.metadata?.membership_id !== membershipId) {
-      await stripe.customers.update(customer.id, {
-        metadata: {
-          member_id: memberId,
-          membership_id: membershipId,
-          organization_id: organizationId,
-        },
-      });
+  if (customersByMembership.data.length > 0) {
+    const customer = customersByMembership.data[0];
+    // Verify it's the same org (safety check)
+    if (customer.metadata?.organization_id === organizationId) {
+      return customer.id;
     }
+    // Different org - don't reuse, fall through to create new
+    console.warn(`[Stripe] Customer ${customer.id} has different org, creating new customer`);
+  }
+
+  // Second, search by organization_id + member_id (cross-membership same member)
+  const customersByMember = await stripe.customers.search({
+    query: `metadata["organization_id"]:"${organizationId}" AND metadata["member_id"]:"${memberId}"`,
+    limit: 1,
+  });
+
+  if (customersByMember.data.length > 0) {
+    const customer = customersByMember.data[0];
+    // Update metadata to include current membership
+    await stripe.customers.update(customer.id, {
+      metadata: {
+        member_id: memberId,
+        membership_id: membershipId,
+        organization_id: organizationId,
+      },
+    });
     return customer.id;
   }
 
-  // Create new customer
+  // No existing customer found - create new one
   const customer = await stripe.customers.create({
     email,
     name,
@@ -113,7 +130,17 @@ export function isStripeResourceMissingError(error: unknown): boolean {
 }
 
 /**
+ * Billing frequency type for Stripe subscriptions
+ */
+type StripeBillingFrequency = "monthly" | "biannual" | "annual";
+
+/**
  * Create a Stripe Checkout Session for subscription setup
+ *
+ * IMPORTANT: Respects the membership's billing frequency.
+ * - monthly: Bills every month
+ * - biannual: Bills every 6 months
+ * - annual: Bills every 12 months
  */
 export async function createSubscriptionCheckoutSession(params: {
   customerId: string;
@@ -124,6 +151,8 @@ export async function createSubscriptionCheckoutSession(params: {
   successUrl: string;
   cancelUrl: string;
   billingAnchorDay?: number;
+  billingFrequency?: StripeBillingFrequency;
+  planName?: string;
 }): Promise<{ url: string; sessionId: string }> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
@@ -138,7 +167,32 @@ export async function createSubscriptionCheckoutSession(params: {
     successUrl,
     cancelUrl,
     billingAnchorDay,
+    billingFrequency = "monthly",
+    planName = "Membership",
   } = params;
+
+  // Determine Stripe interval based on billing frequency
+  let interval: "month" | "year" = "month";
+  let intervalCount = 1;
+  let description = "Monthly membership dues";
+
+  switch (billingFrequency) {
+    case "monthly":
+      interval = "month";
+      intervalCount = 1;
+      description = "Monthly membership dues";
+      break;
+    case "biannual":
+      interval = "month";
+      intervalCount = 6;
+      description = "Biannual membership dues (every 6 months)";
+      break;
+    case "annual":
+      interval = "year";
+      intervalCount = 1;
+      description = "Annual membership dues";
+      break;
+  }
 
   // Create an ad-hoc price for this subscription
   const session = await stripe.checkout.sessions.create({
@@ -149,12 +203,13 @@ export async function createSubscriptionCheckoutSession(params: {
         price_data: {
           currency: "usd",
           product_data: {
-            name: "Membership Dues",
-            description: "Monthly membership dues",
+            name: `${planName} Dues`,
+            description: description,
           },
           unit_amount: priceAmountCents,
           recurring: {
-            interval: "month",
+            interval: interval,
+            interval_count: intervalCount,
           },
         },
         quantity: 1,
@@ -165,6 +220,7 @@ export async function createSubscriptionCheckoutSession(params: {
         membership_id: membershipId,
         member_id: memberId,
         organization_id: organizationId,
+        billing_frequency: billingFrequency,
       },
       // Set billing anchor if provided (1-28)
       ...(billingAnchorDay && {
@@ -177,6 +233,7 @@ export async function createSubscriptionCheckoutSession(params: {
       membership_id: membershipId,
       member_id: memberId,
       organization_id: organizationId,
+      billing_frequency: billingFrequency,
     },
     success_url: successUrl,
     cancel_url: cancelUrl,

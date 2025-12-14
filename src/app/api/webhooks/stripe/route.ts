@@ -2,16 +2,14 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { settlePayment } from "@/lib/billing/engine";
+import {
+  generateAdHocInvoiceMetadata,
+  getTodayInOrgTimezone,
+} from "@/lib/billing/invoice-generator";
+import type { BillingFrequency, PaymentMethod } from "@/lib/types";
 
 export const runtime = "nodejs";
-
-/**
- * Extended Invoice type with optional fields that may be present
- */
-type InvoiceWithSubscription = Stripe.Invoice & {
-  subscription?: string | Stripe.Subscription | null;
-  payment_intent?: string | Stripe.PaymentIntent | null;
-};
 
 // PINNED API VERSION - DO NOT CHANGE
 // See: https://docs.stripe.com/changelog#2025-11-17.clover
@@ -32,14 +30,25 @@ const IGNORED_EVENTS = [
 ];
 
 /**
+ * Extended Invoice type with optional fields that may be present
+ */
+type InvoiceWithSubscription = Stripe.Invoice & {
+  subscription?: string | Stripe.Subscription | null;
+  payment_intent?: string | Stripe.PaymentIntent | null;
+};
+
+/**
  * POST /api/webhooks/stripe
  *
  * Handles Stripe webhook events for subscription lifecycle management.
+ * Routes payments through settlePayment engine for consistent state management.
+ *
  * Key events:
  * - checkout.session.completed: Save subscription ID to membership
  * - customer.subscription.updated: Sync subscription status
  * - customer.subscription.deleted: Handle cancellation
- * - invoice.paid: Increment paid months for recurring payments
+ * - invoice.paid: Create payment record and settle via engine
+ * - payment_intent.succeeded/failed: Handle one-off charges
  */
 export async function POST(req: Request) {
   const body = await req.text();
@@ -63,9 +72,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ acknowledged: true });
   }
 
-  console.log(`[Webhook] Processing ${event.type}`);
+  console.log(`[Webhook] Processing ${event.type} (${event.id})`);
 
   const supabase = createServiceRoleClient();
+
+  // IDEMPOTENCY CHECK: Has this event already been processed?
+  const { data: existingEvent } = await supabase
+    .from("stripe_webhook_events")
+    .select("id, status")
+    .eq("event_id", event.id)
+    .maybeSingle();
+
+  if (existingEvent) {
+    console.log(`[Webhook] Event ${event.id} already processed (status: ${existingEvent.status})`);
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
+  // Extract metadata from event for organization context
+  const eventData = event.data.object as unknown as Record<string, unknown>;
+  const metadata = (eventData.metadata || {}) as Record<string, string>;
+  const organizationId = metadata.organization_id;
 
   try {
     switch (event.type) {
@@ -100,13 +126,47 @@ export async function POST(req: Request) {
         break;
       }
 
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        await handlePaymentIntentSucceeded(paymentIntent, supabase);
+        break;
+      }
+
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        await handlePaymentIntentFailed(paymentIntent, supabase);
+        break;
+      }
+
       default:
         console.log(`[Webhook] Unhandled event type: ${event.type}`);
     }
 
+    // Record successful processing
+    await supabase.from("stripe_webhook_events").insert({
+      event_id: event.id,
+      event_type: event.type,
+      organization_id: organizationId || null,
+      membership_id: metadata.membership_id || null,
+      status: "processed",
+      processed_at: new Date().toISOString(),
+    });
+
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error(`[Webhook] Error processing ${event.type}:`, error);
+
+    // Record failed processing
+    await supabase.from("stripe_webhook_events").insert({
+      event_id: event.id,
+      event_type: event.type,
+      organization_id: organizationId || null,
+      membership_id: metadata.membership_id || null,
+      status: "failed",
+      error_message: error instanceof Error ? error.message : String(error),
+      processed_at: new Date().toISOString(),
+    });
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
@@ -206,7 +266,7 @@ async function handleSubscriptionUpdate(
 
 /**
  * Handle customer.subscription.deleted
- * Mark subscription as canceled
+ * Mark subscription as canceled and CLEAR stripe_subscription_id
  */
 async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription,
@@ -221,9 +281,11 @@ async function handleSubscriptionDeleted(
 
   console.log(`[Webhook] Subscription deleted for membership ${metadata.membership_id}`);
 
+  // IMPORTANT: Clear stripe_subscription_id so the record doesn't look tied to Stripe
   const { error } = await supabase
     .from("memberships")
     .update({
+      stripe_subscription_id: null, // Clear the subscription ID
       subscription_status: "canceled",
       auto_pay_enabled: false,
       updated_at: new Date().toISOString(),
@@ -235,12 +297,12 @@ async function handleSubscriptionDeleted(
     throw error;
   }
 
-  console.log(`[Webhook] Membership ${metadata.membership_id} marked as canceled`);
+  console.log(`[Webhook] Membership ${metadata.membership_id} subscription cleared and marked as canceled`);
 }
 
 /**
  * Handle invoice.paid
- * For subscription invoices, increment paid months
+ * Creates a payment record and routes through settlePayment engine
  */
 async function handleInvoicePaid(
   invoice: InvoiceWithSubscription,
@@ -248,6 +310,8 @@ async function handleInvoicePaid(
 ) {
   // Get membership_id from metadata or subscription
   let membershipId = (invoice.metadata as Record<string, string>)?.membership_id;
+  let organizationId = (invoice.metadata as Record<string, string>)?.organization_id;
+  let memberId = (invoice.metadata as Record<string, string>)?.member_id;
 
   // Try to find from subscription if not in invoice metadata
   if (!membershipId && invoice.subscription) {
@@ -258,15 +322,19 @@ async function handleInvoicePaid(
     // Look up membership by subscription ID
     const { data: membership } = await supabase
       .from("memberships")
-      .select("id")
+      .select("id, organization_id, member_id, billing_frequency, plan:plans(pricing)")
       .eq("stripe_subscription_id", subscriptionId)
       .single();
 
-    membershipId = membership?.id;
+    if (membership) {
+      membershipId = membership.id;
+      organizationId = membership.organization_id;
+      memberId = membership.member_id;
+    }
   }
 
-  if (!membershipId) {
-    console.log("[Webhook] invoice.paid - could not determine membership_id");
+  if (!membershipId || !organizationId) {
+    console.log("[Webhook] invoice.paid - could not determine membership_id or organization_id");
     return;
   }
 
@@ -277,76 +345,155 @@ async function handleInvoicePaid(
   }
 
   const amount = invoice.amount_paid / 100;
+  const paymentIntentId = typeof invoice.payment_intent === "string"
+    ? invoice.payment_intent
+    : invoice.payment_intent?.id;
+
   console.log(`[Webhook] Invoice paid: $${amount} for membership ${membershipId}`);
 
-  // Get current membership to check if payment already recorded
-  const { data: membership } = await supabase
+  // Check if payment already exists for this invoice (idempotency at payment level)
+  const { data: existingPayment } = await supabase
+    .from("payments")
+    .select("id")
+    .or(`stripe_payment_intent_id.eq.${paymentIntentId}`)
+    .eq("membership_id", membershipId)
+    .eq("status", "completed")
+    .maybeSingle();
+
+  if (existingPayment) {
+    console.log(`[Webhook] Payment already exists for this invoice (payment_id: ${existingPayment.id})`);
+    return;
+  }
+
+  // Get membership details for months calculation
+  const { data: membershipData } = await supabase
     .from("memberships")
-    .select("paid_months, status")
+    .select("billing_frequency, plan:plans(pricing)")
     .eq("id", membershipId)
     .single();
 
-  if (!membership) {
+  if (!membershipData) {
     console.error("[Webhook] Membership not found:", membershipId);
     return;
   }
 
-  // Increment paid_months by 1 (monthly subscription)
-  // TODO: Calculate months based on invoice amount if needed
-  const newPaidMonths = (membership.paid_months || 0) + 1;
-  const becameEligible = membership.paid_months < 60 && newPaidMonths >= 60;
+  // Get organization timezone for invoice metadata
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("timezone")
+    .eq("id", organizationId)
+    .single();
 
-  const { error } = await supabase
-    .from("memberships")
-    .update({
-      paid_months: newPaidMonths,
-      status: newPaidMonths >= 60 ? "eligible" : "active",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", membershipId);
+  const orgTimezone = org?.timezone || "America/Los_Angeles";
+  const today = getTodayInOrgTimezone(orgTimezone);
 
-  if (error) {
-    console.error("[Webhook] Failed to increment paid_months:", error);
-    throw error;
+  // Calculate months credited based on billing frequency and plan pricing
+  const billingFrequency = membershipData.billing_frequency as BillingFrequency;
+  // Type assertion for joined plan data
+  const planData = membershipData.plan as unknown as { pricing: { monthly: number; biannual: number; annual: number } } | { pricing: { monthly: number; biannual: number; annual: number } }[] | null;
+  const planPricing = Array.isArray(planData)
+    ? planData[0]?.pricing
+    : planData?.pricing;
+
+  let monthsCredited = 1;
+  if (planPricing) {
+    // Determine months from amount vs plan pricing
+    const monthlyPrice = planPricing.monthly || 0;
+    const biannualPrice = planPricing.biannual || 0;
+    const annualPrice = planPricing.annual || 0;
+
+    if (monthlyPrice > 0 && Math.abs(amount - monthlyPrice) < 1) {
+      monthsCredited = 1;
+    } else if (biannualPrice > 0 && Math.abs(amount - biannualPrice) < 1) {
+      monthsCredited = 6;
+    } else if (annualPrice > 0 && Math.abs(amount - annualPrice) < 1) {
+      monthsCredited = 12;
+    } else {
+      // Fallback: use billing frequency
+      switch (billingFrequency) {
+        case "monthly":
+          monthsCredited = 1;
+          break;
+        case "biannual":
+          monthsCredited = 6;
+          break;
+        case "annual":
+          monthsCredited = 12;
+          break;
+      }
+    }
   }
 
-  console.log(`[Webhook] Membership ${membershipId} paid_months updated to ${newPaidMonths}`);
-  if (becameEligible) {
-    console.log(`[Webhook] Membership ${membershipId} became ELIGIBLE!`);
-  }
+  // Generate invoice metadata
+  const invoiceMetadata = await generateAdHocInvoiceMetadata(
+    organizationId,
+    today,
+    monthsCredited,
+    orgTimezone,
+    supabase
+  );
 
-  // Create payment record for tracking
-  const { error: paymentError } = await supabase
+  // Calculate Stripe fees
+  const stripeFee = parseFloat((amount * 0.029 + 0.3).toFixed(2));
+  const platformFee = 1.0;
+
+  // Create payment record
+  const { data: newPayment, error: paymentError } = await supabase
     .from("payments")
     .insert({
-      organization_id: (invoice.metadata as Record<string, string>)?.organization_id,
+      organization_id: organizationId,
       membership_id: membershipId,
-      member_id: (invoice.metadata as Record<string, string>)?.member_id,
+      member_id: memberId,
       type: "dues",
-      method: "stripe",
-      status: "completed",
+      method: "stripe" as PaymentMethod,
+      status: "pending", // Will be settled below
       amount: amount,
-      stripe_fee: parseFloat((amount * 0.029 + 0.3).toFixed(2)),
-      platform_fee: 1.0,
-      total_charged: amount + parseFloat((amount * 0.029 + 0.3).toFixed(2)),
-      net_amount: amount - 1.0,
-      months_credited: 1,
-      stripe_payment_intent_id: typeof invoice.payment_intent === "string"
-        ? invoice.payment_intent
-        : invoice.payment_intent?.id,
+      stripe_fee: stripeFee,
+      platform_fee: platformFee,
+      total_charged: amount + stripeFee,
+      net_amount: amount - platformFee,
+      months_credited: monthsCredited,
+      invoice_number: invoiceMetadata.invoiceNumber,
+      due_date: invoiceMetadata.dueDate,
+      period_start: invoiceMetadata.periodStart,
+      period_end: invoiceMetadata.periodEnd,
+      period_label: invoiceMetadata.periodLabel,
+      stripe_payment_intent_id: paymentIntentId,
       notes: `Stripe subscription payment - Invoice ${invoice.number || invoice.id}`,
-      paid_at: new Date().toISOString(),
-    });
+    })
+    .select()
+    .single();
 
-  if (paymentError) {
-    // Log but don't fail - paid_months already updated
+  if (paymentError || !newPayment) {
     console.error("[Webhook] Failed to create payment record:", paymentError);
+    throw paymentError;
+  }
+
+  console.log(`[Webhook] Created payment ${newPayment.id}, now settling via engine`);
+
+  // Settle payment through the billing engine
+  const result = await settlePayment({
+    paymentId: newPayment.id,
+    method: "stripe",
+    paidAt: new Date().toISOString(),
+    stripePaymentIntentId: paymentIntentId,
+    supabase,
+  });
+
+  if (!result.success) {
+    console.error("[Webhook] Failed to settle payment:", result.error);
+    throw new Error(result.error || "Settlement failed");
+  }
+
+  console.log(`[Webhook] Payment settled: ${newPayment.id}, new paid_months: ${result.newPaidMonths}, status: ${result.newStatus}`);
+  if (result.becameEligible) {
+    console.log(`[Webhook] Membership ${membershipId} became ELIGIBLE!`);
   }
 }
 
 /**
  * Handle invoice.payment_failed
- * Log the failure and update membership status if needed
+ * Log the failure and update membership status
  */
 async function handleInvoiceFailed(
   invoice: InvoiceWithSubscription,
@@ -354,6 +501,7 @@ async function handleInvoiceFailed(
 ) {
   // Get membership_id from metadata or subscription
   let membershipId = (invoice.metadata as Record<string, string>)?.membership_id;
+  let organizationId = (invoice.metadata as Record<string, string>)?.organization_id;
 
   if (!membershipId && invoice.subscription) {
     const subscriptionId = typeof invoice.subscription === "string"
@@ -362,11 +510,14 @@ async function handleInvoiceFailed(
 
     const { data: membership } = await supabase
       .from("memberships")
-      .select("id")
+      .select("id, organization_id")
       .eq("stripe_subscription_id", subscriptionId)
       .single();
 
-    membershipId = membership?.id;
+    if (membership) {
+      membershipId = membership.id;
+      organizationId = membership.organization_id;
+    }
   }
 
   if (!membershipId) {
@@ -390,13 +541,12 @@ async function handleInvoiceFailed(
     console.error("[Webhook] Failed to update membership after payment failure:", error);
   }
 
-  // Create failed payment record
+  // Create failed payment record for audit trail
   await supabase
     .from("payments")
     .insert({
-      organization_id: (invoice.metadata as Record<string, string>)?.organization_id,
+      organization_id: organizationId,
       membership_id: membershipId,
-      member_id: (invoice.metadata as Record<string, string>)?.member_id,
       type: "dues",
       method: "stripe",
       status: "failed",
@@ -404,4 +554,101 @@ async function handleInvoiceFailed(
       months_credited: 0,
       notes: `Payment failed - ${invoice.last_finalization_error?.message || "Unknown error"}`,
     });
+}
+
+/**
+ * Handle payment_intent.succeeded
+ * For one-off charges not tied to subscriptions/invoices
+ */
+async function handlePaymentIntentSucceeded(
+  paymentIntent: Stripe.PaymentIntent,
+  supabase: ReturnType<typeof createServiceRoleClient>
+) {
+  const metadata = paymentIntent.metadata;
+
+  // Skip if no membership context (could be unrelated Stripe charge)
+  if (!metadata?.membership_id) {
+    console.log("[Webhook] payment_intent.succeeded - no membership_id in metadata, skipping");
+    return;
+  }
+
+  // Check if there's a pending payment for this intent
+  const { data: existingPayment } = await supabase
+    .from("payments")
+    .select("id, status")
+    .eq("stripe_payment_intent_id", paymentIntent.id)
+    .maybeSingle();
+
+  if (existingPayment) {
+    if (existingPayment.status === "completed") {
+      console.log(`[Webhook] Payment ${existingPayment.id} already completed for intent ${paymentIntent.id}`);
+      return;
+    }
+
+    if (existingPayment.status === "pending") {
+      // Settle the existing payment
+      console.log(`[Webhook] Settling existing payment ${existingPayment.id} for intent ${paymentIntent.id}`);
+
+      const result = await settlePayment({
+        paymentId: existingPayment.id,
+        method: "stripe",
+        paidAt: new Date().toISOString(),
+        stripePaymentIntentId: paymentIntent.id,
+        supabase,
+      });
+
+      if (!result.success) {
+        console.error("[Webhook] Failed to settle payment:", result.error);
+        throw new Error(result.error || "Settlement failed");
+      }
+
+      console.log(`[Webhook] Payment settled: ${existingPayment.id}`);
+      return;
+    }
+  }
+
+  // No existing payment - this might be from a different flow
+  // Log but don't create a new payment (avoid orphaned records)
+  console.log(`[Webhook] payment_intent.succeeded with no matching payment record, intent: ${paymentIntent.id}`);
+}
+
+/**
+ * Handle payment_intent.payment_failed
+ * For one-off charge failures
+ */
+async function handlePaymentIntentFailed(
+  paymentIntent: Stripe.PaymentIntent,
+  supabase: ReturnType<typeof createServiceRoleClient>
+) {
+  const metadata = paymentIntent.metadata;
+
+  if (!metadata?.membership_id) {
+    console.log("[Webhook] payment_intent.payment_failed - no membership_id in metadata, skipping");
+    return;
+  }
+
+  // Check if there's a pending payment for this intent
+  const { data: existingPayment } = await supabase
+    .from("payments")
+    .select("id, status, notes")
+    .eq("stripe_payment_intent_id", paymentIntent.id)
+    .maybeSingle();
+
+  if (existingPayment && existingPayment.status === "pending") {
+    // Mark as failed
+    const errorMessage = paymentIntent.last_payment_error?.message || "Payment failed";
+
+    await supabase
+      .from("payments")
+      .update({
+        status: "failed",
+        notes: existingPayment.notes
+          ? `${existingPayment.notes}\nFailed: ${errorMessage}`
+          : `Failed: ${errorMessage}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingPayment.id);
+
+    console.log(`[Webhook] Marked payment ${existingPayment.id} as failed`);
+  }
 }
