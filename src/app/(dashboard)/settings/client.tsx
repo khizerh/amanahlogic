@@ -53,8 +53,9 @@ export function SettingsPageClient({
   agreementTemplates,
   emailTemplates = [],
 }: SettingsPageClientProps) {
-  const organization = initialOrganization;
+  const [organization, setOrganization] = useState<Organization>(initialOrganization);
   const [plans, setPlans] = useState<Plan[]>(initialPlans);
+  const [savingFeeSettings, setSavingFeeSettings] = useState(false);
 
   const [formData, setFormData] = useState({
     name: organization.name,
@@ -344,6 +345,32 @@ export function SettingsPageClient({
       toast.success(`Template ${updated.isActive ? "activated" : "deactivated"}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update template");
+    }
+  };
+
+  // Fee settings toggle handler
+  const handleTogglePassFees = async () => {
+    setSavingFeeSettings(true);
+    try {
+      const res = await fetch("/api/organizations/update-fee-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passFeesToMember: !organization.passFeesToMember }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to update fee settings");
+      }
+      setOrganization(json.organization);
+      toast.success(
+        json.organization.passFeesToMember
+          ? "Processing fees will now be added to member payments"
+          : "Organization will now absorb processing fees"
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update fee settings");
+    } finally {
+      setSavingFeeSettings(false);
     }
   };
 
@@ -825,51 +852,171 @@ export function SettingsPageClient({
 
             {/* Stripe Tab */}
             <TabsContent value="stripe">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Stripe Integration</CardTitle>
-                  <CardDescription>
-                    Configure payment processing with Stripe Connect
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+              <div className="space-y-6">
+                {/* Connection Status Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Stripe Connect</CardTitle>
+                    <CardDescription>
+                      Your organization's payment processing connection
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
                     <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">Stripe Connect Status</p>
-                        <p className="text-sm text-muted-foreground">
-                          {organization.stripeOnboarded
-                            ? "Connected and ready to accept payments"
-                            : "Not connected"}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className={`h-3 w-3 rounded-full ${organization.stripeOnboarded ? "bg-green-500" : "bg-yellow-500"}`} />
+                        <div>
+                          <p className="font-medium">
+                            {organization.stripeOnboarded ? "Connected" : "Not Connected"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {organization.stripeOnboarded
+                              ? "Ready to accept payments"
+                              : "Contact support to connect your Stripe account"}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        {organization.stripeOnboarded ? (
-                          <Button variant="outline">Manage Account</Button>
-                        ) : (
-                          <Button>Connect Stripe</Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {organization.stripeConnectId && (
-                      <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-1">Account ID</p>
-                        <p className="text-sm text-muted-foreground font-mono">
+                      {organization.stripeConnectId && (
+                        <code className="text-xs bg-muted px-2 py-1 rounded">
                           {organization.stripeConnectId}
-                        </p>
-                      </div>
-                    )}
+                        </code>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
 
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm font-medium mb-1">Platform Fee</p>
-                      <p className="text-sm text-muted-foreground">
-                        ${organization.platformFee.toFixed(2)} per transaction
+                {/* Fee Settings Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Fee Settings</CardTitle>
+                    <CardDescription>
+                      Configure how processing fees are handled
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {/* Pass Fees Toggle */}
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <p className="font-medium">Pass fees to members</p>
+                          <p className="text-sm text-muted-foreground">
+                            {organization.passFeesToMember
+                              ? "Members pay processing fees on top of their dues"
+                              : "Your organization absorbs all processing fees"}
+                          </p>
+                        </div>
+                        <Button
+                          variant={organization.passFeesToMember ? "default" : "outline"}
+                          size="sm"
+                          onClick={handleTogglePassFees}
+                          disabled={savingFeeSettings}
+                          className="gap-2 ml-4"
+                        >
+                          {savingFeeSettings ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : organization.passFeesToMember ? (
+                            <>
+                              <ToggleRight className="h-4 w-4" />
+                              Enabled
+                            </>
+                          ) : (
+                            <>
+                              <ToggleLeft className="h-4 w-4" />
+                              Disabled
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Fee Breakdown */}
+                      <div className="border rounded-lg divide-y">
+                        <div className="flex justify-between items-center p-4">
+                          <div>
+                            <p className="font-medium">Stripe Processing</p>
+                            <p className="text-sm text-muted-foreground">
+                              Standard card processing fee
+                            </p>
+                          </div>
+                          <p className="font-mono text-sm">2.9% + $0.30</p>
+                        </div>
+                        <div className="flex justify-between items-center p-4">
+                          <div>
+                            <p className="font-medium">Platform Fee</p>
+                            <p className="text-sm text-muted-foreground">
+                              Amanah Logic service fee
+                            </p>
+                          </div>
+                          <p className="font-mono text-sm">${organization.platformFee.toFixed(2)}</p>
+                        </div>
+                      </div>
+
+                      {/* Example Calculation - Dynamic based on setting */}
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm font-medium mb-3">
+                          Example: $50 dues {organization.passFeesToMember && "(fees passed to member)"}
+                        </p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Dues amount</span>
+                            <span>$50.00</span>
+                          </div>
+                          {organization.passFeesToMember ? (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">+ Processing fees</span>
+                                <span>+${(1.75 + organization.platformFee).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="font-medium">Member pays</span>
+                                <span className="font-medium">${(50 + 1.75 + organization.platformFee + 0.08).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Stripe keeps</span>
+                                <span>-$1.83</span>
+                              </div>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Platform keeps</span>
+                                <span>-${organization.platformFee.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t font-medium">
+                                <span>You receive</span>
+                                <span className="text-green-600">$50.00</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex justify-between pt-2 border-t">
+                                <span className="font-medium">Member pays</span>
+                                <span className="font-medium">$50.00</span>
+                              </div>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Stripe fee (2.9% + $0.30)</span>
+                                <span className="text-red-600">-$1.75</span>
+                              </div>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Platform fee</span>
+                                <span className="text-red-600">-${organization.platformFee.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between pt-2 border-t font-medium">
+                                <span>You receive</span>
+                                <span className="text-green-600">
+                                  ${(50 - 1.75 - organization.platformFee).toFixed(2)}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        {organization.passFeesToMember
+                          ? "Members will see the fee breakdown when making payments. You receive the full dues amount."
+                          : "Fees are automatically deducted from each transaction. You receive the net amount."}
                       </p>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             {/* Admins Tab */}

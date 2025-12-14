@@ -7,15 +7,19 @@ import {
   generateAdHocInvoiceMetadata,
   getTodayInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
+import { calculateFees, reverseCalculateBaseAmount } from "@/lib/stripe";
 import type { BillingFrequency, PaymentMethod } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 // PINNED API VERSION - DO NOT CHANGE
 // See: https://docs.stripe.com/changelog#2025-11-17.clover
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-11-17.clover",
-});
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeSecretKey
+  ? new Stripe(stripeSecretKey, {
+      apiVersion: "2025-11-17.clover",
+    })
+  : null;
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -51,6 +55,11 @@ type InvoiceWithSubscription = Stripe.Invoice & {
  * - payment_intent.succeeded/failed: Handle one-off charges
  */
 export async function POST(req: Request) {
+  if (!stripe) {
+    console.error("[Webhook] Stripe is not configured");
+    return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
+  }
+
   const body = await req.text();
   const signature = (await headers()).get("stripe-signature");
 
@@ -377,17 +386,37 @@ async function handleInvoicePaid(
     return;
   }
 
-  // Get organization timezone for invoice metadata
+  // Get organization for timezone, platform fee, and fee settings
   const { data: org } = await supabase
     .from("organizations")
-    .select("timezone")
+    .select("timezone, platform_fee, stripe_connect_id, pass_fees_to_member")
     .eq("id", organizationId)
     .single();
 
   const orgTimezone = org?.timezone || "America/Los_Angeles";
+  const platformFeeDollars = org?.platform_fee || 0;
+  const isConnectPayment = !!org?.stripe_connect_id;
+  const passFeesToMember = org?.pass_fees_to_member || false;
   const today = getTodayInOrgTimezone(orgTimezone);
 
+  // Determine base amount (dues) vs total charged
+  // If passFeesToMember is true, `amount` from Stripe includes fees - reverse calculate base
+  const chargeAmountCents = Math.round(amount * 100);
+  let baseAmountCents: number;
+  let baseAmount: number;
+
+  if (passFeesToMember) {
+    // Reverse calculate the original dues from the grossed-up charge
+    baseAmountCents = reverseCalculateBaseAmount(chargeAmountCents, platformFeeDollars);
+    baseAmount = baseAmountCents / 100;
+  } else {
+    // Standard mode: charge amount = base amount
+    baseAmountCents = chargeAmountCents;
+    baseAmount = amount;
+  }
+
   // Calculate months credited based on billing frequency and plan pricing
+  // Use baseAmount (actual dues) for comparison, not the charged amount
   const billingFrequency = membershipData.billing_frequency as BillingFrequency;
   // Type assertion for joined plan data
   const planData = membershipData.plan as unknown as { pricing: { monthly: number; biannual: number; annual: number } } | { pricing: { monthly: number; biannual: number; annual: number } }[] | null;
@@ -397,16 +426,16 @@ async function handleInvoicePaid(
 
   let monthsCredited = 1;
   if (planPricing) {
-    // Determine months from amount vs plan pricing
+    // Determine months from base amount vs plan pricing
     const monthlyPrice = planPricing.monthly || 0;
     const biannualPrice = planPricing.biannual || 0;
     const annualPrice = planPricing.annual || 0;
 
-    if (monthlyPrice > 0 && Math.abs(amount - monthlyPrice) < 1) {
+    if (monthlyPrice > 0 && Math.abs(baseAmount - monthlyPrice) < 1) {
       monthsCredited = 1;
-    } else if (biannualPrice > 0 && Math.abs(amount - biannualPrice) < 1) {
+    } else if (biannualPrice > 0 && Math.abs(baseAmount - biannualPrice) < 1) {
       monthsCredited = 6;
-    } else if (annualPrice > 0 && Math.abs(amount - annualPrice) < 1) {
+    } else if (annualPrice > 0 && Math.abs(baseAmount - annualPrice) < 1) {
       monthsCredited = 12;
     } else {
       // Fallback: use billing frequency
@@ -433,9 +462,21 @@ async function handleInvoicePaid(
     supabase
   );
 
-  // Calculate Stripe fees
-  const stripeFee = parseFloat((amount * 0.029 + 0.3).toFixed(2));
-  const platformFee = 1.0;
+  // Calculate fees using org's settings
+  const fees = calculateFees(baseAmountCents, platformFeeDollars, passFeesToMember);
+  const stripeFee = fees.breakdown.stripeFee;
+  const platformFee = fees.breakdown.platformFee;
+  const netAmount = fees.netAmountCents / 100;
+  const totalCharged = fees.breakdown.chargeAmount;
+
+  // Build notes
+  let notes = `Stripe subscription payment - Invoice ${invoice.number || invoice.id}`;
+  if (passFeesToMember) {
+    notes += ` | Base: $${baseAmount.toFixed(2)} + Fees: $${fees.breakdown.totalFees.toFixed(2)}`;
+  }
+  if (isConnectPayment) {
+    notes += " (via Connect)";
+  }
 
   // Create payment record
   const { data: newPayment, error: paymentError } = await supabase
@@ -447,11 +488,11 @@ async function handleInvoicePaid(
       type: "dues",
       method: "stripe" as PaymentMethod,
       status: "pending", // Will be settled below
-      amount: amount,
+      amount: baseAmount, // Base dues amount
       stripe_fee: stripeFee,
       platform_fee: platformFee,
-      total_charged: amount + stripeFee,
-      net_amount: amount - platformFee,
+      total_charged: totalCharged, // What member actually paid
+      net_amount: netAmount, // What org receives
       months_credited: monthsCredited,
       invoice_number: invoiceMetadata.invoiceNumber,
       due_date: invoiceMetadata.dueDate,
@@ -459,7 +500,7 @@ async function handleInvoicePaid(
       period_end: invoiceMetadata.periodEnd,
       period_label: invoiceMetadata.periodLabel,
       stripe_payment_intent_id: paymentIntentId,
-      notes: `Stripe subscription payment - Invoice ${invoice.number || invoice.id}`,
+      notes,
     })
     .select()
     .single();

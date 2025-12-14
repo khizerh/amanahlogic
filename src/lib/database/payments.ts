@@ -184,6 +184,7 @@ export interface OutstandingPaymentInfo {
   remindersPaused: boolean;
   failureReason?: string;
   lastAttempt?: string;
+  autoPayEnabled: boolean;
 }
 
 // =============================================================================
@@ -641,6 +642,7 @@ export class PaymentsService {
         paid_months,
         billing_frequency,
         next_payment_due,
+        auto_pay_enabled,
         member:members(id, first_name, last_name, email),
         plan:plans(id, name, pricing)
       `
@@ -695,6 +697,7 @@ export class PaymentsService {
           type: "overdue",
           reminderCount: 0, // TODO: Track in memberships table
           remindersPaused: false,
+          autoPayEnabled: membership.auto_pay_enabled || false,
         });
       }
     }
@@ -754,6 +757,7 @@ export class PaymentsService {
           remindersPaused: payment.reminders_paused || false,
           failureReason: payment.notes || undefined,
           lastAttempt: payment.created_at,
+          autoPayEnabled: true, // Failed Stripe charges = autopay was enabled
         });
       }
     }

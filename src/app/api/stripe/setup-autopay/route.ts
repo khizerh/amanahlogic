@@ -3,11 +3,13 @@ import { NextResponse } from "next/server";
 import { MembershipsService } from "@/lib/database/memberships";
 import { MembersService } from "@/lib/database/members";
 import { PlansService } from "@/lib/database/plans";
+import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import {
   isStripeConfigured,
   getOrCreateStripeCustomer,
   createSubscriptionCheckoutSession,
+  calculateFees,
 } from "@/lib/stripe";
 
 interface SetupAutopayBody {
@@ -94,17 +96,35 @@ export async function POST(req: Request) {
         priceAmount = plan.pricing.monthly;
     }
 
-    const priceAmountCents = Math.round(priceAmount * 100);
+    const baseAmountCents = Math.round(priceAmount * 100);
+
+    // Get organization for Connect config and fee settings
+    const org = await OrganizationsService.getById(organizationId);
+    if (!org) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    }
+
+    // Calculate fees - if passFeesToMember is true, gross up the price
+    const fees = calculateFees(baseAmountCents, org.platformFee || 0, org.passFeesToMember);
 
     // Build URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003";
     const successUrl = `${baseUrl}/members/${memberId}?autopay=success`;
     const cancelUrl = `${baseUrl}/members/${memberId}?autopay=cancelled`;
 
-    // Create checkout session with correct billing frequency
+    // Build line item text showing fee breakdown if fees are passed to member
+    const lineItemName = org.passFeesToMember
+      ? `${plan.name} ($${priceAmount.toFixed(2)} + $${fees.breakdown.totalFees.toFixed(2)} fees)`
+      : undefined;
+    const lineItemDescription = org.passFeesToMember
+      ? `Member pays $${(fees.chargeAmountCents / 100).toFixed(2)} so org receives $${priceAmount.toFixed(2)}`
+      : undefined;
+
+    // Create checkout session with correct billing frequency (with Connect if org is onboarded)
+    // Use chargeAmountCents which includes fees if passFeesToMember is enabled
     const session = await createSubscriptionCheckoutSession({
       customerId,
-      priceAmountCents,
+      priceAmountCents: fees.chargeAmountCents,
       membershipId: membership.id,
       memberId: member.id,
       organizationId,
@@ -113,6 +133,8 @@ export async function POST(req: Request) {
       billingAnchorDay: membership.billingAnniversaryDay,
       billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
       planName: plan.name,
+      lineItemName,
+      lineItemDescription,
     });
 
     // Update membership with customer ID (subscription ID will be set by webhook)

@@ -153,6 +153,12 @@ export async function createSubscriptionCheckoutSession(params: {
   billingAnchorDay?: number;
   billingFrequency?: StripeBillingFrequency;
   planName?: string;
+  /** Optional override for the line item name (defaults to "{planName} Dues") */
+  lineItemName?: string;
+  /** Optional override for the line item description (defaults to interval description) */
+  lineItemDescription?: string;
+  /** Optional Connect params for destination charges */
+  connectParams?: ConnectParams;
 }): Promise<{ url: string; sessionId: string }> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
@@ -169,28 +175,31 @@ export async function createSubscriptionCheckoutSession(params: {
     billingAnchorDay,
     billingFrequency = "monthly",
     planName = "Membership",
+    lineItemName,
+    lineItemDescription,
+    connectParams,
   } = params;
 
   // Determine Stripe interval based on billing frequency
   let interval: "month" | "year" = "month";
   let intervalCount = 1;
-  let description = "Monthly membership dues";
+  let defaultDescription = "Monthly membership dues";
 
   switch (billingFrequency) {
     case "monthly":
       interval = "month";
       intervalCount = 1;
-      description = "Monthly membership dues";
+      defaultDescription = "Monthly membership dues";
       break;
     case "biannual":
       interval = "month";
       intervalCount = 6;
-      description = "Biannual membership dues (every 6 months)";
+      defaultDescription = "Biannual membership dues (every 6 months)";
       break;
     case "annual":
       interval = "year";
       intervalCount = 1;
-      description = "Annual membership dues";
+      defaultDescription = "Annual membership dues";
       break;
   }
 
@@ -203,8 +212,8 @@ export async function createSubscriptionCheckoutSession(params: {
         price_data: {
           currency: "usd",
           product_data: {
-            name: `${planName} Dues`,
-            description: description,
+            name: lineItemName ?? `${planName} Dues`,
+            description: lineItemDescription ?? defaultDescription,
           },
           unit_amount: priceAmountCents,
           recurring: {
@@ -228,6 +237,16 @@ export async function createSubscriptionCheckoutSession(params: {
           day_of_month: billingAnchorDay,
         },
       }),
+      // Stripe Connect: Destination charges for subscriptions
+      // Each invoice payment will be split automatically
+      ...(connectParams && {
+        application_fee_percent: undefined, // We use fixed amount instead
+        transfer_data: {
+          destination: connectParams.stripeConnectId,
+          // Note: For subscriptions, we set the fee on invoices via webhook
+          // or use on_behalf_of for more control
+        },
+      }),
     },
     metadata: {
       membership_id: membershipId,
@@ -248,7 +267,136 @@ export async function createSubscriptionCheckoutSession(params: {
 }
 
 /**
+ * Connect account parameters for destination charges
+ */
+export interface ConnectParams {
+  /** The connected account ID (e.g., acct_xxxxx) */
+  stripeConnectId: string;
+  /** Platform fee in cents to keep (Amanah Logic's cut) */
+  applicationFeeCents: number;
+}
+
+/**
+ * Fee calculation result
+ */
+export interface FeeCalculation {
+  /** What the member pays (total charge amount) */
+  chargeAmountCents: number;
+  /** Base amount before fees (what the org "receives" conceptually) */
+  baseAmountCents: number;
+  /** Stripe's processing fee */
+  stripeFeeCents: number;
+  /** Platform fee (Amanah Logic's cut) */
+  platformFeeCents: number;
+  /** For Connect: application_fee_amount (platform fee + stripe fee) */
+  applicationFeeCents: number;
+  /** What the org actually receives after all fees */
+  netAmountCents: number;
+  /** Fee breakdown for display purposes */
+  breakdown: {
+    baseAmount: number;
+    stripeFee: number;
+    platformFee: number;
+    totalFees: number;
+    chargeAmount: number;
+  };
+}
+
+/**
+ * Calculate fees for a payment
+ *
+ * @param baseAmountCents - The base amount (e.g., dues amount) in cents
+ * @param platformFeeDollars - The platform fee in dollars (from org.platformFee)
+ * @param passFeesToMember - If true, gross-up so org receives full base amount
+ * @returns Fee calculation with all breakdowns
+ */
+export function calculateFees(
+  baseAmountCents: number,
+  platformFeeDollars: number,
+  passFeesToMember: boolean = false
+): FeeCalculation {
+  const stripeFeePercent = 0.029; // 2.9%
+  const stripeFixedFeeCents = 30; // $0.30 in cents
+  const platformFeeCents = Math.round(platformFeeDollars * 100);
+
+  let chargeAmountCents: number;
+  let stripeFeeCents: number;
+  let netAmountCents: number;
+
+  if (passFeesToMember) {
+    // GROSS-UP MODE: Calculate what to charge so org gets the full base amount
+    // Formula: charge = (base + platformFee + stripeFixed) / (1 - stripePercent)
+    // This ensures: charge - stripeFee - platformFee = base
+    chargeAmountCents = Math.ceil(
+      (baseAmountCents + platformFeeCents + stripeFixedFeeCents) / (1 - stripeFeePercent)
+    );
+    stripeFeeCents = Math.round(chargeAmountCents * stripeFeePercent) + stripeFixedFeeCents;
+    // Org receives the base amount (that's the whole point)
+    netAmountCents = baseAmountCents;
+  } else {
+    // STANDARD MODE: Org absorbs fees, member pays base amount only
+    chargeAmountCents = baseAmountCents;
+    stripeFeeCents = Math.round(baseAmountCents * stripeFeePercent) + stripeFixedFeeCents;
+    // Org receives base minus all fees
+    netAmountCents = baseAmountCents - stripeFeeCents - platformFeeCents;
+  }
+
+  // For Connect destination charges, application_fee_amount includes both fees
+  const applicationFeeCents = platformFeeCents + stripeFeeCents;
+
+  // Human-readable breakdown in dollars
+  const breakdown = {
+    baseAmount: baseAmountCents / 100,
+    stripeFee: stripeFeeCents / 100,
+    platformFee: platformFeeCents / 100,
+    totalFees: (stripeFeeCents + platformFeeCents) / 100,
+    chargeAmount: chargeAmountCents / 100,
+  };
+
+  return {
+    chargeAmountCents,
+    baseAmountCents,
+    stripeFeeCents,
+    platformFeeCents,
+    applicationFeeCents,
+    netAmountCents,
+    breakdown,
+  };
+}
+
+/**
+ * Reverse calculate base amount from a charge amount
+ * Used by webhook to determine original dues amount when fees were passed to member
+ *
+ * @param chargeAmountCents - The total amount charged (includes fees)
+ * @param platformFeeDollars - The platform fee in dollars
+ * @returns The base amount in cents (what the org's dues are)
+ */
+export function reverseCalculateBaseAmount(
+  chargeAmountCents: number,
+  platformFeeDollars: number
+): number {
+  const stripeFeePercent = 0.029;
+  const stripeFixedFeeCents = 30;
+  const platformFeeCents = Math.round(platformFeeDollars * 100);
+
+  // Reverse the gross-up formula:
+  // charge = (base + platformFee + stripeFixed) / (1 - stripePercent)
+  // base = charge * (1 - stripePercent) - platformFee - stripeFixed
+  const baseAmountCents = Math.round(
+    chargeAmountCents * (1 - stripeFeePercent) - platformFeeCents - stripeFixedFeeCents
+  );
+
+  return Math.max(0, baseAmountCents); // Ensure non-negative
+}
+
+/**
  * Create a PaymentIntent for a one-time charge
+ *
+ * If connectParams is provided, creates a destination charge that:
+ * - Charges the customer on the platform account
+ * - Automatically transfers funds to the connected account
+ * - Keeps the application fee on the platform account
  */
 export async function createPaymentIntent(params: {
   customerId: string;
@@ -258,6 +406,8 @@ export async function createPaymentIntent(params: {
   organizationId: string;
   paymentId?: string;
   description?: string;
+  /** Optional Connect params for destination charges */
+  connectParams?: ConnectParams;
 }): Promise<{ clientSecret: string; paymentIntentId: string }> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
@@ -271,6 +421,7 @@ export async function createPaymentIntent(params: {
     organizationId,
     paymentId,
     description,
+    connectParams,
   } = params;
 
   const paymentIntent = await stripe.paymentIntents.create({
@@ -287,6 +438,13 @@ export async function createPaymentIntent(params: {
     automatic_payment_methods: {
       enabled: true,
     },
+    // Stripe Connect: Destination charge with application fee
+    ...(connectParams && {
+      application_fee_amount: connectParams.applicationFeeCents,
+      transfer_data: {
+        destination: connectParams.stripeConnectId,
+      },
+    }),
   });
 
   if (!paymentIntent.client_secret) {

@@ -37,6 +37,7 @@ export interface OutstandingPayment {
   remindersPaused: boolean;
   failureReason?: string;
   lastAttempt?: string;
+  autoPayEnabled: boolean;
 }
 
 const getTypeBadge = (type: "overdue" | "failed") => {
@@ -61,14 +62,14 @@ const getTypeBadge = (type: "overdue" | "failed") => {
 };
 
 const getDaysOverdueBadge = (days: number) => {
-  if (days <= 7) {
-    return <Badge variant="warning">{days}d</Badge>;
+  if (days <= 14) {
+    return <Badge variant="outline" className="text-red-400 border-red-200">{days}d</Badge>;
   } else if (days <= 30) {
-    return <Badge variant="error">{days}d</Badge>;
+    return <Badge variant="outline" className="bg-red-50 text-red-500 border-red-200">{days}d</Badge>;
   } else if (days <= 60) {
-    return <Badge variant="destructive">{days}d</Badge>;
+    return <Badge variant="outline" className="bg-red-100 text-red-600 border-red-300">{days}d</Badge>;
   } else {
-    return <Badge variant="destructive">{days}d+</Badge>;
+    return <Badge variant="error">{days}d+</Badge>;
   }
 };
 
@@ -88,15 +89,12 @@ export const createOutstandingColumns = (
     cell: ({ row }) => {
       const payment = row.original;
       return (
-        <div>
-          <Link
-            href={`/members/${payment.memberId}`}
-            className="font-medium text-brand-teal hover:underline"
-          >
-            {payment.memberName}
-          </Link>
-          <div className="text-sm text-muted-foreground">{payment.memberEmail}</div>
-        </div>
+        <Link
+          href={`/members/${payment.memberId}`}
+          className="font-medium text-brand-teal hover:underline"
+        >
+          {payment.memberName}
+        </Link>
       );
     },
     filterFn: (row, id, value) => {
@@ -118,11 +116,22 @@ export const createOutstandingColumns = (
     },
   },
   {
+    accessorKey: "autoPayEnabled",
+    header: "Billing",
+    cell: ({ row }) => {
+      return (
+        <span className="text-sm">
+          {row.original.autoPayEnabled ? "Autopay" : "Manual"}
+        </span>
+      );
+    },
+  },
+  {
     accessorKey: "amountDue",
     header: () => <div className="text-right">Amount</div>,
     cell: ({ row }) => {
       return (
-        <div className="text-right font-medium text-red-600">
+        <div className="text-right font-medium text-red-400">
           {formatCurrency(row.original.amountDue)}
         </div>
       );

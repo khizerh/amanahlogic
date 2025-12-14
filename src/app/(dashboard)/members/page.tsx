@@ -33,6 +33,33 @@ export default async function MembersPage() {
             </Link>
           </div>
 
+          {/* Status Reference */}
+          <Card className="mb-6 border-l-4 border-l-blue-500 bg-blue-50/50">
+            <CardContent className="pt-6">
+              <p className="text-sm font-medium mb-3">Status Reference</p>
+              <ul className="text-sm text-muted-foreground space-y-2 ml-4 list-disc">
+                <li>
+                  <strong>Pending:</strong> Account created, onboarding incomplete (no agreement or payment yet).
+                </li>
+                <li>
+                  <strong>Awaiting Signature:</strong> Agreement has been sent but not yet signed by the member.
+                </li>
+                <li>
+                  <strong>Waiting Period:</strong> Member is signed up and paying, but under 60 paid months.
+                </li>
+                <li>
+                  <strong>Active:</strong> 60+ paid months completed - member is eligible for burial benefits.
+                </li>
+                <li>
+                  <strong>Lapsed:</strong> Missed recent payment(s), currently in grace period.
+                </li>
+                <li>
+                  <strong>Cancelled:</strong> 24+ months unpaid, membership has been voided.
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+
           {/* DataTable wrapped in Card */}
           <Card>
             <CardContent className="pt-6">

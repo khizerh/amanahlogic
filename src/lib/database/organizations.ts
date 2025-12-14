@@ -23,6 +23,7 @@ export interface CreateOrganizationInput {
   stripeConnectId?: string;
   stripeOnboarded?: boolean;
   platformFee?: number;
+  passFeesToMember?: boolean;
 }
 
 export interface UpdateOrganizationInput
@@ -129,6 +130,7 @@ export class OrganizationsService {
         stripe_connect_id: input.stripeConnectId || null,
         stripe_onboarded: input.stripeOnboarded || false,
         platform_fee: input.platformFee || 0,
+        pass_fees_to_member: input.passFeesToMember ?? false,
       })
       .select()
       .single();
@@ -160,6 +162,8 @@ export class OrganizationsService {
       dbUpdates.stripe_onboarded = updates.stripeOnboarded;
     if (updates.platformFee !== undefined)
       dbUpdates.platform_fee = updates.platformFee;
+    if (updates.passFeesToMember !== undefined)
+      dbUpdates.pass_fees_to_member = updates.passFeesToMember;
 
     const { data, error } = await client
       .from("organizations")
@@ -332,9 +336,11 @@ function transformOrganization(dbOrg: any): Organization {
     address: dbOrg.address,
     phone: dbOrg.phone || "",
     email: dbOrg.email || "",
+    timezone: dbOrg.timezone || "America/Los_Angeles",
     stripeConnectId: dbOrg.stripe_connect_id,
     stripeOnboarded: dbOrg.stripe_onboarded,
-    platformFee: dbOrg.platform_fee,
+    platformFee: dbOrg.platform_fee || 0,
+    passFeesToMember: dbOrg.pass_fees_to_member || false,
     createdAt: dbOrg.created_at,
     updatedAt: dbOrg.updated_at,
   };

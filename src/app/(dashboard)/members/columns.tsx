@@ -4,7 +4,6 @@ import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
 import { MemberWithMembership, PlanType } from "@/lib/types";
 import { formatStatus, getStatusVariant, formatDate } from "@/lib/mock-data";
 
@@ -106,7 +105,6 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
       <div className="text-right">
         <Link href={`/members/${row.original.id}`}>
           <Button variant="ghost" size="sm">
-            <Eye className="h-4 w-4 mr-2" />
             View
           </Button>
         </Link>

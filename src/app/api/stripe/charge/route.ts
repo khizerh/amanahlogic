@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { MembershipsService } from "@/lib/database/memberships";
 import { MembersService } from "@/lib/database/members";
+import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -10,6 +11,8 @@ import {
   createPaymentIntent,
   confirmPaymentIntent,
   getCustomerDefaultPaymentMethod,
+  calculateFees,
+  type ConnectParams,
 } from "@/lib/stripe";
 import {
   generateAdHocInvoiceMetadata,
@@ -93,15 +96,29 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get organization timezone
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("timezone")
-      .eq("id", organizationId)
-      .single();
+    // Get organization (for timezone and Connect config)
+    const org = await OrganizationsService.getById(organizationId);
+    if (!org) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    }
 
-    const orgTimezone = org?.timezone || "America/Los_Angeles";
+    const orgTimezone = org.timezone || "America/Los_Angeles";
     const today = getTodayInOrgTimezone(orgTimezone);
+
+    // Calculate fees based on org's platform fee and pass-through setting
+    // "amount" is the base amount (e.g., $50 dues)
+    // If passFeesToMember is true, we gross-up so org receives full base amount
+    const baseAmountCents = Math.round(amount * 100);
+    const fees = calculateFees(baseAmountCents, org.platformFee || 0, org.passFeesToMember);
+
+    // Prepare Connect params if org has a connected account
+    let connectParams: ConnectParams | undefined;
+    if (org.stripeConnectId && org.stripeOnboarded) {
+      connectParams = {
+        stripeConnectId: org.stripeConnectId,
+        applicationFeeCents: fees.applicationFeeCents,
+      };
+    }
 
     // Generate invoice metadata
     let invoiceMetadata;
@@ -129,7 +146,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create payment record (pending)
+    // Payment record amounts
+    // - amount: base amount (what the org conceptually charges, e.g., dues)
+    // - total_charged: what the member actually pays (includes fees if passed through)
+    // - net_amount: what the org receives after all fees
+    const chargeAmount = fees.breakdown.chargeAmount;
+    const stripeFee = fees.breakdown.stripeFee;
+    const platformFee = fees.breakdown.platformFee;
+    const netAmount = fees.netAmountCents / 100;
+
+    // Build notes with fee breakdown if fees are passed to member
+    let notes = `Charged ${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`;
+    if (org.passFeesToMember) {
+      notes += ` | Base: $${amount.toFixed(2)} + Fees: $${fees.breakdown.totalFees.toFixed(2)}`;
+    }
+    if (connectParams) {
+      notes += " (via Connect)";
+    }
+
     const { data: newPayment, error: createError } = await supabase
       .from("payments")
       .insert({
@@ -139,18 +173,18 @@ export async function POST(req: Request) {
         type,
         method: "stripe",
         status: "pending",
-        amount,
-        stripe_fee: parseFloat((amount * 0.029 + 0.3).toFixed(2)),
-        platform_fee: 1.0,
-        total_charged: amount + parseFloat((amount * 0.029 + 0.3).toFixed(2)),
-        net_amount: amount - 1.0,
+        amount: amount, // Base amount (dues)
+        stripe_fee: stripeFee,
+        platform_fee: platformFee,
+        total_charged: chargeAmount, // What member actually pays
+        net_amount: netAmount, // What org receives
         months_credited: type === "enrollment_fee" ? 0 : monthsCredited,
         invoice_number: invoiceMetadata.invoiceNumber,
         due_date: invoiceMetadata.dueDate,
         period_start: invoiceMetadata.periodStart,
         period_end: invoiceMetadata.periodEnd,
         period_label: invoiceMetadata.periodLabel,
-        notes: `Charged ${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`,
+        notes,
       })
       .select()
       .single();
@@ -162,16 +196,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create and confirm payment intent
-    const amountCents = Math.round(amount * 100);
+    // Create and confirm payment intent (with Connect if org is onboarded)
+    // Use chargeAmountCents which includes fees if passFeesToMember is enabled
     const { paymentIntentId } = await createPaymentIntent({
       customerId,
-      amountCents,
+      amountCents: fees.chargeAmountCents,
       membershipId,
       memberId,
       organizationId,
       paymentId: newPayment.id,
-      description: invoiceMetadata.periodLabel,
+      description: org.passFeesToMember
+        ? `${invoiceMetadata.periodLabel} ($${amount.toFixed(2)} + $${fees.breakdown.totalFees.toFixed(2)} fees)`
+        : invoiceMetadata.periodLabel,
+      connectParams,
     });
 
     // Confirm with saved payment method

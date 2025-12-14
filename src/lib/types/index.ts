@@ -37,9 +37,11 @@ export interface Organization {
   address: Address;
   phone: string;
   email: string;
+  timezone: string;
   stripeConnectId: string | null;
   stripeOnboarded: boolean;
   platformFee: number; // Fixed dollar amount per transaction
+  passFeesToMember: boolean; // If true, gross-up charges so org receives full amount
   createdAt: string;
   updatedAt: string;
 }

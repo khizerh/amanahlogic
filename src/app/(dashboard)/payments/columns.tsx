@@ -69,7 +69,7 @@ const isOverdue = (status: string, dueDate: string | null | undefined): boolean 
 const getStatusBadge = (status: string, dueDate?: string | null) => {
   // Check if pending payment is overdue
   if (status === "pending" && isOverdue(status, dueDate)) {
-    return <Badge variant="destructive">Overdue</Badge>;
+    return <Badge variant="outline" className="bg-red-50 text-red-500 border-red-200">Overdue</Badge>;
   }
 
   switch (status) {
@@ -146,14 +146,10 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
     accessorKey: "method",
     header: "Method",
     cell: ({ row }) => {
-      const method = row.original.method;
       return (
-        <div className="flex items-center gap-2">
-          {getPaymentMethodIcon(method)}
-          <span className="text-sm">
-            {getPaymentMethodLabel(method)}
-          </span>
-        </div>
+        <span className="text-sm">
+          {getPaymentMethodLabel(row.original.method)}
+        </span>
       );
     },
     filterFn: (row, id, value) => {

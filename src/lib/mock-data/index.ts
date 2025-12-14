@@ -48,9 +48,11 @@ export const mockOrganization: Organization = {
   },
   phone: '(713) 555-0100',
   email: 'admin@masjidmuhajireen.org',
+  timezone: 'America/Chicago',
   stripeConnectId: null,
   stripeOnboarded: false,
   platformFee: 1.0,
+  passFeesToMember: false,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };

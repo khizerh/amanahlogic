@@ -283,65 +283,6 @@ export function PaymentsPageClient({
             </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 mb-8">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Payments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{payments.length}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Outstanding
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {outstandingPayments.length}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(totalOutstanding)} total
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Failed Charges
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {failedChargesCount}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Stripe failures
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Pending Invites
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {pendingInvitesCount}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  awaiting setup
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Tabs */}
           <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList>
@@ -351,7 +292,7 @@ export function PaymentsPageClient({
               <TabsTrigger value="outstanding" className="gap-2">
                 Outstanding
                 {outstandingPayments.length > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 px-1.5">
+                  <Badge variant="outline" className="ml-1 h-5 px-1.5 bg-red-50 text-red-500 border-red-200">
                     {outstandingPayments.length}
                   </Badge>
                 )}
@@ -368,6 +309,65 @@ export function PaymentsPageClient({
 
             {/* All Payments Tab */}
             <TabsContent value="all">
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 mb-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Total Payments
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{payments.length}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Outstanding
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-400">
+                      {outstandingPayments.length}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatCurrency(totalOutstanding)} total
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Failed Charges
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {failedChargesCount}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Stripe failures
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Pending Invites
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {pendingInvitesCount}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      awaiting setup
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
               <Card>
                 <CardContent className="pt-6">
                   <DataTable
@@ -438,7 +438,7 @@ export function PaymentsPageClient({
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      <AlertTriangle className="h-5 w-5 text-red-400" />
                       Outstanding Payments ({outstandingPayments.length})
                     </CardTitle>
                     <CardDescription>
