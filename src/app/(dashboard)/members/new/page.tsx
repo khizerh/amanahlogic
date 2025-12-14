@@ -80,8 +80,7 @@ export default function NewMemberPage() {
   const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
-  const [includeEnrollmentFee, setIncludeEnrollmentFee] = useState(true);
-  const [enrollmentFeePaid, setEnrollmentFeePaid] = useState(false);
+  const [waiveEnrollmentFee, setWaiveEnrollmentFee] = useState(false);
 
   // Get current plan and pricing based on selections
   const currentPlan = plans.find((p) => p.type === planType);
@@ -147,8 +146,8 @@ export default function NewMemberPage() {
             name: c.name,
             dateOfBirth: c.dateOfBirth,
           })),
-          // For manual payments, pass if enrollment fee is already paid/waived
-          enrollmentFeePaid: paymentMethod === "manual" ? enrollmentFeePaid : false,
+          // Pass if enrollment fee is waived (applies to both payment methods)
+          enrollmentFeePaid: waiveEnrollmentFee,
         }),
       });
 
@@ -169,7 +168,7 @@ export default function NewMemberPage() {
           body: JSON.stringify({
             membershipId: data.membership.id,
             memberId: data.member.id,
-            includeEnrollmentFee,
+            includeEnrollmentFee: !waiveEnrollmentFee,
           }),
         });
 
@@ -185,7 +184,7 @@ export default function NewMemberPage() {
 
         // Success - payment link sent to member
         toast.success(`Payment setup link sent to ${email}`, {
-          description: includeEnrollmentFee
+          description: !waiveEnrollmentFee
             ? "Member will complete enrollment fee and subscription setup"
             : "Member will complete subscription setup",
         });
@@ -562,75 +561,51 @@ export default function NewMemberPage() {
                         </div>
                       </RadioGroup>
 
-                      {/* Enrollment Fee Options - shown for both payment methods */}
+                      {/* Enrollment Fee Option - same for both payment methods */}
                       <div className="space-y-3 mt-3 pt-3 border-t">
                         <Label className="text-sm">Enrollment Fee (${enrollmentFeeAmount})</Label>
 
-                        {paymentMethod === "manual" ? (
-                          <>
-                            {/* Manual Payment - Option to mark as already paid/waived */}
-                            <div className="flex items-start space-x-3">
-                              <Checkbox
-                                id="enrollmentFeePaid"
-                                checked={enrollmentFeePaid}
-                                onCheckedChange={(checked) => setEnrollmentFeePaid(checked as boolean)}
-                              />
-                              <div className="space-y-1">
-                                <Label
-                                  htmlFor="enrollmentFeePaid"
-                                  className="font-normal cursor-pointer"
-                                >
-                                  Enrollment fee already paid or waived
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                  Check if fee was already collected or you want to waive it
+                        <div className="flex items-start space-x-3">
+                          <Checkbox
+                            id="waiveEnrollmentFee"
+                            checked={waiveEnrollmentFee}
+                            onCheckedChange={(checked) => setWaiveEnrollmentFee(checked as boolean)}
+                          />
+                          <div className="space-y-1">
+                            <Label
+                              htmlFor="waiveEnrollmentFee"
+                              className="font-normal cursor-pointer"
+                            >
+                              Waive enrollment fee
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Check to skip collecting the enrollment fee
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Info Box for Stripe */}
+                        {paymentMethod === "stripe" && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                            <div className="flex items-start gap-2">
+                              <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                              <div className="text-blue-800">
+                                <p className="font-medium">Payment link will be emailed to member</p>
+                                <p className="mt-1 text-blue-700">
+                                  {!waiveEnrollmentFee
+                                    ? `Member will pay $${enrollmentFeeAmount} enrollment fee + set up $${currentDuesAmount} recurring dues.`
+                                    : `Member will set up $${currentDuesAmount} recurring dues only.`}
                                 </p>
                               </div>
                             </div>
+                          </div>
+                        )}
 
-                            {!enrollmentFeePaid && (
-                              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                                Enrollment fee will need to be collected from the member page
-                              </p>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            {/* Stripe - Option to include in checkout */}
-                            <div className="flex items-start space-x-3">
-                              <Checkbox
-                                id="includeEnrollmentFee"
-                                checked={includeEnrollmentFee}
-                                onCheckedChange={(checked) => setIncludeEnrollmentFee(checked as boolean)}
-                              />
-                              <div className="space-y-1">
-                                <Label
-                                  htmlFor="includeEnrollmentFee"
-                                  className="font-normal cursor-pointer"
-                                >
-                                  Include enrollment fee in payment link
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                  Uncheck to set up subscription only (collect fee later or waive)
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Info Box */}
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                              <div className="flex items-start gap-2">
-                                <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                <div className="text-blue-800">
-                                  <p className="font-medium">Payment link will be emailed to member</p>
-                                  <p className="mt-1 text-blue-700">
-                                    {includeEnrollmentFee
-                                      ? `Member will receive an email to pay the $${enrollmentFeeAmount} enrollment fee and set up $${currentDuesAmount} recurring dues.`
-                                      : `Member will receive an email to set up $${currentDuesAmount} recurring dues.`}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </>
+                        {/* Info Box for Manual */}
+                        {paymentMethod === "manual" && !waiveEnrollmentFee && (
+                          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                            Enrollment fee will need to be collected from the member page
+                          </p>
                         )}
                       </div>
                     </div>
