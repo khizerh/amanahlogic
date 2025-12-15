@@ -17,7 +17,6 @@ import {
   Pause,
   Play,
   DollarSign,
-  AlertTriangle,
   CreditCard,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
@@ -44,8 +43,7 @@ const getTypeBadge = (type: "overdue" | "failed") => {
   switch (type) {
     case "overdue":
       return (
-        <Badge variant="warning" className="gap-1">
-          <AlertTriangle className="h-3 w-3" />
+        <Badge variant="warning">
           Overdue
         </Badge>
       );
