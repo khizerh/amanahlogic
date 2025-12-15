@@ -3,11 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Plus, Upload } from "lucide-react";
-import { DataTable } from "@/components/ui/data-table";
-import { columns } from "./columns";
 import { MembersService } from "@/lib/database/members";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { ImportMembersDialog } from "@/components/members/import-members-dialog";
+import { MembersTable } from "./client";
 
 export default async function MembersPage() {
   const organizationId = await getOrganizationId();
@@ -71,36 +70,7 @@ export default async function MembersPage() {
           {/* DataTable wrapped in Card */}
           <Card>
             <CardContent className="pt-6">
-              <DataTable
-                columns={columns}
-                data={members}
-                searchColumn="name"
-                searchPlaceholder="Search by name, email, or phone..."
-                filterColumns={[
-                  {
-                    column: "status",
-                    label: "Status",
-                    options: [
-                      { label: "All Statuses", value: "all" },
-                      { label: "Pending", value: "pending" },
-                      { label: "Current", value: "current" },
-                      { label: "Lapsed", value: "lapsed" },
-                      { label: "Cancelled", value: "cancelled" },
-                    ],
-                  },
-                  {
-                    column: "planType",
-                    label: "Plan",
-                    options: [
-                      { label: "All Plans", value: "all" },
-                      { label: "Single", value: "single" },
-                      { label: "Married", value: "married" },
-                      { label: "Widow", value: "widow" },
-                    ],
-                  },
-                ]}
-                pageSize={20}
-              />
+              <MembersTable members={members} />
             </CardContent>
           </Card>
         </div>
