@@ -321,7 +321,7 @@ export function SendPaymentLinkSheet({
 
           <Separator />
 
-          {/* Auto-Pay Option */}
+          {/* Recurring Payment Option */}
           {!hasAutoPay && (
             <div className="flex items-start space-x-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <Checkbox

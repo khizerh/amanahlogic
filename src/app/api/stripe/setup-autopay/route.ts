@@ -22,7 +22,7 @@ interface SetupAutopayBody {
 /**
  * POST /api/stripe/setup-autopay
  *
- * Create a Stripe Checkout Session for setting up autopay subscription.
+ * Create a Stripe Checkout Session for setting up recurring payment subscription.
  * Returns a URL that the member should be redirected to.
  */
 export async function POST(req: Request) {
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Membership not found" }, { status: 404 });
     }
 
-    // Check if already on autopay
+    // Check if already on recurring payments
     if (membership.autoPayEnabled && membership.stripeSubscriptionId) {
       return NextResponse.json(
         { error: "Member already has autopay enabled" },

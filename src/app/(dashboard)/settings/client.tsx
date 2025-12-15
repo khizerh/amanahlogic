@@ -141,7 +141,6 @@ export function SettingsPageClient({
       setAllTemplates((prev) => prev.filter((t) => t.id !== template.id));
       toast.success(`Deleted ${template.version}`);
     } catch (err) {
-      console.error("Failed to delete template:", err);
       toast.error(err instanceof Error ? err.message : "Failed to delete template");
     } finally {
       setDeletingTemplateId(null);
@@ -160,7 +159,6 @@ export function SettingsPageClient({
       const { url } = await res.json();
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      console.error("Failed to view template:", err);
       toast.error(err instanceof Error ? err.message : "Failed to open template");
     } finally {
       setViewingTemplateId(null);

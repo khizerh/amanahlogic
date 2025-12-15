@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       .eq("id", membershipId)
       .single();
 
-    // CRITICAL: Block manual payments for members with active Stripe autopay
+    // CRITICAL: Block manual payments for members with active Stripe subscriptions
     // Recording manual payment while Stripe subscription is active = double charge
     if (membershipWithPlan?.auto_pay_enabled) {
       const hasActiveSubscription =
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Autopay enabled but no active subscription - warn but allow
+      // Recurring payment enabled but no active subscription - warn but allow
       // This could happen if subscription was cancelled in Stripe but not synced
       if (!membershipWithPlan.stripe_subscription_id) {
         console.warn("Autopay enabled but no subscription ID - data may be out of sync", {

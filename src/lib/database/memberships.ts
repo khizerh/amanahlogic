@@ -384,7 +384,7 @@ export class MembershipsService {
   }
 
   /**
-   * Get memberships with auto-pay enabled
+   * Get memberships with recurring payments enabled
    */
   static async getWithAutoPay(
     organizationId: string
@@ -409,7 +409,7 @@ export class MembershipsService {
   }
 
   /**
-   * Get memberships without auto-pay (and no pending invite)
+   * Get memberships without recurring payments (and no pending invite)
    */
   static async getWithoutAutoPay(
     organizationId: string

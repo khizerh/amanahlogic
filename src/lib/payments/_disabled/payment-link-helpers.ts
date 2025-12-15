@@ -213,8 +213,8 @@ export async function logCheckoutInvite({
         stripe_coupon_id: checkoutSession.metadata?.stripe_coupon_id || null,
         first_charge_date: billingPeriodStart,
         notes: subscriptionTrialEnd
-          ? `Auto-pay checkout generated. Billing period: ${billingPeriodStart}, Stripe trial ends: ${stripeChargeDate.toISOString().split("T")[0]}`
-          : "Auto-pay checkout generated.",
+          ? `Onboarding checkout generated. Billing period: ${billingPeriodStart}, Stripe trial ends: ${stripeChargeDate.toISOString().split("T")[0]}`
+          : "Onboarding checkout generated.",
       },
       supabase
     );
@@ -558,8 +558,8 @@ export async function updateSubscriptionInviteRecord({
     ? firstChargeDate.toISOString().split("T")[0]
     : null;
   const inviteNote = firstChargeDateString
-    ? `Auto-pay checkout link ${needsNewSession ? "generated" : "resent"} on ${getTodayInOrgTimezone(orgTimezone)}. First charge scheduled for ${firstChargeDateString}.`
-    : `Auto-pay checkout link ${needsNewSession ? "generated" : "resent"} on ${getTodayInOrgTimezone(orgTimezone)}.`;
+    ? `Onboarding checkout link ${needsNewSession ? "generated" : "resent"} on ${getTodayInOrgTimezone(orgTimezone)}. First charge scheduled for ${firstChargeDateString}.`
+    : `Onboarding checkout link ${needsNewSession ? "generated" : "resent"} on ${getTodayInOrgTimezone(orgTimezone)}.`;
 
   if (existingInvite) {
     await StripeCheckoutInvitesService.update(

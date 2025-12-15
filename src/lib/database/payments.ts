@@ -233,7 +233,6 @@ export class PaymentsService {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error loading payments:", error);
       throw error;
     }
 
@@ -757,7 +756,7 @@ export class PaymentsService {
           remindersPaused: payment.reminders_paused || false,
           failureReason: payment.notes || undefined,
           lastAttempt: payment.created_at,
-          autoPayEnabled: true, // Failed Stripe charges = autopay was enabled
+          autoPayEnabled: true, // Failed Stripe charges = recurring payments were enabled
         });
       }
     }

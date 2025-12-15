@@ -175,7 +175,7 @@ export function CollectPaymentDialog({
           </button>
         </div>
 
-        {/* Auto-Pay Promo (if no subscription) */}
+        {/* Recurring Payment Promo (if no subscription) */}
         {!hasSubscription && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2">
             <div className="flex items-start gap-3">

@@ -86,8 +86,6 @@ export async function sendPaymentSetupEmail(
 
     // In development, skip email and return success so the flow continues
     if (process.env.NODE_ENV === "development") {
-      console.log("[DEV] Would send payment setup email to:", to);
-      console.log("[DEV] Checkout URL:", checkoutUrl);
       return {
         success: true,
         emailLogId: emailLog?.id,

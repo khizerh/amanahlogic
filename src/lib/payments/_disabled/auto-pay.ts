@@ -1,5 +1,5 @@
 /**
- * Auto-pay checkout link generation logic
+ * Onboarding checkout link generation logic (legacy module name: auto-pay)
  * @module lib/payments/auto-pay
  */
 
@@ -41,7 +41,7 @@ export interface AutoPayCheckoutLinkResult {
 }
 
 /**
- * Enrollment data for auto-pay
+ * Enrollment data for onboarding
  */
 interface AutoPayEnrollmentData {
   id: string;
@@ -71,7 +71,7 @@ function extractNested<T>(raw: unknown): T | null {
 }
 
 /**
- * Create an auto-pay checkout link for converting manual billing to Stripe subscription
+ * Create an onboarding checkout link for converting manual billing to Stripe subscription
  */
 export async function createAutoPayCheckoutLinkLogic({
   enrollment_id,
@@ -111,7 +111,7 @@ export async function createAutoPayCheckoutLinkLogic({
   const program = extractNested<ProgramData>(typedEnrollment.program);
 
   if (!program || program.payment_type !== "recurring") {
-    return { success: false, error: "Auto-pay is only available for recurring programs." };
+    return { success: false, error: "Recurring payments are only available for recurring programs." };
   }
 
   const student = extractNested<StudentData>(typedEnrollment.student);
@@ -125,7 +125,7 @@ export async function createAutoPayCheckoutLinkLogic({
     typedEnrollment.billing_method === "stripe_subscription" ||
     typedEnrollment.billing_method === "stripe_invoice"
   ) {
-    return { success: false, error: "This enrollment is already enabled for auto-pay." };
+    return { success: false, error: "This enrollment is already enabled for recurring payments." };
   }
 
   // Determine recipient
@@ -149,7 +149,7 @@ export async function createAutoPayCheckoutLinkLogic({
     return {
       success: false,
       error:
-        "This family has no email on file. Add an email before enabling auto-pay so the checkout link can be delivered.",
+        "This family has no email on file. Add an email before enabling recurring payments so the checkout link can be delivered.",
     };
   }
 

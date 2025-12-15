@@ -494,7 +494,7 @@ export interface UpdateFrequencyResult {
  *
  * Business rules:
  * - Change takes effect immediately for manual payment members
- * - For auto-pay members, this updates the local record (Stripe update would happen separately)
+ * - For members with recurring payments, this updates the local record (Stripe update would happen separately)
  * - Next payment due date is recalculated based on new frequency
  * - No proration - change simply applies to next payment
  */

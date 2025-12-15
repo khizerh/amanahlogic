@@ -126,9 +126,7 @@ export function MemberDetailClient({
 
   // State for agreement dialog
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
-  const [agreementUrl, setAgreementUrl] = useState<string | null>(
-    initialAgreement?.pdfUrl || agreementTemplateUrl || null
-  );
+  const agreementUrl = initialAgreement?.pdfUrl || agreementTemplateUrl || null;
 
   // State for sending agreement
   const [isSendingAgreement, setIsSendingAgreement] = useState(false);
@@ -140,7 +138,7 @@ export function MemberDetailClient({
   // State for switching to manual payments
   const [isSwitchingToManual, setIsSwitchingToManual] = useState(false);
 
-  // State for setting up autopay
+  // State for setting up recurring payment
   const [isSettingUpAutopay, setIsSettingUpAutopay] = useState(false);
 
   // State for pausing/resuming subscription
@@ -272,7 +270,7 @@ export function MemberDetailClient({
     }
   }, [membership, memberData.id, router]);
 
-  // Switch from Stripe autopay to manual payments
+  // Switch from Stripe recurring payments to manual payments
   const handleSwitchToManual = useCallback(async () => {
     if (!membership) return;
 
@@ -314,7 +312,7 @@ export function MemberDetailClient({
     }
   }, [membership, router]);
 
-  // Set up autopay (redirect to Stripe Checkout)
+  // Set up recurring payment (redirect to Stripe Checkout)
   const handleSetupAutopay = useCallback(async () => {
     if (!membership) return;
 
@@ -938,7 +936,7 @@ export function MemberDetailClient({
                     <p className="font-medium">{formatDate(membership.nextPaymentDue)}</p>
                   </div>
 
-                  {/* Subscription Status (for auto-pay) */}
+                  {/* Subscription Status (for recurring payments) */}
                   {membership.autoPayEnabled && (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">Subscription</p>

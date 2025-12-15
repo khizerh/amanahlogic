@@ -107,7 +107,6 @@ export function PaymentsPageClient({
           setMembersList(data.members || []);
         })
         .catch((err) => {
-          console.error("Failed to fetch members:", err);
           toast.error("Failed to load members");
         })
         .finally(() => setMembersLoading(false));
@@ -128,7 +127,6 @@ export function PaymentsPageClient({
       setSelectedPlan(data.plan);
       setRecordSheetOpen(true);
     } catch (err) {
-      console.error("Failed to fetch member:", err);
       toast.error("Failed to load member details");
     } finally {
       setMemberLoading(false);
@@ -148,7 +146,6 @@ export function PaymentsPageClient({
       setSelectedPlan(data.plan);
       setRecordSheetOpen(true);
     } catch (err) {
-      console.error("Failed to fetch member:", err);
       toast.error("Failed to load member details");
     } finally {
       setMemberLoading(false);

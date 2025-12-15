@@ -122,7 +122,7 @@ export interface Plan {
 }
 
 // -----------------------------------------------------------------------------
-// Payment Method (for auto-pay)
+// Payment Method (for subscriptions)
 // -----------------------------------------------------------------------------
 
 export type PaymentMethodType = 'card' | 'us_bank_account';

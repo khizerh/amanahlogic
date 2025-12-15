@@ -260,7 +260,7 @@ export function ChangeFrequencySheet({
                   </div>
                 </div>
 
-                {/* Auto-pay warning */}
+                {/* Recurring payment warning */}
                 {hasAutoPay && (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />

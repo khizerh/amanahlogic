@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Mail, CreditCard, Banknote, FileText, Smartphone } from "lucide-react";
+import { MoreHorizontal, Eye, Mail } from "lucide-react";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 
@@ -24,21 +24,6 @@ const getPaymentTypeBadge = (type: string) => {
       return <Badge variant="warning">Back Dues</Badge>;
     default:
       return <Badge variant="inactive">{type}</Badge>;
-  }
-};
-
-const getPaymentMethodIcon = (method: string) => {
-  switch (method) {
-    case "stripe":
-      return <CreditCard className="h-4 w-4" />;
-    case "cash":
-      return <Banknote className="h-4 w-4" />;
-    case "check":
-      return <FileText className="h-4 w-4" />;
-    case "zelle":
-      return <Smartphone className="h-4 w-4" />;
-    default:
-      return null;
   }
 };
 

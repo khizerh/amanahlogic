@@ -305,10 +305,10 @@ function generateMemberships(members: Member[]): Membership[] {
       ? randomDate(new Date(new Date(agreementSignedAt).getTime() - 30 * 24 * 60 * 60 * 1000), new Date(agreementSignedAt))
       : randomDate(new Date('2024-01-01'), new Date('2024-11-01'));
 
-    // Auto-pay - about 60% of active/waiting members have it set up
+    // Recurring payments - about 60% of active/waiting members have it set up
     const autoPayEnabled = (status === 'active' || status === 'waiting_period') && rng.next() > 0.4;
 
-    // Generate payment method details for auto-pay members
+    // Generate payment method details for recurring payment members
     const cardBrands = ['visa', 'mastercard', 'amex', 'discover'];
     const paymentMethod = autoPayEnabled ? (
       rng.next() > 0.15 ? {
@@ -326,7 +326,7 @@ function generateMemberships(members: Member[]): Membership[] {
       }
     ) : null;
 
-    // Subscription status for auto-pay members
+    // Subscription status for recurring payment members
     const subscriptionStatus = autoPayEnabled
       ? (rng.next() > 0.1 ? 'active' : (rng.next() > 0.5 ? 'paused' : 'past_due')) as 'active' | 'paused' | 'past_due'
       : null;
@@ -467,14 +467,14 @@ export const mockMemberships: Membership[] = generateMemberships(mockMembers);
 export const mockPayments: Payment[] = generatePayments(mockMemberships, mockMembers);
 
 // -----------------------------------------------------------------------------
-// Auto-Pay Invites (Stripe Checkout Session Tracking)
+// Onboarding Invites (Stripe Checkout Session Tracking)
 // -----------------------------------------------------------------------------
 
 function generateOnboardingInvites(): OnboardingInvite[] {
   const invites: OnboardingInvite[] = [];
   const now = new Date();
 
-  // Find members without auto-pay to create invites for
+  // Find members without recurring payments to create invites for
   const membersWithoutAutoPay = mockMemberships.filter(
     m => !m.autoPayEnabled && (m.status === 'active' || m.status === 'waiting_period')
   );
@@ -510,7 +510,7 @@ function generateOnboardingInvites(): OnboardingInvite[] {
     });
   });
 
-  // Create some completed invites (members who completed auto-pay setup)
+  // Create some completed invites (members who completed onboarding setup)
   const membersWithAutoPay = mockMemberships.filter(m => m.autoPayEnabled);
   membersWithAutoPay.slice(0, 8).forEach((membership, i) => {
     const sentDate = new Date(now);
@@ -896,7 +896,7 @@ export function getOverdueMembers(limit: number = 10): MembershipWithDetails[] {
 }
 
 // -----------------------------------------------------------------------------
-// Auto-Pay Invite Helpers
+// Onboarding Invite Helpers
 // -----------------------------------------------------------------------------
 
 /**
@@ -928,7 +928,7 @@ export function getPendingInvitesCount(): number {
 }
 
 /**
- * Helper to get members with auto-pay enabled
+ * Helper to get members with recurring payments enabled
  */
 export function getAutoPayMembers(): MembershipWithDetails[] {
   return getMemberships().filter(m => m.autoPayEnabled);
@@ -936,7 +936,7 @@ export function getAutoPayMembers(): MembershipWithDetails[] {
 
 /**
  * Helper to get members without auto-pay AND no pending invite
- * These are members who could be invited to set up auto-pay
+ * These are members who could be sent onboarding invites
  */
 export function getMembersWithoutAutoPay(): MembershipWithDetails[] {
   const pendingInviteMemberIds = new Set(

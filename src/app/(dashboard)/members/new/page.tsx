@@ -54,7 +54,6 @@ export default function NewMemberPage() {
           toast.error("Failed to load plans");
         }
       } catch (error) {
-        console.error("Error fetching plans:", error);
         toast.error("Failed to load plans");
       } finally {
         setPlansLoading(false);
@@ -196,7 +195,6 @@ export default function NewMemberPage() {
       toast.success("Member created successfully");
       router.push(`/members/${data.member.id}`);
     } catch (error) {
-      console.error("Error creating member:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create member");
     } finally {
       setIsSubmitting(false);

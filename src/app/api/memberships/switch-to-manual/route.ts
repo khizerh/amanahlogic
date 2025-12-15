@@ -11,7 +11,7 @@ interface SwitchToManualBody {
 /**
  * POST /api/memberships/switch-to-manual
  *
- * Switch a member from Stripe autopay to manual payments.
+ * Switch a member from Stripe recurring payments to manual payments.
  * This will:
  * 1. Cancel the Stripe subscription (if exists)
  * 2. Set auto_pay_enabled = false
@@ -91,13 +91,13 @@ export async function POST(req: Request) {
       stripeError = "Stripe is not configured. Subscription may still be active in Stripe.";
     }
 
-    // Update membership to disable autopay
+    // Update membership to disable recurring payments
     await MembershipsService.update({
       id: membershipId,
       autoPayEnabled: false,
       stripeSubscriptionId: null,
       subscriptionStatus: "canceled",
-      // Keep stripeCustomerId for future use if they want to set up autopay again
+      // Keep stripeCustomerId for future use if they want to set up recurring payments again
       // Keep paymentMethod for display purposes
     });
 
