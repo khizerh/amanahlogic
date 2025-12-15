@@ -1,29 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { SettlePaymentDialog } from "@/components/payments/settle-payment-dialog";
 import { RecordOutstandingPaymentDialog } from "@/components/payments/record-outstanding-payment-dialog";
@@ -32,13 +15,11 @@ import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
 import { createOnboardingColumns } from "./onboarding-columns";
 import { PaymentWithDetails, OutstandingPaymentInfo } from "@/lib/database/payments";
-import { OnboardingInviteWithMember, MemberWithMembership, Plan } from "@/lib/types";
+import { OnboardingInviteWithMember } from "@/lib/types";
 import { formatCurrency } from "@/lib/mock-data";
 import {
   AlertTriangle,
   CreditCard,
-  Loader2,
-  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -83,17 +64,6 @@ export function PaymentsPageClient({
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
 
-  // Member selector state
-  const [memberSelectorOpen, setMemberSelectorOpen] = useState(false);
-  const [membersList, setMembersList] = useState<MemberWithMembership[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
-
-  // Record payment sheet state (for new payments)
-  const [recordSheetOpen, setRecordSheetOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<MemberWithMembership | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [memberLoading, setMemberLoading] = useState(false);
-
   // Settle payment sheet state (for existing pending payments)
   const [settleSheetOpen, setSettleSheetOpen] = useState(false);
   const [paymentToSettle, setPaymentToSettle] = useState<PaymentWithDetails | null>(null);
@@ -105,42 +75,6 @@ export function PaymentsPageClient({
   // Onboarding payment dialog state
   const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
   const [selectedOnboardingInvite, setSelectedOnboardingInvite] = useState<OnboardingInviteWithMember | null>(null);
-
-  // Fetch members list when selector opens
-  useEffect(() => {
-    if (memberSelectorOpen && membersList.length === 0) {
-      setMembersLoading(true);
-      fetch("/api/members")
-        .then((res) => res.json())
-        .then((data) => {
-          setMembersList(data.members || []);
-        })
-        .catch((err) => {
-          toast.error("Failed to load members");
-        })
-        .finally(() => setMembersLoading(false));
-    }
-  }, [memberSelectorOpen, membersList.length]);
-
-  // Handle selecting a member from the selector
-  const handleSelectMember = async (memberId: string) => {
-    setMemberSelectorOpen(false);
-    setMemberLoading(true);
-
-    try {
-      const res = await fetch(`/api/members/${memberId}`);
-      if (!res.ok) throw new Error("Failed to fetch member");
-
-      const data = await res.json();
-      setSelectedMember(data.member);
-      setSelectedPlan(data.plan);
-      setRecordSheetOpen(true);
-    } catch (err) {
-      toast.error("Failed to load member details");
-    } finally {
-      setMemberLoading(false);
-    }
-  };
 
   // Handle payment recorded - refresh the page
   const handlePaymentRecorded = () => {
@@ -321,23 +255,11 @@ export function PaymentsPageClient({
       <div className="min-h-screen">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           {/* Page Header */}
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Payments</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Manage payments, track overdue accounts, and onboarding payments
-              </p>
-            </div>
-            <Button onClick={() => setMemberSelectorOpen(true)} disabled={memberLoading}>
-              {memberLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                "Record Payment"
-              )}
-            </Button>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold">Payments</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Manage payments, track overdue accounts, and onboarding payments
+            </p>
           </div>
 
           {/* Tabs */}
@@ -597,68 +519,6 @@ export function PaymentsPageClient({
           </Tabs>
         </div>
       </div>
-
-      {/* Member Selector Dialog */}
-      <Dialog open={memberSelectorOpen} onOpenChange={setMemberSelectorOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select Member</DialogTitle>
-            <DialogDescription>
-              Choose a member to record a payment for
-            </DialogDescription>
-          </DialogHeader>
-          <Command className="rounded-lg border">
-            <CommandInput placeholder="Search members..." />
-            <CommandList>
-              {membersLoading ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <>
-                  <CommandEmpty>No members found.</CommandEmpty>
-                  <CommandGroup>
-                    {membersList
-                      .filter((m) => m.membership) // Only show members with memberships
-                      .map((member) => (
-                        <CommandItem
-                          key={member.id}
-                          value={`${member.firstName} ${member.lastName} ${member.email}`}
-                          onSelect={() => handleSelectMember(member.id)}
-                          className="cursor-pointer"
-                        >
-                          <User className="mr-2 h-4 w-4" />
-                          <div className="flex-1">
-                            <p className="font-medium">
-                              {member.firstName} {member.lastName}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {member.email}
-                            </p>
-                          </div>
-                          {member.membership && (
-                            <Badge variant="outline" className="ml-2">
-                              {member.membership.paidMonths}/60 mo
-                            </Badge>
-                          )}
-                        </CommandItem>
-                      ))}
-                  </CommandGroup>
-                </>
-              )}
-            </CommandList>
-          </Command>
-        </DialogContent>
-      </Dialog>
-
-      {/* Record Payment Sheet */}
-      <RecordPaymentSheet
-        member={selectedMember}
-        plan={selectedPlan}
-        open={recordSheetOpen}
-        onOpenChange={setRecordSheetOpen}
-        onPaymentRecorded={handlePaymentRecorded}
-      />
 
       {/* Payment Details Sheet */}
       <PaymentDetailsSheet

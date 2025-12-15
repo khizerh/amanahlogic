@@ -47,10 +47,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
-import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
+import { RecordMemberDuesDialog } from "@/components/payments/record-member-dues-dialog";
 import { CollectPaymentDialog } from "@/components/payments/collect-payment-dialog";
 import { ChargeCardSheet } from "@/components/payments/charge-card-sheet";
-import { SendPaymentLinkSheet } from "@/components/payments/send-payment-link-sheet";
+import { SendPaymentLinkDialog } from "@/components/payments/send-payment-link-dialog";
 import { ChangeFrequencySheet } from "@/components/payments/change-frequency-sheet";
 import Link from "next/link";
 import {
@@ -1222,8 +1222,8 @@ export function MemberDetailClient({
         onSelectSendLink={() => setSendLinkOpen(true)}
       />
 
-      {/* Record Manual Payment Sheet */}
-      <RecordPaymentSheet
+      {/* Record Manual Payment Dialog */}
+      <RecordMemberDuesDialog
         member={memberData}
         plan={plan}
         open={recordPaymentOpen}
@@ -1240,8 +1240,8 @@ export function MemberDetailClient({
         onPaymentRecorded={handlePaymentRecorded}
       />
 
-      {/* Send Payment Link Sheet */}
-      <SendPaymentLinkSheet
+      {/* Send Payment Link Dialog */}
+      <SendPaymentLinkDialog
         member={memberData}
         plan={plan}
         open={sendLinkOpen}

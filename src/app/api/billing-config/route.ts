@@ -6,7 +6,6 @@ import { loadBillingConfig, toClientBillingConfig } from "@/lib/billing/config";
  * GET /api/billing-config?organizationId=xxx
  *
  * Returns billing configuration for display in UI components.
- * Used by RecordPaymentSheet to show correct eligibility threshold.
  */
 export async function GET(request: NextRequest) {
   try {
