@@ -27,20 +27,13 @@ import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
+import { createOnboardingColumns } from "./onboarding-columns";
 import { PaymentWithDetails, OutstandingPaymentInfo } from "@/lib/database/payments";
 import { OnboardingInviteWithMember, MemberWithMembership, Plan } from "@/lib/types";
-import Link from "next/link";
-import { formatCurrency, formatDate } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/mock-data";
 import {
   AlertTriangle,
   CreditCard,
-  CheckCircle2,
-  Clock,
-  Send,
-  Copy,
-  XCircle,
-  Mail,
-  RefreshCw,
   Loader2,
   User,
 } from "lucide-react";
@@ -84,7 +77,6 @@ export function PaymentsPageClient({
   // Payment details sheet state
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithDetails | null>(null);
   const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
-  const [inviteFilter, setInviteFilter] = useState<'all' | 'pending' | 'completed' | 'expired'>('all');
 
   // Member selector state
   const [memberSelectorOpen, setMemberSelectorOpen] = useState(false);
@@ -172,13 +164,7 @@ export function PaymentsPageClient({
   const payments = initialPayments;
   const outstandingPayments = initialOutstandingPayments;
   const agingBuckets = initialAgingBuckets;
-  const allInvites = initialOnboardingInvites;
-
-  // Filter invites based on selected filter
-  const filteredInvites = useMemo(() => {
-    if (inviteFilter === 'all') return allInvites;
-    return allInvites.filter(i => i.status === inviteFilter);
-  }, [allInvites, inviteFilter]);
+  const onboardingInvites = initialOnboardingInvites;
 
   const handleViewDetails = (payment: PaymentWithDetails) => {
     setSelectedPayment(payment);
@@ -230,32 +216,53 @@ export function PaymentsPageClient({
     []
   );
 
-  const handleCopyInviteLink = (invite: OnboardingInviteWithMember) => {
+  // Onboarding invite handlers
+  const handleCopyOnboardingLink = (invite: OnboardingInviteWithMember) => {
     if (invite.stripeCheckoutSessionId) {
-      navigator.clipboard.writeText(`https://checkout.stripe.com/${invite.stripeCheckoutSessionId}`);
-      toast.success("Link copied to clipboard");
+      navigator.clipboard.writeText(`https://checkout.stripe.com/c/pay/${invite.stripeCheckoutSessionId}`);
+      toast.success("Checkout link copied to clipboard");
+    } else {
+      toast.error("No checkout link available for manual payments");
     }
   };
 
-  const handleResendInvite = (invite: OnboardingInviteWithMember) => {
-    toast.success(`Payment setup link resent to ${invite.member.email}`);
+  const handleResendOnboardingEmail = (invite: OnboardingInviteWithMember) => {
+    const emailType = invite.paymentMethod === "stripe" ? "checkout" : "payment instructions";
+    toast.success(`${emailType.charAt(0).toUpperCase() + emailType.slice(1)} email resent to ${invite.member.email}`);
   };
 
-  // Get invite status badge
-  const getInviteStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="warning">Pending</Badge>;
-      case 'completed':
-        return <Badge variant="success">Completed</Badge>;
-      case 'expired':
-        return <Badge variant="inactive">Expired</Badge>;
-      case 'canceled':
-        return <Badge variant="error">Canceled</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const handleSendNewOnboardingLink = (invite: OnboardingInviteWithMember) => {
+    toast.success(`New payment setup link sent to ${invite.member.email}`);
+  };
+
+  const handleRecordOnboardingPayment = async (invite: OnboardingInviteWithMember) => {
+    // Load member details and open the record payment sheet
+    setMemberLoading(true);
+    try {
+      const res = await fetch(`/api/members/${invite.memberId}`);
+      if (!res.ok) throw new Error("Failed to fetch member");
+
+      const data = await res.json();
+      setSelectedMember(data.member);
+      setSelectedPlan(data.plan);
+      setRecordSheetOpen(true);
+    } catch (err) {
+      toast.error("Failed to load member details");
+    } finally {
+      setMemberLoading(false);
     }
   };
+
+  const onboardingColumns = useMemo(
+    () =>
+      createOnboardingColumns({
+        onCopyLink: handleCopyOnboardingLink,
+        onResendEmail: handleResendOnboardingEmail,
+        onSendNewLink: handleSendNewOnboardingLink,
+        onRecordPayment: handleRecordOnboardingPayment,
+      }),
+    []
+  );
 
   return (
     <>
@@ -494,154 +501,44 @@ export function PaymentsPageClient({
             <TabsContent value="onboarding">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5" />
-                        Onboarding Payments
-                      </CardTitle>
-                      <CardDescription>
-                        Track initial payment setup for new members (Stripe and Manual)
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                      {(['all', 'pending', 'completed', 'expired'] as const).map((filter) => (
-                        <Button
-                          key={filter}
-                          variant={inviteFilter === filter ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setInviteFilter(filter)}
-                        >
-                          {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                          {filter === 'pending' && pendingInvitesCount > 0 && (
-                            <Badge variant="secondary" className="ml-2 h-5 px-1.5">
-                              {pendingInvitesCount}
-                            </Badge>
-                          )}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Onboarding Payments
+                  </CardTitle>
+                  <CardDescription>
+                    Track initial payment setup for new members (enrollment fee + first dues)
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Info about what this tab shows */}
-                  <div className="bg-muted/50 rounded-lg p-4 mb-6">
-                    <p className="text-sm text-muted-foreground">
-                      Track initial onboarding payments (enrollment fee + first dues) for new members.
-                      Stripe invites include checkout links. Manual invites track payments to be collected by admin.
-                    </p>
-                  </div>
-
-                  {filteredInvites.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">No {inviteFilter !== 'all' ? inviteFilter : ''} onboarding payments</p>
-                      <p className="text-sm">
-                        {inviteFilter === 'pending'
-                          ? "No pending onboarding payments."
-                          : inviteFilter === 'completed'
-                          ? "No completed onboarding yet."
-                          : inviteFilter === 'expired'
-                          ? "No expired invites."
-                          : "No onboarding payments have been created yet."}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {filteredInvites.map((invite) => (
-                        <div
-                          key={invite.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                              invite.status === 'completed'
-                                ? 'bg-green-100'
-                                : invite.status === 'pending'
-                                ? 'bg-amber-100'
-                                : 'bg-gray-100'
-                            }`}>
-                              {invite.status === 'completed' ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                              ) : invite.status === 'pending' ? (
-                                <Clock className="h-5 w-5 text-amber-600" />
-                              ) : (
-                                <XCircle className="h-5 w-5 text-gray-400" />
-                              )}
-                            </div>
-                            <div>
-                              <Link
-                                href={`/members/${invite.memberId}`}
-                                className="font-medium hover:underline"
-                              >
-                                {invite.member.firstName} {invite.member.lastName}
-                              </Link>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span>{invite.plan?.name || "Unknown Plan"}</span>
-                                <span>-</span>
-                                <span>{formatCurrency(invite.plannedAmount)}/mo</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-6">
-                            <div className="text-right text-sm">
-                              <div className="text-muted-foreground">
-                                Sent: {formatDate(invite.sentAt)}
-                              </div>
-                              {invite.status === 'completed' && invite.completedAt && (
-                                <div className="text-green-600">
-                                  Completed: {formatDate(invite.completedAt)}
-                                </div>
-                              )}
-                              {invite.status === 'expired' && invite.expiredAt && (
-                                <div className="text-gray-500">
-                                  Expired: {formatDate(invite.expiredAt)}
-                                </div>
-                              )}
-                              {invite.status === 'pending' && invite.firstChargeDate && (
-                                <div className="text-muted-foreground">
-                                  First charge: {formatDate(invite.firstChargeDate)}
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              {getInviteStatusBadge(invite.status)}
-                            </div>
-                            {invite.status === 'pending' && (
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleCopyInviteLink(invite)}
-                                >
-                                  <Copy className="h-4 w-4 mr-2" />
-                                  Copy Link
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleResendInvite(invite)}
-                                >
-                                  <RefreshCw className="h-4 w-4 mr-2" />
-                                  Resend
-                                </Button>
-                              </div>
-                            )}
-                            {invite.status === 'expired' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleResendInvite(invite)}
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Send New Link
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <DataTable
+                    columns={onboardingColumns}
+                    data={onboardingInvites}
+                    searchColumn="member"
+                    searchPlaceholder="Search by member name or email..."
+                    filterColumns={[
+                      {
+                        column: "paymentMethod",
+                        label: "Method",
+                        options: [
+                          { label: "All Methods", value: "all" },
+                          { label: "Stripe", value: "stripe" },
+                          { label: "Manual", value: "manual" },
+                        ],
+                      },
+                      {
+                        column: "status",
+                        label: "Status",
+                        options: [
+                          { label: "All Statuses", value: "all" },
+                          { label: "Pending", value: "pending" },
+                          { label: "Completed", value: "completed" },
+                          { label: "Expired", value: "expired" },
+                          { label: "Canceled", value: "canceled" },
+                        ],
+                      },
+                    ]}
+                    pageSize={20}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>

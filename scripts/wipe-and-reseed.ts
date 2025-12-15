@@ -789,21 +789,95 @@ async function seedDatabase(): Promise<void> {
   if (emailLogsError) throw new Error(`Email Logs: ${emailLogsError.message}`);
   console.log("✓");
 
-  // 9. Onboarding Invites
+  // 9. Onboarding Invites - Diverse scenarios for testing
   process.stdout.write("   Creating onboarding invites... ");
   const { error: onboardingError } = await supabase.from("onboarding_invites").insert([
+    // Stripe - Pending (checkout link sent, awaiting completion)
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.aisha,
       member_id: MEMBER_IDS.aisha,
       payment_method: "stripe",
+      stripe_checkout_session_id: "cs_test_a1b2c3d4e5f6g7h8i9j0",
       enrollment_fee_amount: 500.0,
       includes_enrollment_fee: true,
+      enrollment_fee_paid_at: null,
       dues_amount: 20.0,
       billing_frequency: "monthly",
+      dues_paid_at: null,
       planned_amount: 20.0,
       status: "pending",
       sent_at: "2024-12-10T11:00:00Z",
+    },
+    // Stripe - Completed (both enrollment fee and dues paid via Stripe)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.ahmed,
+      member_id: MEMBER_IDS.ahmed,
+      payment_method: "stripe",
+      stripe_checkout_session_id: "cs_test_completed123456",
+      enrollment_fee_amount: 500.0,
+      includes_enrollment_fee: true,
+      enrollment_fee_paid_at: "2024-11-15T14:30:00Z",
+      dues_amount: 30.0,
+      billing_frequency: "monthly",
+      dues_paid_at: "2024-11-15T14:30:00Z",
+      planned_amount: 30.0,
+      status: "completed",
+      sent_at: "2024-11-14T10:00:00Z",
+      completed_at: "2024-11-15T14:30:00Z",
+    },
+    // Stripe - Expired (link expired before completion)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.fatima,
+      member_id: MEMBER_IDS.fatima,
+      payment_method: "stripe",
+      stripe_checkout_session_id: "cs_test_expired789012",
+      enrollment_fee_amount: 500.0,
+      includes_enrollment_fee: true,
+      enrollment_fee_paid_at: null,
+      dues_amount: 25.0,
+      billing_frequency: "monthly",
+      dues_paid_at: null,
+      planned_amount: 25.0,
+      status: "expired",
+      sent_at: "2024-11-01T09:00:00Z",
+      expired_at: "2024-11-02T09:00:00Z",
+    },
+    // Manual - Pending (awaiting cash/check/zelle, nothing paid yet)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.omar,
+      member_id: MEMBER_IDS.omar,
+      payment_method: "manual",
+      stripe_checkout_session_id: null,
+      enrollment_fee_amount: 500.0,
+      includes_enrollment_fee: true,
+      enrollment_fee_paid_at: null,
+      dues_amount: 20.0,
+      billing_frequency: "monthly",
+      dues_paid_at: null,
+      planned_amount: 20.0,
+      status: "pending",
+      sent_at: "2024-12-08T15:00:00Z",
+    },
+    // Manual - Pending (enrollment fee paid, waiting for first dues)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.muhammad,
+      member_id: MEMBER_IDS.muhammad,
+      payment_method: "manual",
+      stripe_checkout_session_id: null,
+      enrollment_fee_amount: 500.0,
+      includes_enrollment_fee: true,
+      enrollment_fee_paid_at: "2024-12-05T10:00:00Z",
+      dues_amount: 30.0,
+      billing_frequency: "monthly",
+      dues_paid_at: null,
+      planned_amount: 30.0,
+      status: "pending",
+      sent_at: "2024-12-01T12:00:00Z",
     },
   ]);
   if (onboardingError) throw new Error(`Onboarding Invites: ${onboardingError.message}`);
@@ -1068,7 +1142,7 @@ JazakAllah Khair,
   console.log("   • 7 Payments");
   console.log("   • 1 Agreement (awaiting signature)");
   console.log("   • 3 Email Logs");
-  console.log("   • 1 Onboarding Invite");
+  console.log("   • 5 Onboarding Invites (Stripe + Manual, various statuses)");
   console.log("   • 5 Email Templates (EN + FA)");
   console.log("\n🧪 Test Scenarios:");
   console.log("   1. Ahmed Khan: Active with Stripe autopay - test payment blocking");
