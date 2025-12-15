@@ -27,6 +27,7 @@ import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { SettlePaymentDialog } from "@/components/payments/settle-payment-dialog";
 import { RecordOutstandingPaymentDialog } from "@/components/payments/record-outstanding-payment-dialog";
+import { RecordOnboardingPaymentDialog } from "@/components/payments/record-onboarding-payment-dialog";
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
 import { createOnboardingColumns } from "./onboarding-columns";
@@ -100,6 +101,10 @@ export function PaymentsPageClient({
   // Outstanding payment dialog state
   const [outstandingDialogOpen, setOutstandingDialogOpen] = useState(false);
   const [selectedOutstandingPayment, setSelectedOutstandingPayment] = useState<OutstandingPayment | null>(null);
+
+  // Onboarding payment dialog state
+  const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
+  const [selectedOnboardingInvite, setSelectedOnboardingInvite] = useState<OnboardingInviteWithMember | null>(null);
 
   // Fetch members list when selector opens
   useEffect(() => {
@@ -236,22 +241,9 @@ export function PaymentsPageClient({
     toast.success(`New payment setup link sent to ${invite.member.email}`);
   };
 
-  const handleRecordOnboardingPayment = async (invite: OnboardingInviteWithMember) => {
-    // Load member details and open the record payment sheet
-    setMemberLoading(true);
-    try {
-      const res = await fetch(`/api/members/${invite.memberId}`);
-      if (!res.ok) throw new Error("Failed to fetch member");
-
-      const data = await res.json();
-      setSelectedMember(data.member);
-      setSelectedPlan(data.plan);
-      setRecordSheetOpen(true);
-    } catch (err) {
-      toast.error("Failed to load member details");
-    } finally {
-      setMemberLoading(false);
-    }
+  const handleRecordOnboardingPayment = (invite: OnboardingInviteWithMember) => {
+    setSelectedOnboardingInvite(invite);
+    setOnboardingDialogOpen(true);
   };
 
   const onboardingColumns = useMemo(
@@ -689,6 +681,14 @@ export function PaymentsPageClient({
         organizationId={organizationId}
         open={outstandingDialogOpen}
         onOpenChange={setOutstandingDialogOpen}
+        onPaymentRecorded={handlePaymentRecorded}
+      />
+
+      {/* Onboarding Payment Dialog (for onboarding tab) */}
+      <RecordOnboardingPaymentDialog
+        invite={selectedOnboardingInvite}
+        open={onboardingDialogOpen}
+        onOpenChange={setOnboardingDialogOpen}
         onPaymentRecorded={handlePaymentRecorded}
       />
     </>

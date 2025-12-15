@@ -16,7 +16,7 @@ import {
   Copy,
   RefreshCw,
   Send,
-  DollarSign,
+  CheckCircle2,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 import { OnboardingInviteWithMember } from "@/lib/types";
@@ -201,8 +201,8 @@ export const createOnboardingColumns = (
               {/* Manual + Pending: Record payment */}
               {!isStripe && isPending && (
                 <DropdownMenuItem onClick={() => actions.onRecordPayment(invite)}>
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  Record Payment
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Mark as Paid
                 </DropdownMenuItem>
               )}
 
@@ -210,8 +210,8 @@ export const createOnboardingColumns = (
               {!isStripe && isExpired && (
                 <>
                   <DropdownMenuItem onClick={() => actions.onRecordPayment(invite)}>
-                    <DollarSign className="mr-2 h-4 w-4" />
-                    Record Payment
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Mark as Paid
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => actions.onResendEmail(invite)}>
