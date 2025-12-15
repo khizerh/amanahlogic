@@ -73,6 +73,7 @@ const EXCLUDED_TABLES = [
   "s3_multipart_uploads",
   "s3_multipart_uploads_parts",
   "agreement_templates", // User-uploaded PDFs - preserve across wipes
+  "organizations",       // Preserve to maintain FK refs (use upsert in seed)
 ];
 
 // Fixed UUIDs for consistent seeding
@@ -268,7 +269,7 @@ async function wipeDatabase(): Promise<void> {
     console.log(`found ${tables.length} tables`);
   } catch {
     // If RPC functions don't work, fall back to known tables
-    // NOTE: agreement_templates excluded - preserves user-uploaded PDFs
+    // NOTE: agreement_templates & organizations excluded - preserves uploaded PDFs and FK refs
     console.log("(using fallback list)");
     tables = [
       "agreement_signing_links",
@@ -282,7 +283,6 @@ async function wipeDatabase(): Promise<void> {
       "plans",
       "invoice_sequences",
       "organization_settings",
-      "organizations",
     ];
   }
 
@@ -349,9 +349,9 @@ async function wipeDatabase(): Promise<void> {
 async function seedDatabase(): Promise<void> {
   console.log("\n🌱 Seeding database...\n");
 
-  // 1. Organization
+  // 1. Organization (upsert to preserve FK references like agreement_templates)
   process.stdout.write("   Creating organization... ");
-  const { error: orgError } = await supabase.from("organizations").insert({
+  const { error: orgError } = await supabase.from("organizations").upsert({
     id: ORG_ID,
     name: "Masjid Muhajireen",
     slug: "masjid-muhajireen",
@@ -365,7 +365,7 @@ async function seedDatabase(): Promise<void> {
     email: "admin@masjidmuhajireen.org",
     timezone: "America/Los_Angeles",
     platform_fee: 1.0,
-  });
+  }, { onConflict: "id" });
   if (orgError) throw new Error(`Organization: ${orgError.message}`);
   console.log("✓");
 
@@ -1169,6 +1169,15 @@ JazakAllah Khair,
     },
   ]);
   if (emailTemplatesError) throw new Error(`Email Templates: ${emailTemplatesError.message}`);
+  console.log("✓");
+
+  // 11. Restore agreement_templates org_id (set to NULL during org deletion)
+  process.stdout.write("   Restoring agreement templates... ");
+  const { error: restoreTemplatesError } = await supabase
+    .from("agreement_templates")
+    .update({ organization_id: ORG_ID })
+    .is("organization_id", null);
+  if (restoreTemplatesError) throw new Error(`Restore Templates: ${restoreTemplatesError.message}`);
   console.log("✓");
 
   console.log("\n✅ Database seeded successfully!");
