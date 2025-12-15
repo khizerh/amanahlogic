@@ -157,11 +157,11 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
 
   const getPlanTypeBadge = (type: string) => {
     const badges = {
-      single: "bg-blue-100 text-blue-800",
-      married: "bg-purple-100 text-purple-800",
-      widow: "bg-green-100 text-green-800",
+      single: "bg-blue-100 text-blue-800 border-blue-200",
+      married: "bg-purple-100 text-purple-800 border-purple-200",
+      widow: "bg-green-100 text-green-800 border-green-200",
     };
-    return badges[type as keyof typeof badges] || "bg-gray-100 text-gray-800";
+    return badges[type as keyof typeof badges] || "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   return (
@@ -193,7 +193,7 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
                       <CardTitle className="text-xl">{plan.name}</CardTitle>
                       <CardDescription className="mt-1">{plan.description}</CardDescription>
                     </div>
-                    <Badge className={getPlanTypeBadge(plan.type)}>
+                    <Badge variant="outline" className={getPlanTypeBadge(plan.type)}>
                       {plan.type.charAt(0).toUpperCase() + plan.type.slice(1)}
                     </Badge>
                   </div>
