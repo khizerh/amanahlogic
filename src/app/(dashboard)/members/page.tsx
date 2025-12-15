@@ -2,11 +2,12 @@ import Header from "@/components/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { columns } from "./columns";
 import { MembersService } from "@/lib/database/members";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
+import { ImportMembersDialog } from "@/components/members/import-members-dialog";
 
 export default async function MembersPage() {
   const organizationId = await getOrganizationId();
@@ -25,12 +26,22 @@ export default async function MembersPage() {
                 Manage member information and view membership details
               </p>
             </div>
-            <Link href="/members/new">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Member
-              </Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <ImportMembersDialog
+                trigger={
+                  <Button variant="outline">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import
+                  </Button>
+                }
+              />
+              <Link href="/members/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Member
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Status Reference */}
