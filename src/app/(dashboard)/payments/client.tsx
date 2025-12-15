@@ -410,7 +410,6 @@ export function PaymentsPageClient({
                           { label: "All Statuses", value: "all" },
                           { label: "Completed", value: "completed" },
                           { label: "Pending", value: "pending" },
-                          { label: "Overdue", value: "overdue" },
                           { label: "Failed", value: "failed" },
                           { label: "Refunded", value: "refunded" },
                         ],
