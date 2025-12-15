@@ -50,24 +50,21 @@ export default async function MembersPage() {
               <p className="text-sm font-medium mb-3">Status Reference</p>
               <ul className="text-sm text-muted-foreground space-y-2 ml-4 list-disc">
                 <li>
-                  <strong>Pending:</strong> Account created, onboarding incomplete (no agreement or payment yet).
+                  <strong>Pending:</strong> Onboarding incomplete (missing agreement and/or first payment).
                 </li>
                 <li>
-                  <strong>Awaiting Signature:</strong> Agreement has been sent but not yet signed by the member.
+                  <strong>Current:</strong> Payments up to date - member is in good standing.
                 </li>
                 <li>
-                  <strong>Waiting Period:</strong> Member is signed up and paying, but under 60 paid months.
+                  <strong>Lapsed:</strong> Behind on payment(s), in grace period.
                 </li>
                 <li>
-                  <strong>Active:</strong> 60+ paid months completed - member is eligible for burial benefits.
-                </li>
-                <li>
-                  <strong>Lapsed:</strong> Missed recent payment(s), currently in grace period.
-                </li>
-                <li>
-                  <strong>Cancelled:</strong> 24+ months unpaid, membership has been voided.
+                  <strong>Cancelled:</strong> 24+ months unpaid, membership voided.
                 </li>
               </ul>
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                <strong>Eligibility:</strong> Members with 60+ paid months are eligible for burial benefits (shown separately from status).
+              </p>
             </CardContent>
           </Card>
 
@@ -86,9 +83,7 @@ export default async function MembersPage() {
                     options: [
                       { label: "All Statuses", value: "all" },
                       { label: "Pending", value: "pending" },
-                      { label: "Awaiting Signature", value: "awaiting_signature" },
-                      { label: "Waiting Period", value: "waiting_period" },
-                      { label: "Active", value: "active" },
+                      { label: "Current", value: "current" },
                       { label: "Lapsed", value: "lapsed" },
                       { label: "Cancelled", value: "cancelled" },
                     ],
