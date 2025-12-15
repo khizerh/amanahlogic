@@ -86,6 +86,36 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
     },
   },
   {
+    accessorKey: "eligibility",
+    header: "Eligibility",
+    accessorFn: (row) => row.membership?.paidMonths || 0,
+    cell: ({ row }) => {
+      const paidMonths = row.original.membership?.paidMonths || 0;
+      const status = row.original.membership?.status;
+      const isEligible = paidMonths >= 60 && status !== "cancelled";
+
+      if (isEligible) {
+        return <Badge variant="success">Eligible</Badge>;
+      }
+
+      // Show progress toward eligibility
+      return (
+        <span className="text-muted-foreground text-sm">
+          {paidMonths}/60 months
+        </span>
+      );
+    },
+    filterFn: (row, id, filterValue) => {
+      if (filterValue === "all" || !filterValue) return true;
+      const paidMonths = row.original.membership?.paidMonths || 0;
+      const status = row.original.membership?.status;
+      const isEligible = paidMonths >= 60 && status !== "cancelled";
+      if (filterValue === "eligible") return isEligible;
+      if (filterValue === "not_eligible") return !isEligible;
+      return true;
+    },
+  },
+  {
     accessorKey: "joinDate",
     header: "Joined",
     accessorFn: (row) => row.membership?.joinDate || null,
