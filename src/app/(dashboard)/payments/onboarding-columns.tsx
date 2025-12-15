@@ -17,8 +17,6 @@ import {
   RefreshCw,
   Send,
   DollarSign,
-  CreditCard,
-  Banknote,
   CheckCircle2,
   Clock,
   XCircle,
@@ -30,15 +28,13 @@ import { OnboardingInviteWithMember } from "@/lib/types";
 const getMethodBadge = (method: "stripe" | "manual") => {
   if (method === "stripe") {
     return (
-      <Badge variant="outline" className="gap-1 bg-purple-50 text-purple-700 border-purple-200">
-        <CreditCard className="h-3 w-3" />
+      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
         Stripe
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
-      <Banknote className="h-3 w-3" />
+    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
       Manual
     </Badge>
   );
