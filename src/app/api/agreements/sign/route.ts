@@ -4,7 +4,7 @@ import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 import { AgreementsService } from "@/lib/database/agreements";
 import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { uploadSignedPdf } from "@/lib/signing/storage";
 import { stampAgreementPdf } from "@/lib/signing/stamp-pdf";
 import { validateSignaturePayload } from "@/lib/signing/validation";
@@ -126,75 +126,49 @@ export async function POST(req: Request) {
     // Mark link as used
     await AgreementSigningLinksService.markUsed(link.id);
 
-    // Create pending payments for enrollment fee + first dues
-    // This shows in Outstanding tab so admin knows what to collect
+    // Create onboarding invite so it shows in Onboarding tab
+    // Admin can then record payment using "Mark as Paid"
     try {
-      const plan = await PlansService.getById(membership.planId);
-      if (plan) {
-        const supabase = createServiceRoleClient();
-        const now = new Date();
-        // Due date is 7 days from signing
-        const dueDate = new Date(now);
-        dueDate.setDate(dueDate.getDate() + 7);
-        const dueDateStr = dueDate.toISOString().split("T")[0];
+      // Check if onboarding invite already exists for this membership
+      const existingInvite = await OnboardingInvitesService.getPendingForMembership(membership.id);
 
-        // Get dues amount based on billing frequency
-        const pricing = plan.pricing as { monthly?: number; biannual?: number; annual?: number };
-        let duesAmount = 0;
-        let monthsCredited = 1;
-        switch (membership.billingFrequency) {
-          case "monthly":
-            duesAmount = pricing.monthly || 0;
-            monthsCredited = 1;
-            break;
-          case "biannual":
-            duesAmount = pricing.biannual || 0;
-            monthsCredited = 6;
-            break;
-          case "annual":
-            duesAmount = pricing.annual || 0;
-            monthsCredited = 12;
-            break;
-          default:
-            duesAmount = pricing.monthly || 0;
-            monthsCredited = 1;
-        }
+      if (!existingInvite) {
+        const plan = await PlansService.getById(membership.planId);
+        if (plan) {
+          // Get dues amount based on billing frequency
+          const pricing = plan.pricing as { monthly?: number; biannual?: number; annual?: number };
+          let duesAmount = 0;
+          switch (membership.billingFrequency) {
+            case "monthly":
+              duesAmount = pricing.monthly || 0;
+              break;
+            case "biannual":
+              duesAmount = pricing.biannual || 0;
+              break;
+            case "annual":
+              duesAmount = pricing.annual || 0;
+              break;
+            default:
+              duesAmount = pricing.monthly || 0;
+          }
 
-        // Create enrollment fee payment if not already paid
-        if (!membership.enrollmentFeePaid && plan.enrollmentFee > 0) {
-          await supabase.from("payments").insert({
-            organization_id: agreement.organizationId,
-            membership_id: membership.id,
-            member_id: agreement.memberId,
-            type: "enrollment_fee",
-            status: "pending",
-            amount: plan.enrollmentFee,
-            months_credited: 0,
-            due_date: dueDateStr,
-            period_label: "Enrollment Fee",
-            notes: "Auto-created after agreement signed",
-          });
-        }
-
-        // Create first dues payment if no months paid yet
-        if (membership.paidMonths === 0 && duesAmount > 0) {
-          await supabase.from("payments").insert({
-            organization_id: agreement.organizationId,
-            membership_id: membership.id,
-            member_id: agreement.memberId,
-            type: "dues",
-            status: "pending",
-            amount: duesAmount,
-            months_credited: monthsCredited,
-            due_date: dueDateStr,
-            period_label: `First ${monthsCredited === 1 ? "Month" : monthsCredited + " Months"} Dues`,
-            notes: "Auto-created after agreement signed",
+          // Create onboarding invite (manual payment method since they'll pay offline)
+          await OnboardingInvitesService.create({
+            organizationId: agreement.organizationId,
+            membershipId: membership.id,
+            memberId: agreement.memberId,
+            paymentMethod: "manual",
+            enrollmentFeeAmount: membership.enrollmentFeePaid ? 0 : (plan.enrollmentFee || 0),
+            includesEnrollmentFee: !membership.enrollmentFeePaid && (plan.enrollmentFee || 0) > 0,
+            duesAmount,
+            billingFrequency: membership.billingFrequency,
+            sentAt: new Date().toISOString(),
           });
         }
       }
-    } catch (paymentError) {
-      // Log but don't fail the signing - payments can be created manually
-      console.error("Failed to create pending payments:", paymentError);
+    } catch (inviteError) {
+      // Log but don't fail the signing - invite can be created manually
+      console.error("Failed to create onboarding invite:", inviteError);
     }
 
     return NextResponse.json({
