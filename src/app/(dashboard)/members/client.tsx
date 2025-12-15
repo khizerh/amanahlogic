@@ -92,7 +92,7 @@ export function MembersTable({ members }: MembersTableProps) {
           column: "eligibility",
           label: "Eligibility",
           options: [
-            { label: "All", value: "all" },
+            { label: "All Eligibility", value: "all" },
             { label: "Eligible", value: "eligible" },
             { label: "Not Eligible", value: "not_eligible" },
           ],
