@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/command";
 import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
+import { SettlePaymentSheet } from "@/components/payments/settle-payment-sheet";
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
 import { createOnboardingColumns } from "./onboarding-columns";
@@ -83,11 +84,15 @@ export function PaymentsPageClient({
   const [membersList, setMembersList] = useState<MemberWithMembership[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
 
-  // Record payment sheet state
+  // Record payment sheet state (for new payments)
   const [recordSheetOpen, setRecordSheetOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberWithMembership | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [memberLoading, setMemberLoading] = useState(false);
+
+  // Settle payment sheet state (for existing pending payments)
+  const [settleSheetOpen, setSettleSheetOpen] = useState(false);
+  const [paymentToSettle, setPaymentToSettle] = useState<PaymentWithDetails | null>(null);
 
   // Fetch members list when selector opens
   useEffect(() => {
@@ -175,12 +180,10 @@ export function PaymentsPageClient({
     toast.success(`Receipt emailed to ${payment.member?.email || "member"}`);
   };
 
-  const handleRecordPaymentFromTable = async (payment: PaymentWithDetails) => {
-    if (!payment.member) {
-      toast.error("Cannot record payment: member not found");
-      return;
-    }
-    handleRecordForOutstanding(payment.member.id);
+  // For settling existing pending payments from the table
+  const handleSettlePayment = (payment: PaymentWithDetails) => {
+    setPaymentToSettle(payment);
+    setSettleSheetOpen(true);
   };
 
   const columns = useMemo(
@@ -188,7 +191,7 @@ export function PaymentsPageClient({
       createColumns({
         onViewDetails: handleViewDetails,
         onEmailReceipt: handleEmailReceipt,
-        onRecordPayment: handleRecordPaymentFromTable,
+        onRecordPayment: handleSettlePayment,
       }),
     []
   );
@@ -681,6 +684,14 @@ export function PaymentsPageClient({
         payment={selectedPayment}
         open={detailsSheetOpen}
         onOpenChange={setDetailsSheetOpen}
+      />
+
+      {/* Settle Payment Sheet (for existing pending payments) */}
+      <SettlePaymentSheet
+        payment={paymentToSettle}
+        open={settleSheetOpen}
+        onOpenChange={setSettleSheetOpen}
+        onPaymentSettled={handlePaymentRecorded}
       />
     </>
   );
