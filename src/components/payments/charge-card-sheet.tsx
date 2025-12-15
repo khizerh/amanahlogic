@@ -113,7 +113,7 @@ export function ChargeCardSheet({
 
   // Stripe fee: 2.9% + $0.30
   const stripeFee = parseFloat((baseAmount * 0.029 + 0.3).toFixed(2));
-  const platformFee = 1.0;
+  const platformFee = 2.0;
   const totalCharged = baseAmount + stripeFee;
   const monthsCredited = paymentType === "enrollment_fee" ? 0 : monthsCount;
 

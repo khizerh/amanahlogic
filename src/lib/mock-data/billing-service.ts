@@ -225,9 +225,9 @@ export function recordPayment(input: RecordPaymentInput): RecordPaymentResult {
     status: 'completed' as PaymentStatus,
     amount,
     stripeFee: 0, // Manual payments have no Stripe fee
-    platformFee: 1.0, // Fixed platform fee
+    platformFee: 2.0, // Fixed platform fee
     totalCharged: amount,
-    netAmount: amount - 1.0,
+    netAmount: amount - 2.0,
     monthsCredited,
     stripePaymentIntentId: null,
     checkNumber: method === 'check' ? (checkNumber || null) : null,
