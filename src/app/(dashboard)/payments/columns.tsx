@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Mail } from "lucide-react";
+import { MoreHorizontal, Eye, Mail, DollarSign } from "lucide-react";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 
@@ -74,6 +74,7 @@ const getStatusBadge = (status: string, dueDate?: string | null) => {
 export interface PaymentColumnActions {
   onViewDetails: (payment: PaymentWithDetails) => void;
   onEmailReceipt: (payment: PaymentWithDetails) => void;
+  onRecordPayment: (payment: PaymentWithDetails) => void;
 }
 
 export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentWithDetails>[] => [
@@ -195,6 +196,12 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
                 <DropdownMenuItem onClick={() => actions.onEmailReceipt(payment)}>
                   <Mail className="mr-2 h-4 w-4" />
                   Email Receipt
+                </DropdownMenuItem>
+              )}
+              {payment.status === "pending" && (
+                <DropdownMenuItem onClick={() => actions.onRecordPayment(payment)}>
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  Record Payment
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

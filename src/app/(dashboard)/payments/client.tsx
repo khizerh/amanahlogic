@@ -175,11 +175,20 @@ export function PaymentsPageClient({
     toast.success(`Receipt emailed to ${payment.member?.email || "member"}`);
   };
 
+  const handleRecordPaymentFromTable = async (payment: PaymentWithDetails) => {
+    if (!payment.member) {
+      toast.error("Cannot record payment: member not found");
+      return;
+    }
+    handleRecordForOutstanding(payment.member.id);
+  };
+
   const columns = useMemo(
     () =>
       createColumns({
         onViewDetails: handleViewDetails,
         onEmailReceipt: handleEmailReceipt,
+        onRecordPayment: handleRecordPaymentFromTable,
       }),
     []
   );
