@@ -65,13 +65,14 @@ const wipeOnly = args.includes("--wipe-only");
 const seedOnly = args.includes("--seed-only");
 const force = args.includes("--force");
 
-// Tables to exclude from wiping (system tables, etc.)
+// Tables to exclude from wiping (system tables, uploaded content, etc.)
 const EXCLUDED_TABLES = [
   "schema_migrations", // Supabase migrations tracking
   "buckets",           // Storage buckets metadata
   "objects",           // Storage objects metadata
   "s3_multipart_uploads",
   "s3_multipart_uploads_parts",
+  "agreement_templates", // User-uploaded PDFs - preserve across wipes
 ];
 
 // Fixed UUIDs for consistent seeding
@@ -267,6 +268,7 @@ async function wipeDatabase(): Promise<void> {
     console.log(`found ${tables.length} tables`);
   } catch {
     // If RPC functions don't work, fall back to known tables
+    // NOTE: agreement_templates excluded - preserves user-uploaded PDFs
     console.log("(using fallback list)");
     tables = [
       "agreement_signing_links",
@@ -274,7 +276,6 @@ async function wipeDatabase(): Promise<void> {
       "email_logs",
       "payments",
       "agreements",
-      "agreement_templates",
       "email_templates",
       "memberships",
       "members",
