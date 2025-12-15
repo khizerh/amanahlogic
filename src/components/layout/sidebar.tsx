@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   Users,
   CreditCard,
-  FileText,
+  Layers,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -19,7 +19,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Members", href: "/members", icon: Users },
   { label: "Payments", href: "/payments", icon: CreditCard },
-  { label: "Reports", href: "/reports", icon: FileText },
+  { label: "Plans", href: "/plans", icon: Layers },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

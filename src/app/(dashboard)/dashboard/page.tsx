@@ -164,17 +164,17 @@ export default async function DashboardPage() {
                 </Card>
               </Link>
 
-              <Link href="/reports">
+              <Link href="/plans">
                 <Card className="hover:border-primary transition-colors cursor-pointer h-full flex flex-col">
                   <CardHeader>
-                    <CardTitle className="text-base">Reports</CardTitle>
+                    <CardTitle className="text-base">Plans</CardTitle>
                     <CardDescription>
-                      Eligibility reports, overdue payments, and analytics
+                      Manage membership plans and pricing options
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="mt-auto">
                     <Button variant="outline" size="sm" className="w-full">
-                      View Reports
+                      View Plans
                     </Button>
                   </CardContent>
                 </Card>
@@ -186,7 +186,7 @@ export default async function DashboardPage() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Overdue Payments</h2>
-              <Link href="/reports/overdue">
+              <Link href="/payments">
                 <Button variant="ghost" size="sm">View All</Button>
               </Link>
             </div>

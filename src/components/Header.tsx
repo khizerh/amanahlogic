@@ -69,7 +69,7 @@ export default function Header() {
   const isOverviewActive = pathname === "/dashboard" || pathname === "/";
   const isMembersActive = pathname === "/members" || pathname?.startsWith("/members/");
   const isPaymentsActive = pathname === "/payments" || pathname?.startsWith("/payments/");
-  const isReportsActive = pathname === "/reports" || pathname?.startsWith("/reports/");
+  const isPlansActive = pathname === "/plans" || pathname?.startsWith("/plans/");
 
   return (
     <>
@@ -131,15 +131,15 @@ export default function Header() {
                           Payments
                         </Link>
                         <Link
-                          href="/reports"
+                          href="/plans"
                           className={`text-lg font-medium px-4 py-2 rounded-md transition-colors ${
-                            isReportsActive
+                            isPlansActive
                               ? "bg-brand-teal text-white"
                               : "text-foreground hover:bg-accent"
                           }`}
                           onClick={() => setMobileMenuOpen(false)}
                         >
-                          Reports
+                          Plans
                         </Link>
                         <Link
                           href="/settings"
@@ -246,12 +246,12 @@ export default function Header() {
                     </NavItem>
 
                     <NavItem>
-                      <NavigationMenuLink asChild active={isReportsActive}>
+                      <NavigationMenuLink asChild active={isPlansActive}>
                         <Link
-                          href="/reports"
+                          href="/plans"
                           className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
                         >
-                          Reports
+                          Plans
                         </Link>
                       </NavigationMenuLink>
                     </NavItem>
