@@ -225,25 +225,27 @@ export function PaymentDetailsSheet({
           </div>
 
           {/* Actions */}
-          <Separator />
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleEmailReceipt}
-            >
-              Email Receipt
-            </Button>
-            {payment.status === "completed" && (
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={handleRefund}
-              >
-                Refund
-              </Button>
-            )}
-          </div>
+          {payment.status === "completed" && (
+            <>
+              <Separator />
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleEmailReceipt}
+                >
+                  Email Receipt
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleRefund}
+                >
+                  Refund
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>
