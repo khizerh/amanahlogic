@@ -17,9 +17,6 @@ import {
   RefreshCw,
   Send,
   DollarSign,
-  CheckCircle2,
-  Clock,
-  XCircle,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 import { OnboardingInviteWithMember } from "@/lib/types";
@@ -52,33 +49,13 @@ const getPaymentStatusBadge = (amount: number, paidAt: string | null) => {
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "pending":
-      return (
-        <Badge variant="warning" className="gap-1">
-          <Clock className="h-3 w-3" />
-          Pending
-        </Badge>
-      );
+      return <Badge variant="warning">Pending</Badge>;
     case "completed":
-      return (
-        <Badge variant="success" className="gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          Completed
-        </Badge>
-      );
+      return <Badge variant="success">Completed</Badge>;
     case "expired":
-      return (
-        <Badge variant="inactive" className="gap-1">
-          <XCircle className="h-3 w-3" />
-          Expired
-        </Badge>
-      );
+      return <Badge variant="inactive">Expired</Badge>;
     case "canceled":
-      return (
-        <Badge variant="error" className="gap-1">
-          <XCircle className="h-3 w-3" />
-          Canceled
-        </Badge>
-      );
+      return <Badge variant="error">Canceled</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
