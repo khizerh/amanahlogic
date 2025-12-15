@@ -264,6 +264,64 @@ export function PaymentsPageClient({
     []
   );
 
+  // CSV Export handler for payments
+  const handleExportPayments = (data: PaymentWithDetails[]) => {
+    const headers = [
+      "Member Name",
+      "Email",
+      "Type",
+      "Method",
+      "Status",
+      "Amount",
+      "Stripe Fee",
+      "Platform Fee",
+      "Net Amount",
+      "Months Credited",
+      "Date Paid",
+      "Check Number",
+      "Notes",
+    ];
+
+    const rows = data.map((payment) => {
+      const memberName = payment.member
+        ? `${payment.member.firstName} ${payment.member.lastName}`
+        : "Unknown";
+
+      return [
+        memberName,
+        payment.member?.email || "",
+        payment.type,
+        payment.method,
+        payment.status,
+        payment.amount.toFixed(2),
+        payment.stripeFee.toFixed(2),
+        payment.platformFee.toFixed(2),
+        payment.netAmount.toFixed(2),
+        payment.monthsCredited.toString(),
+        payment.paidAt || "",
+        payment.checkNumber || "",
+        payment.notes || "",
+      ];
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `payments-${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <>
       <Header />
@@ -417,6 +475,7 @@ export function PaymentsPageClient({
                       },
                     ]}
                     pageSize={20}
+                    onExport={handleExportPayments}
                   />
                 </CardContent>
               </Card>
