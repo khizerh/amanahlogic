@@ -3,13 +3,7 @@
  * @module lib/payments
  *
  * This module contains the business logic for payment operations.
- *
- * Note: Advanced payment features (onboarding, customer portal, payment links, receipts, refunds)
- * are in _disabled/ folder until supporting modules are built:
- * - @/lib/stripe (Stripe integration)
- * - @/lib/billing (billing calculations)
- * - @/lib/email (email queue)
- * - @/lib/database (database services)
+ * See also: @/lib/stripe, @/lib/billing, @/lib/database/payments
  */
 
 // Types
