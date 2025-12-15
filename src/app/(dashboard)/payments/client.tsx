@@ -25,7 +25,8 @@ import {
 } from "@/components/ui/command";
 import { RecordPaymentSheet } from "@/components/payments/record-payment-sheet";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
-import { SettlePaymentSheet } from "@/components/payments/settle-payment-sheet";
+import { SettlePaymentDialog } from "@/components/payments/settle-payment-dialog";
+import { RecordOutstandingPaymentDialog } from "@/components/payments/record-outstanding-payment-dialog";
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
 import { createOnboardingColumns } from "./onboarding-columns";
@@ -47,6 +48,7 @@ interface AgingBucket {
 }
 
 interface PaymentsPageClientProps {
+  organizationId: string;
   initialPayments: PaymentWithDetails[];
   initialOutstandingPayments: OutstandingPaymentInfo[];
   initialAgingBuckets: AgingBucket[];
@@ -60,6 +62,7 @@ const VALID_TABS = ["all", "outstanding", "onboarding"] as const;
 type TabValue = typeof VALID_TABS[number];
 
 export function PaymentsPageClient({
+  organizationId,
   initialPayments,
   initialOutstandingPayments,
   initialAgingBuckets,
@@ -94,6 +97,10 @@ export function PaymentsPageClient({
   const [settleSheetOpen, setSettleSheetOpen] = useState(false);
   const [paymentToSettle, setPaymentToSettle] = useState<PaymentWithDetails | null>(null);
 
+  // Outstanding payment dialog state
+  const [outstandingDialogOpen, setOutstandingDialogOpen] = useState(false);
+  const [selectedOutstandingPayment, setSelectedOutstandingPayment] = useState<OutstandingPayment | null>(null);
+
   // Fetch members list when selector opens
   useEffect(() => {
     if (memberSelectorOpen && membersList.length === 0) {
@@ -113,25 +120,6 @@ export function PaymentsPageClient({
   // Handle selecting a member from the selector
   const handleSelectMember = async (memberId: string) => {
     setMemberSelectorOpen(false);
-    setMemberLoading(true);
-
-    try {
-      const res = await fetch(`/api/members/${memberId}`);
-      if (!res.ok) throw new Error("Failed to fetch member");
-
-      const data = await res.json();
-      setSelectedMember(data.member);
-      setSelectedPlan(data.plan);
-      setRecordSheetOpen(true);
-    } catch (err) {
-      toast.error("Failed to load member details");
-    } finally {
-      setMemberLoading(false);
-    }
-  };
-
-  // Handle recording payment for outstanding item (pre-selected member)
-  const handleRecordForOutstanding = async (memberId: string) => {
     setMemberLoading(true);
 
     try {
@@ -191,7 +179,7 @@ export function PaymentsPageClient({
       createColumns({
         onViewDetails: handleViewDetails,
         onEmailReceipt: handleEmailReceipt,
-        onRecordPayment: handleSettlePayment,
+        onSettlePayment: handleSettlePayment,
       }),
     []
   );
@@ -210,7 +198,8 @@ export function PaymentsPageClient({
   };
 
   const handleRecordOutstandingPayment = (payment: OutstandingPayment) => {
-    handleRecordForOutstanding(payment.memberId);
+    setSelectedOutstandingPayment(payment);
+    setOutstandingDialogOpen(true);
   };
 
   const handleRetryCharge = (payment: OutstandingPayment) => {
@@ -686,12 +675,21 @@ export function PaymentsPageClient({
         onOpenChange={setDetailsSheetOpen}
       />
 
-      {/* Settle Payment Sheet (for existing pending payments) */}
-      <SettlePaymentSheet
+      {/* Settle Payment Dialog (for existing pending payments) */}
+      <SettlePaymentDialog
         payment={paymentToSettle}
         open={settleSheetOpen}
         onOpenChange={setSettleSheetOpen}
         onPaymentSettled={handlePaymentRecorded}
+      />
+
+      {/* Outstanding Payment Dialog (for outstanding tab) */}
+      <RecordOutstandingPaymentDialog
+        payment={selectedOutstandingPayment}
+        organizationId={organizationId}
+        open={outstandingDialogOpen}
+        onOpenChange={setOutstandingDialogOpen}
+        onPaymentRecorded={handlePaymentRecorded}
       />
     </>
   );

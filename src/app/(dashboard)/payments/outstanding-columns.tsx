@@ -16,7 +16,7 @@ import {
   Send,
   Pause,
   Play,
-  DollarSign,
+  CheckCircle2,
   CreditCard,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
@@ -235,8 +235,8 @@ export const createOutstandingColumns = (
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => actions.onRecordPayment(payment)}>
-                <DollarSign className="mr-2 h-4 w-4" />
-                Record Payment
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Mark as Paid
               </DropdownMenuItem>
               {payment.type === "failed" && actions.onRetryCharge && (
                 <DropdownMenuItem onClick={() => actions.onRetryCharge?.(payment)}>

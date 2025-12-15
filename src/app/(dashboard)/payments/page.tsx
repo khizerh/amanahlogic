@@ -50,6 +50,7 @@ export default async function PaymentsPage() {
 
   return (
     <PaymentsPageClient
+      organizationId={organizationId}
       initialPayments={payments}
       initialOutstandingPayments={outstandingPayments}
       initialAgingBuckets={agingBuckets}
