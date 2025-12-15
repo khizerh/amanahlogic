@@ -148,7 +148,6 @@ export class AgreementsService {
         signed_name: input.signedName,
         signature_image_url: input.signatureImageUrl || null,
         pdf_url: input.pdfUrl || null,
-        template_language: input.templateLanguage || null,
         ip_address: input.ipAddress || null,
         user_agent: input.userAgent || null,
         consent_checked: input.consentChecked ?? false,
