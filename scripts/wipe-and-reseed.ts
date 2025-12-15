@@ -355,14 +355,14 @@ async function seedDatabase(): Promise<void> {
     name: "Masjid Muhajireen",
     slug: "masjid-muhajireen",
     address: {
-      street: "1234 Islamic Center Dr",
-      city: "Houston",
-      state: "TX",
-      zip: "77001",
+      street: "185 Folsom Ave",
+      city: "Hayward",
+      state: "CA",
+      zip: "94544",
     },
-    phone: "(713) 555-0100",
+    phone: "(510) 963-5578",
     email: "admin@masjidmuhajireen.org",
-    timezone: "America/Chicago",
+    timezone: "America/Los_Angeles",
     platform_fee: 1.0,
   });
   if (orgError) throw new Error(`Organization: ${orgError.message}`);
@@ -724,14 +724,66 @@ async function seedDatabase(): Promise<void> {
   console.log("✓");
 
   // 7. Agreements
+  // Logic: Members with onboarding invites must have signed agreements first
+  // Aisha is the exception - she's testing the "awaiting signature" flow
   process.stdout.write("   Creating agreements... ");
   const { error: agreementsError } = await supabase.from("agreements").insert([
+    // Ahmed - Signed (has completed onboarding)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.ahmed,
+      member_id: MEMBER_IDS.ahmed,
+      template_version: "v1-en",
+      sent_at: "2024-11-10T10:00:00Z",
+      signed_at: "2024-11-12T14:30:00Z",
+      signed_name: "Ahmed Khan",
+      consent_checked: true,
+      ip_address: "192.168.1.100",
+    },
+    // Muhammad - Signed (has pending onboarding with enrollment fee paid)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.muhammad,
+      member_id: MEMBER_IDS.muhammad,
+      template_version: "v1-farsi",
+      sent_at: "2024-11-25T10:00:00Z",
+      signed_at: "2024-11-28T09:15:00Z",
+      signed_name: "محمد علی",
+      consent_checked: true,
+      ip_address: "192.168.1.101",
+    },
+    // Fatima - Signed (has expired Stripe invite - she signed but never paid)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.fatima,
+      member_id: MEMBER_IDS.fatima,
+      template_version: "v1-en",
+      sent_at: "2024-10-28T10:00:00Z",
+      signed_at: "2024-10-30T11:00:00Z",
+      signed_name: "Fatima Hassan",
+      consent_checked: true,
+      ip_address: "192.168.1.102",
+    },
+    // Omar - Signed (has pending manual onboarding)
+    {
+      organization_id: ORG_ID,
+      membership_id: MEMBERSHIP_IDS.omar,
+      member_id: MEMBER_IDS.omar,
+      template_version: "v1-en",
+      sent_at: "2024-12-05T10:00:00Z",
+      signed_at: "2024-12-07T16:45:00Z",
+      signed_name: "Omar Syed",
+      consent_checked: true,
+      ip_address: "192.168.1.103",
+    },
+    // Aisha - Awaiting Signature (testing agreement flow, NO onboarding invite yet)
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.aisha,
       member_id: MEMBER_IDS.aisha,
-      template_version: "1.0",
+      template_version: "v1-en",
       sent_at: "2024-12-10T10:00:00Z",
+      // signed_at: null - awaiting signature
     },
   ]);
   if (agreementsError) throw new Error(`Agreements: ${agreementsError.message}`);
@@ -790,26 +842,11 @@ async function seedDatabase(): Promise<void> {
   console.log("✓");
 
   // 9. Onboarding Invites - Diverse scenarios for testing
+  // NOTE: Only members with SIGNED agreements should have onboarding invites
+  // Aisha has unsigned agreement, so she does NOT get an onboarding invite yet
   process.stdout.write("   Creating onboarding invites... ");
   const { error: onboardingError } = await supabase.from("onboarding_invites").insert([
-    // Stripe - Pending (checkout link sent, awaiting completion)
-    {
-      organization_id: ORG_ID,
-      membership_id: MEMBERSHIP_IDS.aisha,
-      member_id: MEMBER_IDS.aisha,
-      payment_method: "stripe",
-      stripe_checkout_session_id: "cs_test_a1b2c3d4e5f6g7h8i9j0",
-      enrollment_fee_amount: 500.0,
-      includes_enrollment_fee: true,
-      enrollment_fee_paid_at: null,
-      dues_amount: 20.0,
-      billing_frequency: "monthly",
-      dues_paid_at: null,
-      planned_amount: 20.0,
-      status: "pending",
-      sent_at: "2024-12-10T11:00:00Z",
-    },
-    // Stripe - Completed (both enrollment fee and dues paid via Stripe)
+    // Stripe - Completed (Ahmed: signed agreement, completed onboarding)
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.ahmed,
@@ -827,7 +864,7 @@ async function seedDatabase(): Promise<void> {
       sent_at: "2024-11-14T10:00:00Z",
       completed_at: "2024-11-15T14:30:00Z",
     },
-    // Stripe - Expired (link expired before completion)
+    // Stripe - Expired (Fatima: signed agreement, but checkout link expired)
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.fatima,
@@ -845,7 +882,7 @@ async function seedDatabase(): Promise<void> {
       sent_at: "2024-11-01T09:00:00Z",
       expired_at: "2024-11-02T09:00:00Z",
     },
-    // Manual - Pending (awaiting cash/check/zelle, nothing paid yet)
+    // Manual - Pending (Omar: signed agreement, awaiting cash/check/zelle)
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.omar,
@@ -862,7 +899,7 @@ async function seedDatabase(): Promise<void> {
       status: "pending",
       sent_at: "2024-12-08T15:00:00Z",
     },
-    // Manual - Pending (enrollment fee paid, waiting for first dues)
+    // Manual - Pending (Muhammad: signed agreement, enrollment fee paid, waiting for dues)
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.muhammad,
@@ -1140,9 +1177,9 @@ JazakAllah Khair,
   console.log("   • 5 Members (various statuses)");
   console.log("   • 5 Memberships");
   console.log("   • 7 Payments");
-  console.log("   • 1 Agreement (awaiting signature)");
+  console.log("   • 5 Agreements (4 signed, 1 awaiting signature)");
   console.log("   • 3 Email Logs");
-  console.log("   • 5 Onboarding Invites (Stripe + Manual, various statuses)");
+  console.log("   • 4 Onboarding Invites (Stripe + Manual, various statuses)");
   console.log("   • 5 Email Templates (EN + FA)");
   console.log("\n🧪 Test Scenarios:");
   console.log("   1. Ahmed Khan: Active with Stripe autopay - test payment blocking");
