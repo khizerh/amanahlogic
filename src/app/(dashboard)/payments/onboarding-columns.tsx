@@ -44,19 +44,12 @@ const getMethodBadge = (method: "stripe" | "manual") => {
   );
 };
 
-// Badge for payment status (paid vs pending)
+// Display payment amount (paid or pending)
 const getPaymentStatusBadge = (amount: number, paidAt: string | null) => {
   if (paidAt) {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="text-sm">{formatCurrency(amount)}</span>
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-      </div>
-    );
+    return <span className="text-sm">{formatCurrency(amount)}</span>;
   }
-  return (
-    <span className="text-sm text-muted-foreground">{formatCurrency(amount)}</span>
-  );
+  return <span className="text-sm">{formatCurrency(amount)}</span>;
 };
 
 // Badge for invite status
