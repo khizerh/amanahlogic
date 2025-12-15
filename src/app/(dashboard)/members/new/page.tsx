@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { isValidPhoneNumber, normalizePhoneNumber } from "@/lib/utils/phone";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -80,6 +82,8 @@ export default function NewMemberPage() {
   const [children, setChildren] = useState<ChildFormData[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
   const [waiveEnrollmentFee, setWaiveEnrollmentFee] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [emergencyPhoneError, setEmergencyPhoneError] = useState<string | null>(null);
 
   // Get current plan and pricing based on selections
   const currentPlan = plans.find((p) => p.type === planType);
@@ -110,6 +114,8 @@ export default function NewMemberPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPhoneError(null);
+    setEmergencyPhoneError(null);
 
     // Basic validation
     if (!firstName || !lastName || !email || !phone) {
@@ -117,9 +123,26 @@ export default function NewMemberPage() {
       return;
     }
 
+    // Validate phone numbers
+    if (!isValidPhoneNumber(phone)) {
+      setPhoneError("Please enter a valid US phone number");
+      toast.error("Invalid phone number format");
+      return;
+    }
+
+    if (emergencyPhone && !isValidPhoneNumber(emergencyPhone)) {
+      setEmergencyPhoneError("Please enter a valid US phone number");
+      toast.error("Invalid emergency phone number format");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      // Normalize phone numbers to E.164 format
+      const normalizedPhone = normalizePhoneNumber(phone);
+      const normalizedEmergencyPhone = emergencyPhone ? normalizePhoneNumber(emergencyPhone) : "";
+
       const response = await fetch("/api/members", {
         method: "POST",
         headers: {
@@ -129,14 +152,14 @@ export default function NewMemberPage() {
           firstName,
           lastName,
           email,
-          phone,
+          phone: normalizedPhone,
           street,
           city,
           state,
           zip,
           spouseName: spouseName || undefined,
           emergencyName,
-          emergencyPhone,
+          emergencyPhone: normalizedEmergencyPhone,
           planType,
           billingFrequency,
           preferredLanguage,
@@ -281,13 +304,14 @@ export default function NewMemberPage() {
                     <Label htmlFor="phone">
                       Phone <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <PhoneInput
                       id="phone"
-                      type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="(123) 456-7890"
-                      required
+                      onChange={(value) => {
+                        setPhone(value);
+                        setPhoneError(null);
+                      }}
+                      error={phoneError || undefined}
                     />
                   </div>
                 </div>
@@ -446,12 +470,14 @@ export default function NewMemberPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="emergencyPhone">Contact Phone</Label>
-                    <Input
+                    <PhoneInput
                       id="emergencyPhone"
-                      type="tel"
                       value={emergencyPhone}
-                      onChange={(e) => setEmergencyPhone(e.target.value)}
-                      placeholder="(123) 456-7890"
+                      onChange={(value) => {
+                        setEmergencyPhone(value);
+                        setEmergencyPhoneError(null);
+                      }}
+                      error={emergencyPhoneError || undefined}
                     />
                   </div>
                 </div>
