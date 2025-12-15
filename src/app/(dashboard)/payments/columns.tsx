@@ -191,10 +191,12 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
                 <Eye className="mr-2 h-4 w-4" />
                 View Details
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => actions.onEmailReceipt(payment)}>
-                <Mail className="mr-2 h-4 w-4" />
-                Email Receipt
-              </DropdownMenuItem>
+              {payment.status === "completed" && (
+                <DropdownMenuItem onClick={() => actions.onEmailReceipt(payment)}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email Receipt
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
