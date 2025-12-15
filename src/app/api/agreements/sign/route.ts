@@ -85,19 +85,26 @@ export async function POST(req: Request) {
     });
 
     // Update membership: set agreementSignedAt and transition status
-    // awaiting_signature → waiting_period (if enrollment fee paid)
-    if (membership.enrollmentFeePaid && membership.status === "awaiting_signature") {
-      await MembershipsService.update({
-        id: membership.id,
-        agreementSignedAt: new Date().toISOString(),
-        status: "waiting_period",
-      });
-    } else {
-      await MembershipsService.update({
-        id: membership.id,
-        agreementSignedAt: new Date().toISOString(),
-      });
+    // pending → current (if enrollment fee is also paid, onboarding complete)
+    // pending stays pending if enrollment fee not yet paid
+    const updateData: {
+      id: string;
+      agreementSignedAt: string;
+      status?: "current";
+      joinDate?: string;
+    } = {
+      id: membership.id,
+      agreementSignedAt: new Date().toISOString(),
+    };
+
+    // If enrollment fee is paid AND paidMonths > 0, member is fully onboarded
+    // This is the official "join" moment: both agreement signed AND first payment completed
+    if (membership.enrollmentFeePaid && membership.paidMonths > 0 && membership.status === "pending") {
+      updateData.status = "current";
+      updateData.joinDate = new Date().toISOString().split("T")[0];
     }
+
+    await MembershipsService.update(updateData);
 
     // Mark link as used
     await AgreementSigningLinksService.markUsed(link.id);

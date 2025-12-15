@@ -239,8 +239,10 @@ function generateMembers(count: number): Member[] {
 
 // Generate memberships based on members
 function generateMemberships(members: Member[]): Membership[] {
-  const statuses: MembershipStatus[] = ['pending', 'awaiting_signature', 'waiting_period', 'active', 'lapsed', 'cancelled'];
-  const statusWeights = [0.05, 0.05, 0.50, 0.25, 0.10, 0.05]; // Realistic distribution
+  // Simplified statuses: pending, current, lapsed, cancelled
+  // Eligibility (60+ months) is tracked separately
+  const statuses: MembershipStatus[] = ['pending', 'current', 'lapsed', 'cancelled'];
+  const statusWeights = [0.10, 0.70, 0.15, 0.05]; // Realistic distribution
 
   function weightedStatus(): MembershipStatus {
     const rand = rng.next();
@@ -249,7 +251,7 @@ function generateMemberships(members: Member[]): Membership[] {
       cumulative += statusWeights[i];
       if (rand < cumulative) return statuses[i];
     }
-    return 'waiting_period';
+    return 'current';
   }
 
   return members.map((member, idx) => {
@@ -266,37 +268,32 @@ function generateMemberships(members: Member[]): Membership[] {
     // Set realistic values based on status
     switch (status) {
       case 'pending':
+        // Onboarding incomplete - no agreement or payment yet
         paidMonths = 0;
         enrollmentFeePaid = false;
         break;
-      case 'awaiting_signature':
-        paidMonths = 0;
-        enrollmentFeePaid = rng.next() > 0.5;
-        break;
-      case 'waiting_period':
-        paidMonths = randomInt(1, 59);
+      case 'current':
+        // Good standing - could be any paid months (eligible or not)
+        paidMonths = randomInt(1, 120);
         enrollmentFeePaid = true;
-        agreementSignedAt = randomDate(new Date('2020-01-01'), new Date('2024-01-01'));
-        break;
-      case 'active':
-        paidMonths = randomInt(60, 120);
-        enrollmentFeePaid = true;
-        agreementSignedAt = randomDate(new Date('2019-01-01'), new Date('2020-01-01'));
+        agreementSignedAt = randomDate(new Date('2019-01-01'), new Date('2024-01-01'));
         break;
       case 'lapsed':
+        // Behind on payments
         paidMonths = randomInt(20, 80);
         enrollmentFeePaid = true;
         agreementSignedAt = randomDate(new Date('2020-01-01'), new Date('2023-01-01'));
         break;
       case 'cancelled':
+        // Membership voided
         paidMonths = randomInt(5, 40);
         enrollmentFeePaid = true;
         agreementSignedAt = randomDate(new Date('2020-01-01'), new Date('2022-01-01'));
         break;
     }
 
-    // joinDate = agreementSignedAt (you officially join when you sign)
-    // For pending/awaiting_signature, joinDate is null
+    // joinDate = when both agreement signed AND first payment completed
+    // For pending members, joinDate is null
     const joinDate = agreementSignedAt;
     const billingDay = randomInt(1, 28);
 
@@ -305,8 +302,8 @@ function generateMemberships(members: Member[]): Membership[] {
       ? randomDate(new Date(new Date(agreementSignedAt).getTime() - 30 * 24 * 60 * 60 * 1000), new Date(agreementSignedAt))
       : randomDate(new Date('2024-01-01'), new Date('2024-11-01'));
 
-    // Recurring payments - about 60% of active/waiting members have it set up
-    const autoPayEnabled = (status === 'active' || status === 'waiting_period') && rng.next() > 0.4;
+    // Recurring payments - about 60% of current members have it set up
+    const autoPayEnabled = status === 'current' && rng.next() > 0.4;
 
     // Generate payment method details for recurring payment members
     const cardBrands = ['visa', 'mastercard', 'amex', 'discover'];
@@ -343,7 +340,7 @@ function generateMemberships(members: Member[]): Membership[] {
       enrollmentFeePaid,
       joinDate,
       lastPaymentDate: paidMonths > 0 ? randomDate(new Date('2024-06-01'), new Date('2024-11-30')) : null,
-      nextPaymentDue: status === 'active' || status === 'waiting_period'
+      nextPaymentDue: status === 'current'
         ? new Date(2024, 11, billingDay).toISOString()
         : null,
       eligibleDate: paidMonths >= 60
@@ -476,7 +473,7 @@ function generateOnboardingInvites(): OnboardingInvite[] {
 
   // Find members without recurring payments to create invites for
   const membersWithoutAutoPay = mockMemberships.filter(
-    m => !m.autoPayEnabled && (m.status === 'active' || m.status === 'waiting_period')
+    m => !m.autoPayEnabled && m.status === 'current'
   );
 
   // Create some pending invites (sent but not completed)
@@ -735,11 +732,13 @@ export function getDashboardStats(): DashboardStats {
 
   return {
     totalMembers: mockMembers.length,
-    activeMembers: memberships.filter(m => m.status === 'active').length,
-    waitingPeriod: memberships.filter(m => m.status === 'waiting_period').length,
+    // "current" = good standing (payments up to date)
+    activeMembers: memberships.filter(m => m.status === 'current').length,
+    // Eligible = 60+ paid months (separate from status)
+    eligibleMembers: memberships.filter(m => m.paidMonths >= 60 && m.status !== 'cancelled').length,
     lapsed: memberships.filter(m => m.status === 'lapsed').length,
     cancelled: memberships.filter(m => m.status === 'cancelled').length,
-    pending: memberships.filter(m => m.status === 'pending' || m.status === 'awaiting_signature').length,
+    pending: memberships.filter(m => m.status === 'pending').length,
     monthlyRevenue: monthlyPayments.reduce((sum, p) => sum + p.amount, 0),
     yearlyRevenue: yearlyPayments.reduce((sum, p) => sum + p.amount, 0),
     approachingEligibility: memberships.filter(m => m.paidMonths >= 50 && m.paidMonths < 60).length,
@@ -948,7 +947,7 @@ export function getMembersWithoutAutoPay(): MembershipWithDetails[] {
   return getMemberships().filter(m =>
     !m.autoPayEnabled &&
     !pendingInviteMemberIds.has(m.member.id) &&
-    (m.status === 'active' || m.status === 'waiting_period')
+    m.status === 'current'
   );
 }
 

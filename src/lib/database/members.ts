@@ -317,9 +317,7 @@ export class MembersService {
 
     const counts: Record<MembershipStatus | "total", number> = {
       pending: 0,
-      awaiting_signature: 0,
-      waiting_period: 0,
-      active: 0,
+      current: 0,
       lapsed: 0,
       cancelled: 0,
       total: 0,

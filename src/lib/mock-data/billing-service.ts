@@ -121,16 +121,19 @@ function calculateNextPaymentDue(
 // -----------------------------------------------------------------------------
 
 /**
- * Determine new membership status based on paid months
+ * Determine new membership status based on payment - simplified
  *
- * Business rules:
- * - 60+ paid months AND currently in waiting_period -> active
- * - Already active -> stays active
- * - Enrollment fee not paid -> stays pending/awaiting_signature
+ * Status is about payment standing only:
+ * - pending: Onboarding incomplete
+ * - current: Payments up to date (good standing)
+ * - lapsed: Behind on payments
+ * - cancelled: Membership voided
+ *
+ * Eligibility (60+ months) is tracked separately, not as a status.
  */
 function calculateNewStatus(
   currentStatus: MembershipStatus,
-  newPaidMonths: number,
+  _newPaidMonths: number,
   enrollmentFeePaid: boolean
 ): MembershipStatus {
   // Can't progress without enrollment fee
@@ -138,17 +141,9 @@ function calculateNewStatus(
     return currentStatus;
   }
 
-  // Main eligibility threshold: 60 months
-  if (newPaidMonths >= 60 && currentStatus === 'waiting_period') {
-    return 'active';
-  }
-
-  // If lapsed but now making payments, reinstate to appropriate status
+  // If lapsed but now making payments, reinstate to current (good standing)
   if (currentStatus === 'lapsed') {
-    if (newPaidMonths >= 60) {
-      return 'active';
-    }
-    return 'waiting_period';
+    return 'current';
   }
 
   // Keep current status otherwise
@@ -425,10 +420,7 @@ export function processOverdueTransitions(): {
   const transitioned: string[] = [];
 
   mockMemberships.forEach((membership, index) => {
-    if (
-      (membership.status === 'active' || membership.status === 'waiting_period') &&
-      membership.nextPaymentDue
-    ) {
+    if (membership.status === 'current' && membership.nextPaymentDue) {
       const dueDate = new Date(membership.nextPaymentDue);
       if (dueDate < sevenDaysAgo) {
         // Transition to lapsed
@@ -453,6 +445,7 @@ export function processOverdueTransitions(): {
  *
  * When a lapsed member makes a payment, this handles the reinstatement.
  * Called automatically by recordPayment when payment is made on lapsed membership.
+ * Status is about payment standing - eligibility is tracked separately.
  */
 export function reinstateMembership(membershipId: string): boolean {
   const index = mockMemberships.findIndex((m) => m.id === membershipId);
@@ -461,11 +454,10 @@ export function reinstateMembership(membershipId: string): boolean {
   const membership = mockMemberships[index];
   if (membership.status !== 'lapsed') return false;
 
-  const newStatus = membership.paidMonths >= 60 ? 'active' : 'waiting_period';
-
+  // Reinstate to "current" (good standing) - eligibility is separate
   mockMemberships[index] = {
     ...membership,
-    status: newStatus,
+    status: 'current',
     updatedAt: formatDateString(new Date()),
   };
 

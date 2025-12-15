@@ -7,12 +7,13 @@
 // -----------------------------------------------------------------------------
 
 export type MembershipStatus =
-  | 'pending'           // Account created, onboarding incomplete
-  | 'awaiting_signature' // Agreement sent, not yet signed
-  | 'waiting_period'    // Signed + paying, under 60 paid months
-  | 'active'            // 60+ paid months, current on payments
-  | 'lapsed'            // Missed recent payment(s), in grace
+  | 'pending'           // Onboarding incomplete (missing agreement and/or first payment)
+  | 'current'           // Payments up to date (good standing)
+  | 'lapsed'            // Behind on payment(s), in grace period
   | 'cancelled';        // 24+ months unpaid, membership void
+
+// Eligibility is separate from status:
+// eligible = paidMonths >= 60 && status !== 'cancelled'
 
 export type PlanType = 'single' | 'married' | 'widow';
 
@@ -160,7 +161,7 @@ export interface Membership {
   enrollmentFeePaid: boolean;
 
   // Dates
-  joinDate: string | null; // Set when agreement is signed (official join date)
+  joinDate: string | null; // Set when BOTH agreement signed AND first payment completed
   lastPaymentDate: string | null;
   nextPaymentDue: string | null;
   eligibleDate: string | null; // Date they became/will become eligible
@@ -320,14 +321,14 @@ export interface PaymentWithDetails extends Payment {
 
 export interface DashboardStats {
   totalMembers: number;
-  activeMembers: number;
-  waitingPeriod: number;
+  activeMembers: number;      // "current" status (payments up to date)
+  eligibleMembers: number;    // 60+ paid months (eligible for benefits)
   lapsed: number;
   cancelled: number;
   pending: number;
   monthlyRevenue: number;
   yearlyRevenue: number;
-  approachingEligibility: number; // 55-59 months
+  approachingEligibility: number; // 50-59 months
   overduePayments: number;
 }
 

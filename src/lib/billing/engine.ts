@@ -21,17 +21,25 @@
  *    - Manual recording (cash/check/zelle via admin UI)
  * 3. Settlement credits months and updates status via settlePayment()
  *
+ * ## Status (Payment Standing)
+ * - pending: Onboarding incomplete (missing agreement and/or first payment)
+ * - current: Payments up to date (good standing)
+ * - lapsed: Behind on payment(s), in grace period
+ * - cancelled: 24+ months unpaid, membership void
+ *
  * ## Status Transitions (configurable via org billing_config)
- * - waiting_period → active: when paid_months >= eligibilityMonths (default: 60)
- * - active/waiting_period → lapsed: when payment overdue > lapseDays (default: 7)
+ * - current → lapsed: when payment overdue > lapseDays (default: 7)
  * - lapsed → cancelled: when next_payment_due > cancelMonths ago (default: 24)
- * - lapsed → active/waiting_period: when payment is settled (reinstated)
+ * - lapsed → current: when payment is settled (reinstated)
+ *
+ * ## Eligibility (separate from status)
+ * - Eligible for benefits when: paidMonths >= 60 AND status !== 'cancelled'
+ * - eligible_date is set when member first reaches 60 paid months
  *
  * ## Key Invariants
  * - paid_months is ONLY incremented in settlePayment(), not at invoice creation
  * - next_payment_due is ONLY advanced in settlePayment(), not at invoice creation
  * - last_payment_date is set when payment is settled
- * - eligible_date is set when member first becomes active
  */
 
 import "server-only";
@@ -419,7 +427,7 @@ export async function processRecurringBilling(
       `
       )
       .eq("organization_id", organization_id)
-      .in("status", ["waiting_period", "active"])
+      .eq("status", "current")
       .eq("enrollment_fee_paid", true)
       .not("agreement_signed_at", "is", null)
       .lte("next_payment_due", today)
@@ -772,7 +780,7 @@ async function processStatusTransitions(
     .from("memberships")
     .select("id, member_id, next_payment_due")
     .eq("organization_id", organization_id)
-    .in("status", ["active", "waiting_period"])
+    .eq("status", "current")
     .lte("next_payment_due", lapseCutoffStr);
 
   if (!toLapseError && toLapse && toLapse.length > 0) {
@@ -788,7 +796,7 @@ async function processStatusTransitions(
       if (!updateError) {
         logger.info("membership_status_transition", {
           membership_id: membership.id,
-          old_status: "active/waiting_period",
+          old_status: "current",
           new_status: "lapsed",
           reason: `payment_overdue_${lapseDays}_days`,
           next_payment_due: membership.next_payment_due,
@@ -908,7 +916,9 @@ export async function settlePayment(
           paid_months,
           next_payment_due,
           last_payment_date,
-          eligible_date
+          eligible_date,
+          agreement_signed_at,
+          join_date
         )
       `
       )
@@ -1013,31 +1023,44 @@ export async function settlePayment(
       nextBillingDateStr = advancedDate.toISOString().split("T")[0];
     }
 
-    // Determine new status using configurable eligibility threshold
+    // Determine new status - simplified: status is about payment standing, not eligibility
     let newStatus: MembershipStatus = membership.status as MembershipStatus;
     let becameEligible = false;
+    let justJoined = false;
+    const wasEligible = (membership.paid_months || 0) >= eligibilityMonths;
+    const nowEligible = newPaidMonths >= eligibilityMonths;
 
-    // If lapsed and now paying, restore to appropriate status
-    if (membership.status === "lapsed") {
-      newStatus = newPaidMonths >= eligibilityMonths ? "active" : "waiting_period";
+    // If pending and now making first payment with agreement signed → transition to current
+    // This is the official "join" moment: both agreement signed AND first payment completed
+    if (membership.status === "pending" && membership.agreement_signed_at) {
+      newStatus = "current";
+      justJoined = true;
+      logger.info("membership_joined", {
+        membership_id: membership.id,
+        old_status: "pending",
+        new_status: "current",
+        paid_months: newPaidMonths,
+        reason: "first_payment_with_agreement_signed",
+      });
+    }
+    // If lapsed and now paying, restore to current (good standing)
+    else if (membership.status === "lapsed") {
+      newStatus = "current";
       logger.info("membership_reinstated", {
         membership_id: membership.id,
         old_status: "lapsed",
-        new_status: newStatus,
+        new_status: "current",
         paid_months: newPaidMonths,
-        eligibility_threshold: eligibilityMonths,
       });
     }
-    // Check for waiting_period → active transition
-    else if (membership.status === "waiting_period" && newPaidMonths >= eligibilityMonths) {
-      newStatus = "active";
+
+    // Check if member just became eligible for benefits (separate from status)
+    if (!wasEligible && nowEligible && membership.status !== "cancelled") {
       becameEligible = true;
-      logger.info("membership_status_transition", {
+      logger.info("membership_became_eligible", {
         membership_id: membership.id,
-        old_status: "waiting_period",
-        new_status: "active",
         paid_months: newPaidMonths,
-        reason: `reached_${eligibilityMonths}_paid_months`,
+        eligibility_threshold: eligibilityMonths,
       });
     }
 
@@ -1049,6 +1072,11 @@ export async function settlePayment(
       status: newStatus,
       updated_at: new Date().toISOString(),
     };
+
+    // Set join_date if member just completed onboarding (first payment + agreement)
+    if (justJoined && !membership.join_date) {
+      membershipUpdate.join_date = today;
+    }
 
     // Set eligible_date if just became eligible
     if (becameEligible) {

@@ -26,9 +26,7 @@ export function formatDate(date: string | null | undefined): string {
 export function formatStatus(status: MembershipStatus): string {
   const labels: Record<MembershipStatus, string> = {
     pending: "Pending",
-    awaiting_signature: "Awaiting Signature",
-    waiting_period: "Waiting Period",
-    active: "Active",
+    current: "Current",
     lapsed: "Lapsed",
     cancelled: "Cancelled",
   };
@@ -39,9 +37,7 @@ export function formatStatus(status: MembershipStatus): string {
 export function getStatusColor(status: MembershipStatus): string {
   const colors: Record<MembershipStatus, string> = {
     pending: "bg-gray-100 text-gray-800",
-    awaiting_signature: "bg-yellow-100 text-yellow-800",
-    waiting_period: "bg-blue-100 text-blue-800",
-    active: "bg-green-100 text-green-800",
+    current: "bg-green-100 text-green-800",
     lapsed: "bg-orange-100 text-orange-800",
     cancelled: "bg-red-100 text-red-800",
   };
@@ -54,13 +50,44 @@ export type BadgeVariant = "success" | "info" | "warning" | "error" | "inactive"
 export function getStatusVariant(status: MembershipStatus): BadgeVariant {
   const variants: Record<MembershipStatus, BadgeVariant> = {
     pending: "inactive",
-    awaiting_signature: "warning",
-    waiting_period: "info",
-    active: "success",
+    current: "success",
     lapsed: "withdrawn",
     cancelled: "error",
   };
   return variants[status];
+}
+
+// Eligibility threshold (months of paid dues required)
+export const ELIGIBILITY_THRESHOLD_MONTHS = 60;
+
+// Check if a member is eligible for burial benefits
+export function isEligibleForBenefits(
+  paidMonths: number,
+  status: MembershipStatus
+): boolean {
+  return paidMonths >= ELIGIBILITY_THRESHOLD_MONTHS && status !== "cancelled";
+}
+
+// Get eligibility display info
+export function getEligibilityInfo(
+  paidMonths: number,
+  status: MembershipStatus
+): { eligible: boolean; monthsRemaining: number; label: string } {
+  const eligible = isEligibleForBenefits(paidMonths, status);
+  const monthsRemaining = Math.max(0, ELIGIBILITY_THRESHOLD_MONTHS - paidMonths);
+
+  let label: string;
+  if (status === "cancelled") {
+    label = "Membership cancelled";
+  } else if (eligible) {
+    label = "Eligible for benefits";
+  } else if (status === "pending") {
+    label = "Complete onboarding";
+  } else {
+    label = `${monthsRemaining} month${monthsRemaining !== 1 ? "s" : ""} until eligible`;
+  }
+
+  return { eligible, monthsRemaining, label };
 }
 
 // Email template type labels

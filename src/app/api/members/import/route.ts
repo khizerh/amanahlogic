@@ -132,7 +132,8 @@ export async function POST(request: Request) {
           billingAnniversaryDay,
           paidMonths: 0,
           enrollmentFeePaid: member.waiveEnrollmentFee, // If waived, mark as paid (nothing to collect)
-          joinDate: today.toISOString().split("T")[0],
+          // joinDate is set when BOTH agreement signed AND first payment completed
+          joinDate: null,
         });
 
         // Add to existing emails set to prevent duplicates within same batch

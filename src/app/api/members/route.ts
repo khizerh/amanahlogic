@@ -133,7 +133,8 @@ export async function POST(request: Request) {
       billingAnniversaryDay,
       paidMonths: 0,
       enrollmentFeePaid: enrollmentFeePaid || false,
-      joinDate: today.toISOString().split("T")[0],
+      // joinDate is set when BOTH agreement signed AND first payment completed
+      joinDate: null,
     });
 
     return NextResponse.json({

@@ -28,9 +28,10 @@ export default async function DashboardPage() {
   ]);
 
   // Calculate stats from real data
+  // "current" status = good standing (was "active" or "waiting_period")
   const stats = {
     totalMembers: membersWithMembership.length,
-    activeMembers: membersWithMembership.filter(m => m.membership?.status === 'active').length,
+    activeMembers: membersWithMembership.filter(m => m.membership?.status === 'current').length,
     lapsed: membersWithMembership.filter(m => m.membership?.status === 'lapsed').length,
     monthlyRevenue: paymentStats.totalCollected,
   };
