@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { isValidPhoneNumber, normalizePhoneNumber, formatPhoneNumber } from "@/lib/utils/phone";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -54,14 +56,22 @@ export function SettingsPageClient({
   agreementTemplates,
   emailTemplates = [],
 }: SettingsPageClientProps) {
+  const [mounted, setMounted] = useState(false);
   const [organization, setOrganization] = useState<Organization>(initialOrganization);
   const [plans, setPlans] = useState<Plan[]>(initialPlans);
   const [savingFeeSettings, setSavingFeeSettings] = useState(false);
 
+  const [savingOrg, setSavingOrg] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  // Prevent hydration mismatch with Radix UI components
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [formData, setFormData] = useState({
     name: organization.name,
     email: organization.email || "",
-    phone: organization.phone || "",
+    phone: formatPhoneNumber(organization.phone || ""),
     street: organization.address.street,
     city: organization.address.city,
     state: organization.address.state,
@@ -165,9 +175,48 @@ export function SettingsPageClient({
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Organization settings saved successfully");
+    setPhoneError(null);
+
+    // Validate phone number if provided
+    if (formData.phone && !isValidPhoneNumber(formData.phone)) {
+      setPhoneError("Please enter a valid US phone number");
+      toast.error("Invalid phone number format");
+      return;
+    }
+
+    setSavingOrg(true);
+    try {
+      // Normalize phone to E.164 format for storage
+      const normalizedPhone = formData.phone ? normalizePhoneNumber(formData.phone) : "";
+
+      const res = await fetch("/api/organizations/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: normalizedPhone,
+          address: {
+            street: formData.street,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to save organization");
+      }
+      setOrganization(json.organization);
+      toast.success("Organization settings saved successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingOrg(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -394,6 +443,7 @@ export function SettingsPageClient({
             </p>
           </div>
 
+          {mounted && (
           <Tabs defaultValue="organization" className="space-y-6">
             <TabsList>
               <TabsTrigger value="organization">Organization</TabsTrigger>
@@ -440,12 +490,14 @@ export function SettingsPageClient({
 
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input
+                      <PhoneInput
                         id="phone"
-                        name="phone"
                         value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="(555) 123-4567"
+                        onChange={(value) => {
+                          setFormData({ ...formData, phone: value });
+                          setPhoneError(null);
+                        }}
+                        error={phoneError || undefined}
                       />
                     </div>
 
@@ -501,7 +553,16 @@ export function SettingsPageClient({
                     </div>
 
                     <div className="flex justify-end">
-                      <Button type="submit">Save Changes</Button>
+                      <Button type="submit" disabled={savingOrg}>
+                        {savingOrg ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </Button>
                     </div>
                   </form>
                 </CardContent>
@@ -1124,6 +1185,7 @@ export function SettingsPageClient({
               </div>
             </TabsContent>
           </Tabs>
+          )}
         </div>
       </div>
 

@@ -55,10 +55,7 @@ const getPaymentStatusBadge = (amount: number, paidAt: string | null) => {
     );
   }
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-sm text-muted-foreground">{formatCurrency(amount)}</span>
-      <Clock className="h-4 w-4 text-amber-500" />
-    </div>
+    <span className="text-sm text-muted-foreground">{formatCurrency(amount)}</span>
   );
 };
 

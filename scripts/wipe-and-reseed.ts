@@ -742,26 +742,28 @@ async function seedDatabase(): Promise<void> {
       ip_address: "192.168.1.100",
     },
     // Muhammad - Signed (has pending onboarding with enrollment fee paid)
+    // preferred_language: "en" -> English template
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.muhammad,
       member_id: MEMBER_IDS.muhammad,
-      template_version: "v1-farsi",
+      template_version: "v1-en",
       sent_at: "2024-11-25T10:00:00Z",
       signed_at: "2024-11-28T09:15:00Z",
-      signed_name: "محمد علی",
+      signed_name: "Muhammad Ali",
       consent_checked: true,
       ip_address: "192.168.1.101",
     },
     // Fatima - Signed (has expired Stripe invite - she signed but never paid)
+    // preferred_language: "fa" -> Farsi template
     {
       organization_id: ORG_ID,
       membership_id: MEMBERSHIP_IDS.fatima,
       member_id: MEMBER_IDS.fatima,
-      template_version: "v1-en",
+      template_version: "v1-fa",
       sent_at: "2024-10-28T10:00:00Z",
       signed_at: "2024-10-30T11:00:00Z",
-      signed_name: "Fatima Hassan",
+      signed_name: "فاطمه حسن",
       consent_checked: true,
       ip_address: "192.168.1.102",
     },

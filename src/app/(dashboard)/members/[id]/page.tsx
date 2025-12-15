@@ -23,12 +23,15 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   const organizationId = await getOrganizationId();
 
   // Fetch all data in parallel - with org scoping for security
-  const [memberData, payments, emailLogs, agreement] = await Promise.all([
+  const [memberData, payments, emailLogs, agreements] = await Promise.all([
     MembersService.getByIdWithMembership(id, organizationId),
     PaymentsService.getByMember(id, organizationId),
     EmailLogsService.getByMemberId(id, organizationId),
-    AgreementsService.getByMembershipId(id),
+    AgreementsService.getByMemberId(id),
   ]);
+
+  // Get the most recent agreement (first in array since it's sorted by created_at desc)
+  const agreement = agreements.length > 0 ? agreements[0] : null;
 
   if (!memberData) {
     return (
