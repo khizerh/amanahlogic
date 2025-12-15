@@ -809,6 +809,256 @@ async function seedDatabase(): Promise<void> {
   if (onboardingError) throw new Error(`Onboarding Invites: ${onboardingError.message}`);
   console.log("✓");
 
+  // 10. Email Templates
+  process.stdout.write("   Creating email templates... ");
+  const { error: emailTemplatesError } = await supabase.from("email_templates").insert([
+    // Agreement Sent
+    {
+      organization_id: ORG_ID,
+      type: "agreement_sent",
+      name: "Agreement Sent",
+      description: "Sent when a membership agreement is ready for signature",
+      subject: {
+        en: "Your Membership Agreement is Ready to Sign",
+        fa: "قرارداد عضویت شما آماده امضا است",
+      },
+      body: {
+        en: `Assalamu Alaikum {{member_name}},
+
+Welcome to {{organization_name}}! We are pleased to have you join our community.
+
+Your membership agreement is ready for your review and signature. Please click the link below to read and sign the agreement:
+
+{{agreement_url}}
+
+Once you have signed the agreement, you will receive a separate email with payment instructions for your enrollment fee and first dues payment.
+
+If you have any questions, please don't hesitate to contact us.
+
+JazakAllah Khair,
+{{organization_name}}`,
+        fa: `السلام علیکم {{member_name}}،
+
+به {{organization_name}} خوش آمدید! ما خوشحالیم که شما به جامعه ما می‌پیوندید.
+
+قرارداد عضویت شما آماده بررسی و امضا است. لطفاً روی لینک زیر کلیک کنید تا قرارداد را بخوانید و امضا کنید:
+
+{{agreement_url}}
+
+پس از امضای قرارداد، ایمیل جداگانه‌ای با دستورالعمل پرداخت برای هزینه ثبت‌نام و اولین پرداخت حق عضویت دریافت خواهید کرد.
+
+اگر سوالی دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
+      },
+      variables: ["member_name", "organization_name", "agreement_url"],
+      is_active: true,
+    },
+    // Payment Setup - Stripe
+    {
+      organization_id: ORG_ID,
+      type: "payment_setup_stripe",
+      name: "Payment Setup (Stripe)",
+      description: "Sent after agreement is signed - contains Stripe checkout link",
+      subject: {
+        en: "Complete Your Membership Payment",
+        fa: "پرداخت عضویت خود را تکمیل کنید",
+      },
+      body: {
+        en: `Assalamu Alaikum {{member_name}},
+
+Thank you for signing your membership agreement with {{organization_name}}.
+
+To complete your enrollment, please make your payment using the secure link below:
+
+{{checkout_url}}
+
+Payment Summary:
+{{#if enrollment_fee}}• Enrollment Fee: {{enrollment_fee}}{{/if}}
+• {{billing_frequency}} Dues: {{dues_amount}}
+• Total: {{total_amount}}
+
+This link will expire in 24 hours. If you have any issues, please contact us.
+
+JazakAllah Khair,
+{{organization_name}}`,
+        fa: `السلام علیکم {{member_name}}،
+
+از امضای قرارداد عضویت با {{organization_name}} متشکریم.
+
+برای تکمیل ثبت‌نام، لطفاً با استفاده از لینک امن زیر پرداخت کنید:
+
+{{checkout_url}}
+
+خلاصه پرداخت:
+{{#if enrollment_fee}}• هزینه ثبت‌نام: {{enrollment_fee}}{{/if}}
+• حق عضویت {{billing_frequency}}: {{dues_amount}}
+• مجموع: {{total_amount}}
+
+این لینک تا ۲۴ ساعت معتبر است. اگر مشکلی دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
+      },
+      variables: ["member_name", "organization_name", "checkout_url", "enrollment_fee", "dues_amount", "billing_frequency", "total_amount"],
+      is_active: true,
+    },
+    // Payment Setup - Manual
+    {
+      organization_id: ORG_ID,
+      type: "payment_setup_manual",
+      name: "Payment Setup (Manual)",
+      description: "Sent after agreement is signed - manual payment instructions",
+      subject: {
+        en: "Payment Instructions for Your Membership",
+        fa: "دستورالعمل پرداخت برای عضویت شما",
+      },
+      body: {
+        en: `Assalamu Alaikum {{member_name}},
+
+Thank you for signing your membership agreement with {{organization_name}}.
+
+To complete your enrollment, please make your payment using one of the following methods:
+
+Payment Summary:
+{{#if enrollment_fee}}• Enrollment Fee: {{enrollment_fee}}{{/if}}
+• {{billing_frequency}} Dues: {{dues_amount}}
+• Total Due: {{total_amount}}
+
+Payment Methods:
+• Cash - Pay in person at our office
+• Check - Make payable to "{{organization_name}}"
+• Zelle - Contact us for Zelle details
+
+Please include your name with any payment so we can properly credit your account.
+
+If you have any questions, please contact us.
+
+JazakAllah Khair,
+{{organization_name}}`,
+        fa: `السلام علیکم {{member_name}}،
+
+از امضای قرارداد عضویت با {{organization_name}} متشکریم.
+
+برای تکمیل ثبت‌نام، لطفاً با یکی از روش‌های زیر پرداخت کنید:
+
+خلاصه پرداخت:
+{{#if enrollment_fee}}• هزینه ثبت‌نام: {{enrollment_fee}}{{/if}}
+• حق عضویت {{billing_frequency}}: {{dues_amount}}
+• مجموع قابل پرداخت: {{total_amount}}
+
+روش‌های پرداخت:
+• نقدی - حضوری در دفتر ما پرداخت کنید
+• چک - به نام "{{organization_name}}" صادر کنید
+• Zelle - برای جزئیات Zelle با ما تماس بگیرید
+
+لطفاً نام خود را همراه با هر پرداختی ذکر کنید تا بتوانیم حساب شما را به درستی اعتبار دهیم.
+
+اگر سوالی دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
+      },
+      variables: ["member_name", "organization_name", "enrollment_fee", "dues_amount", "billing_frequency", "total_amount"],
+      is_active: true,
+    },
+    // Payment Reminder
+    {
+      organization_id: ORG_ID,
+      type: "payment_reminder",
+      name: "Payment Reminder",
+      description: "Sent when a payment is overdue",
+      subject: {
+        en: "Reminder: Membership Payment Due",
+        fa: "یادآوری: پرداخت حق عضویت",
+      },
+      body: {
+        en: `Assalamu Alaikum {{member_name}},
+
+This is a friendly reminder that your membership dues payment is due.
+
+Amount Due: {{amount_due}}
+Due Date: {{due_date}}
+Days Overdue: {{days_overdue}}
+
+Please make your payment at your earliest convenience to keep your membership in good standing.
+
+If you have already made this payment, please disregard this notice.
+
+If you have any questions or need to discuss payment arrangements, please contact us.
+
+JazakAllah Khair,
+{{organization_name}}`,
+        fa: `السلام علیکم {{member_name}}،
+
+این یک یادآوری دوستانه است که پرداخت حق عضویت شما سررسید شده است.
+
+مبلغ قابل پرداخت: {{amount_due}}
+تاریخ سررسید: {{due_date}}
+روزهای تأخیر: {{days_overdue}}
+
+لطفاً در اسرع وقت پرداخت خود را انجام دهید تا عضویت شما فعال بماند.
+
+اگر قبلاً این پرداخت را انجام داده‌اید، لطفاً این اطلاعیه را نادیده بگیرید.
+
+اگر سوالی دارید یا نیاز به بحث در مورد ترتیبات پرداخت دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
+      },
+      variables: ["member_name", "organization_name", "amount_due", "due_date", "days_overdue"],
+      is_active: true,
+    },
+    // Payment Receipt
+    {
+      organization_id: ORG_ID,
+      type: "payment_receipt",
+      name: "Payment Receipt",
+      description: "Sent after a payment is received",
+      subject: {
+        en: "Payment Receipt - {{organization_name}}",
+        fa: "رسید پرداخت - {{organization_name}}",
+      },
+      body: {
+        en: `Assalamu Alaikum {{member_name}},
+
+Thank you for your payment! This email confirms that we have received your payment.
+
+Payment Details:
+• Amount: {{amount}}
+• Date: {{payment_date}}
+• Method: {{payment_method}}
+• Invoice #: {{invoice_number}}
+{{#if period_label}}• Period: {{period_label}}{{/if}}
+
+Your membership is in good standing. Thank you for your continued support of {{organization_name}}.
+
+JazakAllah Khair,
+{{organization_name}}`,
+        fa: `السلام علیکم {{member_name}}،
+
+از پرداخت شما متشکریم! این ایمیل تأیید می‌کند که پرداخت شما را دریافت کرده‌ایم.
+
+جزئیات پرداخت:
+• مبلغ: {{amount}}
+• تاریخ: {{payment_date}}
+• روش پرداخت: {{payment_method}}
+• شماره فاکتور: {{invoice_number}}
+{{#if period_label}}• دوره: {{period_label}}{{/if}}
+
+عضویت شما فعال است. از حمایت مداوم شما از {{organization_name}} متشکریم.
+
+جزاک الله خیر،
+{{organization_name}}`,
+      },
+      variables: ["member_name", "organization_name", "amount", "payment_date", "payment_method", "invoice_number", "period_label"],
+      is_active: true,
+    },
+  ]);
+  if (emailTemplatesError) throw new Error(`Email Templates: ${emailTemplatesError.message}`);
+  console.log("✓");
+
   console.log("\n✅ Database seeded successfully!");
   console.log("\n📊 Summary:");
   console.log("   • 1 Organization (Masjid Muhajireen)");
@@ -819,6 +1069,7 @@ async function seedDatabase(): Promise<void> {
   console.log("   • 1 Agreement (awaiting signature)");
   console.log("   • 3 Email Logs");
   console.log("   • 1 Onboarding Invite");
+  console.log("   • 5 Email Templates (EN + FA)");
   console.log("\n🧪 Test Scenarios:");
   console.log("   1. Ahmed Khan: Active with Stripe autopay - test payment blocking");
   console.log("   2. Muhammad Ali: Waiting period with manual payments");

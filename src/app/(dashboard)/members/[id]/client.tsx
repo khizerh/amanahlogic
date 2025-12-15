@@ -81,6 +81,7 @@ import {
   Shield,
   Edit,
   X,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -90,6 +91,7 @@ interface MemberDetailClientProps {
   initialEmails: EmailLog[];
   initialAgreement: Agreement | null;
   agreementTemplateUrl: string | null;
+  agreementSignUrl: string | null;
 }
 
 export function MemberDetailClient({
@@ -98,6 +100,7 @@ export function MemberDetailClient({
   initialEmails,
   initialAgreement,
   agreementTemplateUrl,
+  agreementSignUrl,
 }: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
@@ -129,6 +132,7 @@ export function MemberDetailClient({
 
   // State for sending agreement
   const [isSendingAgreement, setIsSendingAgreement] = useState(false);
+  const [currentSignUrl, setCurrentSignUrl] = useState<string | null>(agreementSignUrl);
 
   // State for sending portal link
   const [isSendingPortalLink, setIsSendingPortalLink] = useState(false);
@@ -194,6 +198,11 @@ export function MemberDetailClient({
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to send agreement");
+      }
+
+      // Store the new sign URL
+      if (result.signUrl) {
+        setCurrentSignUrl(result.signUrl);
       }
 
       if (result.emailSent) {
@@ -637,25 +646,42 @@ export function MemberDetailClient({
                         ) : (
                           <>
                             <FileText className="h-4 w-4 text-amber-600" />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleSendAgreement}
-                              disabled={isSendingAgreement}
-                              className="h-7 text-xs"
-                            >
-                              {isSendingAgreement ? (
-                                <>
-                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                  Sending...
-                                </>
-                              ) : (
-                                <>
-                                  <Send className="h-3 w-3 mr-1" />
-                                  Send Agreement
-                                </>
+                            <span className="text-sm text-amber-700">Awaiting Signature</span>
+                            <div className="flex gap-1 ml-auto">
+                              {currentSignUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(currentSignUrl);
+                                    toast.success("Sign link copied to clipboard");
+                                  }}
+                                  className="h-7 text-xs"
+                                  title="Copy signing link"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
                               )}
-                            </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSendAgreement}
+                                disabled={isSendingAgreement}
+                                className="h-7 text-xs"
+                              >
+                                {isSendingAgreement ? (
+                                  <>
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="h-3 w-3 mr-1" />
+                                    Resend
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           </>
                         )}
                       </div>

@@ -79,6 +79,33 @@ export class AgreementSigningLinksService {
 
     if (error) throw error;
   }
+
+  /**
+   * Get the active (unused + unexpired) link for an agreement
+   */
+  static async getActiveByAgreementId(
+    agreementId: string,
+    supabase?: SupabaseClient
+  ): Promise<AgreementSigningLink | null> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { data, error } = await client
+      .from("agreement_signing_links")
+      .select("*")
+      .eq("agreement_id", agreementId)
+      .is("used_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return data ? transformLink(data) : null;
+  }
 }
 
 // -----------------------------------------------------------------------------

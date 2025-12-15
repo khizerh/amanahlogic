@@ -3,6 +3,7 @@ import { PaymentsService } from "@/lib/database/payments";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { MemberDetailClient } from "./client";
 import { AgreementsService } from "@/lib/database/agreements";
+import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 import {
   AgreementTemplatesService,
   resolveTemplateUrl,
@@ -61,6 +62,15 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
     }
   }
 
+  // Get the signing URL if agreement exists and isn't signed
+  let agreementSignUrl: string | null = null;
+  if (agreement && !agreement.signedAt) {
+    const signingLink = await AgreementSigningLinksService.getActiveByAgreementId(agreement.id);
+    if (signingLink) {
+      agreementSignUrl = `${process.env.NEXT_PUBLIC_APP_URL || ""}/agreements/sign?token=${signingLink.token}`;
+    }
+  }
+
   return (
     <MemberDetailClient
       initialMember={memberData}
@@ -68,6 +78,7 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
       initialEmails={emailLogs}
       initialAgreement={agreement || null}
       agreementTemplateUrl={agreementTemplateUrl}
+      agreementSignUrl={agreementSignUrl}
     />
   );
 }

@@ -71,6 +71,8 @@ export function getEmailTemplateTypeLabel(type: EmailTemplateType | "custom"): s
     payment_reminder: "Payment Reminder",
     payment_failed: "Payment Failed",
     payment_setup: "Payment Setup",
+    payment_setup_stripe: "Payment Setup (Stripe)",
+    payment_setup_manual: "Payment Setup (Manual)",
     overdue_notice: "Overdue Notice",
     eligibility_reached: "Eligibility Reached",
     agreement_sent: "Agreement Sent",
