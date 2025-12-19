@@ -57,4 +57,4 @@ tmp/
 
 # Uploads (local file storage)
 **/public/uploads/
-supabase/
+/supabase/
