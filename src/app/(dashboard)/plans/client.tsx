@@ -15,13 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Edit2, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
@@ -69,7 +62,7 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
     setEditingPlanId(null);
     setPlanFormData({
       name: "",
-      type: "single",
+      type: "",
       description: "",
       monthly: "",
       biannual: "",
@@ -155,13 +148,36 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
     }
   };
 
+  // Get unique plan types from existing plans for suggestions
+  const existingTypes = [...new Set(plans.map((p) => p.type))];
+
+  // Generate consistent badge color based on type string
   const getPlanTypeBadge = (type: string) => {
-    const badges = {
+    // Predefined colors for common types, dynamic colors for others
+    const predefinedColors: Record<string, string> = {
       single: "bg-blue-100 text-blue-800 border-blue-200",
       married: "bg-purple-100 text-purple-800 border-purple-200",
       widow: "bg-green-100 text-green-800 border-green-200",
+      family: "bg-orange-100 text-orange-800 border-orange-200",
+      student: "bg-cyan-100 text-cyan-800 border-cyan-200",
+      senior: "bg-amber-100 text-amber-800 border-amber-200",
     };
-    return badges[type as keyof typeof badges] || "bg-gray-100 text-gray-800 border-gray-200";
+
+    if (predefinedColors[type.toLowerCase()]) {
+      return predefinedColors[type.toLowerCase()];
+    }
+
+    // Generate a color based on string hash for unknown types
+    const colors = [
+      "bg-pink-100 text-pink-800 border-pink-200",
+      "bg-indigo-100 text-indigo-800 border-indigo-200",
+      "bg-teal-100 text-teal-800 border-teal-200",
+      "bg-rose-100 text-rose-800 border-rose-200",
+      "bg-emerald-100 text-emerald-800 border-emerald-200",
+      "bg-violet-100 text-violet-800 border-violet-200",
+    ];
+    const hash = type.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
   };
 
   return (
@@ -306,19 +322,22 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-type">Plan Type</Label>
-                  <Select
+                  <Input
+                    id="edit-type"
+                    list="plan-types-edit"
                     value={planFormData.type}
-                    onValueChange={(value) => setPlanFormData({ ...planFormData, type: value })}
-                  >
-                    <SelectTrigger id="edit-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single">Single</SelectItem>
-                      <SelectItem value="married">Married</SelectItem>
-                      <SelectItem value="widow">Widow/Widower</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    onChange={(e) => setPlanFormData({ ...planFormData, type: e.target.value })}
+                    placeholder="e.g., single, married, family"
+                    required
+                  />
+                  <datalist id="plan-types-edit">
+                    {existingTypes.map((t) => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
+                  <p className="text-xs text-muted-foreground">
+                    Select existing type or enter a new one
+                  </p>
                 </div>
               </div>
 
@@ -417,19 +436,22 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="add-type">Plan Type</Label>
-                  <Select
+                  <Input
+                    id="add-type"
+                    list="plan-types-add"
                     value={planFormData.type}
-                    onValueChange={(value) => setPlanFormData({ ...planFormData, type: value })}
-                  >
-                    <SelectTrigger id="add-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single">Single</SelectItem>
-                      <SelectItem value="married">Married</SelectItem>
-                      <SelectItem value="widow">Widow/Widower</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    onChange={(e) => setPlanFormData({ ...planFormData, type: e.target.value })}
+                    placeholder="e.g., single, married, family"
+                    required
+                  />
+                  <datalist id="plan-types-add">
+                    {existingTypes.map((t) => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
+                  <p className="text-xs text-muted-foreground">
+                    Select existing type or enter a new one
+                  </p>
                 </div>
               </div>
 

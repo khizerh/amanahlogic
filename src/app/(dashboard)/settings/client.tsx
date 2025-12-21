@@ -106,12 +106,11 @@ export function SettingsPageClient({
 
   // Handle deleting an agreement template
   const handleDeleteTemplate = async (template: AgreementTemplate) => {
-    if (template.isActive) {
-      toast.error("Cannot delete active template. Set another template as active first.");
-      return;
-    }
+    const warningMessage = template.isActive
+      ? `WARNING: "${template.version}" is the active ${template.language === "en" ? "English" : "Dari/Farsi"} template. Deleting it means new agreements cannot be sent in this language until you upload a new template.\n\nDelete anyway?`
+      : `Delete template "${template.version}"? This cannot be undone.`;
 
-    if (!confirm(`Delete template "${template.version}"? This cannot be undone.`)) {
+    if (!confirm(warningMessage)) {
       return;
     }
 
@@ -506,53 +505,51 @@ export function SettingsPageClient({
                                     )}
                                   </Button>
                                   {!t.isActive && (
-                                    <>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={async () => {
-                                          try {
-                                            const res = await fetch("/api/agreements/templates/set-active", {
-                                              method: "POST",
-                                              headers: { "Content-Type": "application/json" },
-                                              body: JSON.stringify({
-                                                templateId: t.id,
-                                                language: t.language,
-                                              }),
-                                            });
-                                            const json = await res.json();
-                                            if (!res.ok || !json.success) {
-                                              throw new Error(json.error || "Failed to activate");
-                                            }
-                                            setAllTemplates((prev) =>
-                                              prev.map((tpl) =>
-                                                tpl.language === t.language
-                                                  ? { ...tpl, isActive: tpl.id === t.id }
-                                                  : tpl
-                                              )
-                                            );
-                                            toast.success(`Activated ${t.version}`);
-                                          } catch (err) {
-                                            toast.error(err instanceof Error ? err.message : "Failed to activate");
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch("/api/agreements/templates/set-active", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                              templateId: t.id,
+                                              language: t.language,
+                                            }),
+                                          });
+                                          const json = await res.json();
+                                          if (!res.ok || !json.success) {
+                                            throw new Error(json.error || "Failed to activate");
                                           }
-                                        }}
-                                      >
-                                        Set Active
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteTemplate(t)}
-                                        disabled={deletingTemplateId === t.id}
-                                      >
-                                        {deletingTemplateId === t.id ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="h-4 w-4 text-red-500" />
-                                        )}
-                                      </Button>
-                                    </>
+                                          setAllTemplates((prev) =>
+                                            prev.map((tpl) =>
+                                              tpl.language === t.language
+                                                ? { ...tpl, isActive: tpl.id === t.id }
+                                                : tpl
+                                            )
+                                          );
+                                          toast.success(`Activated ${t.version}`);
+                                        } catch (err) {
+                                          toast.error(err instanceof Error ? err.message : "Failed to activate");
+                                        }
+                                      }}
+                                    >
+                                      Set Active
+                                    </Button>
                                   )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteTemplate(t)}
+                                    disabled={deletingTemplateId === t.id}
+                                  >
+                                    {deletingTemplateId === t.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    )}
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>

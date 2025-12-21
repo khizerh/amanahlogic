@@ -42,13 +42,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (type !== undefined) {
-      if (!["single", "married", "widow"].includes(type)) {
+      if (typeof type !== "string" || type.trim() === "") {
         return NextResponse.json(
-          { error: "type must be 'single', 'married', or 'widow'" },
+          { error: "type cannot be empty" },
           { status: 400 }
         );
       }
-      updates.type = type as PlanType;
+      updates.type = type.trim();
     }
 
     if (description !== undefined) {

@@ -123,14 +123,15 @@ export function getEmailStatusVariant(status: EmailStatus): BadgeVariant {
   return variants[status];
 }
 
-// Plan type labels
-export function formatPlanType(type: "single" | "married" | "widow"): string {
+// Plan type labels - supports dynamic plan types
+export function formatPlanType(type: string): string {
   const labels: Record<string, string> = {
     single: "Single",
     married: "Married",
     widow: "Widow/Widower",
   };
-  return labels[type] || type;
+  // Return predefined label or capitalize the type
+  return labels[type.toLowerCase()] || type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 // Billing frequency labels

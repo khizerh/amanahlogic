@@ -956,6 +956,7 @@ export {
   formatCurrency,
   formatDate,
   formatStatus,
+  formatPlanType,
   getStatusColor,
   getStatusVariant,
 } from "@/lib/utils/formatters";

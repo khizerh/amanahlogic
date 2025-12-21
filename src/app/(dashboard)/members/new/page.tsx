@@ -52,6 +52,10 @@ export default function NewMemberPage() {
         const data = await response.json();
         if (response.ok && data.plans) {
           setPlans(data.plans);
+          // Set initial plan type to first plan's type
+          if (data.plans.length > 0) {
+            setPlanType(data.plans[0].type);
+          }
         } else {
           toast.error("Failed to load plans");
         }
@@ -76,7 +80,7 @@ export default function NewMemberPage() {
   const [spouseName, setSpouseName] = useState("");
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
-  const [planType, setPlanType] = useState<PlanType>("single");
+  const [planType, setPlanType] = useState<PlanType>("");
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>("monthly");
   const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
@@ -502,13 +506,15 @@ export default function NewMemberPage() {
                 ) : (
                   <>
                     <div className="space-y-3">
-                      <Label>Plan Type</Label>
+                      <Label>Plan</Label>
                       <RadioGroup value={planType} onValueChange={(value) => setPlanType(value as PlanType)}>
                         {plans.map((plan) => (
                           <div key={plan.id} className="flex items-center space-x-2">
-                            <RadioGroupItem value={plan.type} id={plan.type} />
-                            <Label htmlFor={plan.type} className="font-normal cursor-pointer">
-                              {plan.name} - {plan.description}
+                            <RadioGroupItem value={plan.type} id={`plan-${plan.id}`} />
+                            <Label htmlFor={`plan-${plan.id}`} className="font-normal cursor-pointer">
+                              <span className="font-medium">{plan.name}</span>
+                              <span className="text-muted-foreground ml-1">({plan.type})</span>
+                              {plan.description && <span className="text-muted-foreground"> - {plan.description}</span>}
                             </Label>
                           </div>
                         ))}

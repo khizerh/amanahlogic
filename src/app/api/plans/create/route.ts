@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 
-    if (!type || !["single", "married", "widow"].includes(type)) {
+    if (!type || typeof type !== "string" || type.trim() === "") {
       return NextResponse.json(
-        { error: "type must be 'single', 'married', or 'widow'" },
+        { error: "type is required" },
         { status: 400 }
       );
     }
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const plan = await PlansService.create({
       organizationId,
       name: name.trim(),
-      type: type as PlanType,
+      type: type.trim(),
       description: description?.trim() || undefined,
       pricing: planPricing,
       enrollmentFee: Number(enrollmentFee) || 0,

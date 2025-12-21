@@ -121,7 +121,7 @@ export interface PaymentWithDetails {
     plan: {
       id: string;
       name: string;
-      type: "single" | "married" | "widow";
+      type: string;
     } | null;
   } | null;
 }

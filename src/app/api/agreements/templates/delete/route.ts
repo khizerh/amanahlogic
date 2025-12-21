@@ -33,14 +33,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
-    // Don't allow deleting active templates
-    if (template.is_active) {
-      return NextResponse.json(
-        { error: "Cannot delete active template. Set another template as active first." },
-        { status: 400 }
-      );
-    }
-
     // Delete from storage (if it exists)
     const bucket = process.env.AGREEMENT_TEMPLATES_BUCKET || "agreement-templates";
     if (template.storage_path && !template.storage_path.startsWith("http")) {

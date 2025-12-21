@@ -15,7 +15,8 @@ export type MembershipStatus =
 // Eligibility is separate from status:
 // eligible = paidMonths >= 60 && status !== 'cancelled'
 
-export type PlanType = 'single' | 'married' | 'widow';
+// Plan types are now dynamic per organization - no longer hardcoded
+export type PlanType = string;
 
 export type BillingFrequency = 'monthly' | 'biannual' | 'annual';
 

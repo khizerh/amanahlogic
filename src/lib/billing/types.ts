@@ -63,7 +63,7 @@ export interface MembershipToBill {
   // Related data for billing
   plan: {
     name: string;
-    type: "single" | "married" | "widow";
+    type: string;
     pricing: {
       monthly: number;
       biannual: number;
@@ -139,7 +139,7 @@ export interface PaymentWithDetails {
   plan?: {
     id: string;
     name: string;
-    type: "single" | "married" | "widow";
+    type: string;
   };
 }
 

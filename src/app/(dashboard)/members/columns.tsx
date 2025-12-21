@@ -4,23 +4,21 @@ import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MemberWithMembership, PlanType } from "@/lib/types";
-import { formatStatus, getStatusVariant, formatDate } from "@/lib/mock-data";
+import { MemberWithMembership } from "@/lib/types";
+import { formatStatus, getStatusVariant, formatDate, formatPlanType } from "@/lib/mock-data";
 
-const getPlanTypeBadge = (type: PlanType) => {
-  const variants: Record<PlanType, "info" | "refunded" | "warning"> = {
+const getPlanTypeBadge = (type: string) => {
+  // Predefined variants for common types
+  const variants: Record<string, "info" | "refunded" | "warning"> = {
     single: "info",
     married: "refunded",
     widow: "warning",
   };
-  const labels = {
-    single: "Single",
-    married: "Married",
-    widow: "Widow",
-  };
+  // Use predefined variant or default to "info"
+  const variant = variants[type.toLowerCase()] || "info";
   return (
-    <Badge variant={variants[type]}>
-      {labels[type]}
+    <Badge variant={variant}>
+      {formatPlanType(type)}
     </Badge>
   );
 };
