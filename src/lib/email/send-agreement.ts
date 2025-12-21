@@ -1,6 +1,7 @@
-import { resend, FROM_EMAIL, isEmailConfigured } from "./resend";
+import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { getAgreementSentEmail } from "./templates/agreement-sent";
 import { EmailLogsService } from "@/lib/database/email-logs";
+import { OrganizationsService } from "@/lib/database/organizations";
 
 interface SendAgreementEmailParams {
   to: string;
@@ -84,9 +85,16 @@ export async function sendAgreementEmail(
   }
 
   try {
+    // Get organization info for email config
+    const org = await OrganizationsService.getById(organizationId);
+    const emailConfig = org
+      ? getOrgEmailConfig({ name: org.name, slug: org.slug, email: org.email })
+      : { from: FROM_EMAIL, replyTo: undefined };
+
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: emailConfig.from,
+      replyTo: emailConfig.replyTo,
       to,
       subject,
       html,

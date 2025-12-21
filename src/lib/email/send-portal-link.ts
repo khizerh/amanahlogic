@@ -1,6 +1,7 @@
-import { resend, FROM_EMAIL, isEmailConfigured } from "./resend";
+import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { getPortalLinkEmail } from "./templates/portal-link";
 import { EmailLogsService } from "@/lib/database/email-logs";
+import { OrganizationsService } from "@/lib/database/organizations";
 
 interface SendPortalLinkEmailParams {
   to: string;
@@ -82,9 +83,16 @@ export async function sendPortalLinkEmail(
   }
 
   try {
+    // Get organization info for email config
+    const org = await OrganizationsService.getById(organizationId);
+    const emailConfig = org
+      ? getOrgEmailConfig({ name: org.name, slug: org.slug, email: org.email })
+      : { from: FROM_EMAIL, replyTo: undefined };
+
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: emailConfig.from,
+      replyTo: emailConfig.replyTo,
       to,
       subject,
       html,
