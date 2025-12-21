@@ -5,6 +5,7 @@ import {
   generateAdHocInvoiceMetadata,
   getTodayInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import type { PaymentType, PaymentMethod } from "@/lib/types";
 
 /**
@@ -174,6 +175,23 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check if there's a pending onboarding invite and update it
+      let onboardingInviteUpdated = false;
+      try {
+        const pendingInvite = await OnboardingInvitesService.getPendingForMembership(membershipId);
+        if (pendingInvite) {
+          if (type === "enrollment_fee") {
+            await OnboardingInvitesService.recordEnrollmentFeePaid(pendingInvite.id, supabase);
+            onboardingInviteUpdated = true;
+          } else if (type === "dues" || type === "back_dues") {
+            await OnboardingInvitesService.recordDuesPaid(pendingInvite.id, supabase);
+            onboardingInviteUpdated = true;
+          }
+        }
+      } catch (inviteError) {
+        console.error("Failed to update onboarding invite:", inviteError);
+      }
+
       return NextResponse.json({
         success: true,
         paymentId: pendingPaymentId,
@@ -181,6 +199,7 @@ export async function POST(request: NextRequest) {
         newPaidMonths: result.newPaidMonths,
         newStatus: result.newStatus,
         becameEligible: result.becameEligible,
+        onboardingInviteUpdated,
       });
     }
 
@@ -214,6 +233,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check if there's a pending onboarding invite and update it (we know it's dues type here)
+      let onboardingInviteUpdated = false;
+      try {
+        const pendingInvite = await OnboardingInvitesService.getPendingForMembership(membershipId);
+        if (pendingInvite) {
+          await OnboardingInvitesService.recordDuesPaid(pendingInvite.id, supabase);
+          onboardingInviteUpdated = true;
+        }
+      } catch (inviteError) {
+        console.error("Failed to update onboarding invite:", inviteError);
+      }
+
       return NextResponse.json({
         success: true,
         paymentId: existingPending.id,
@@ -222,6 +253,7 @@ export async function POST(request: NextRequest) {
         newPaidMonths: result.newPaidMonths,
         newStatus: result.newStatus,
         becameEligible: result.becameEligible,
+        onboardingInviteUpdated,
         ...(amountWarning && { warning: amountWarning }),
       });
     }
@@ -345,6 +377,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check if there's a pending onboarding invite and update it
+    let onboardingInviteUpdated = false;
+    try {
+      const pendingInvite = await OnboardingInvitesService.getPendingForMembership(membershipId);
+      if (pendingInvite) {
+        if (type === "enrollment_fee") {
+          await OnboardingInvitesService.recordEnrollmentFeePaid(pendingInvite.id, supabase);
+          onboardingInviteUpdated = true;
+        } else if (type === "dues" || type === "back_dues") {
+          await OnboardingInvitesService.recordDuesPaid(pendingInvite.id, supabase);
+          onboardingInviteUpdated = true;
+        }
+      }
+    } catch (inviteError) {
+      console.error("Failed to update onboarding invite:", inviteError);
+      // Don't fail the request - payment was recorded successfully
+    }
+
     return NextResponse.json({
       success: true,
       paymentId: newPayment.id,
@@ -353,6 +403,7 @@ export async function POST(request: NextRequest) {
       newPaidMonths: result.newPaidMonths,
       newStatus: result.newStatus,
       becameEligible: result.becameEligible,
+      onboardingInviteUpdated,
       ...(amountWarning && { warning: amountWarning }),
     });
   } catch (error) {
