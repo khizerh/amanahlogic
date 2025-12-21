@@ -4,8 +4,15 @@ import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { MemberWithMembership } from "@/lib/types";
 import { formatStatus, getStatusVariant, formatDate } from "@/lib/mock-data";
+import { FileSignature, CreditCard, HelpCircle } from "lucide-react";
 
 const getPlanTypeBadge = (type: string, name: string) => {
   // Predefined variants for common types
@@ -71,13 +78,57 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
     header: "Status",
     accessorFn: (row) => row.membership?.status || null,
     cell: ({ row }) => {
-      const status = row.original.membership?.status;
-      return status ? (
+      const membership = row.original.membership;
+      const status = membership?.status;
+
+      if (!status) return <span>-</span>;
+
+      // For pending status, show tooltip explaining why
+      if (status === "pending") {
+        const agreementSigned = !!membership.agreementSignedAt;
+        const hasPaidMonths = (membership.paidMonths || 0) > 0;
+
+        let pendingReason: { icon: typeof FileSignature; text: string } | null = null;
+
+        if (!agreementSigned) {
+          pendingReason = {
+            icon: FileSignature,
+            text: "Awaiting agreement signature",
+          };
+        } else if (!hasPaidMonths) {
+          pendingReason = {
+            icon: CreditCard,
+            text: "Awaiting first payment",
+          };
+        }
+
+        if (pendingReason) {
+          const Icon = pendingReason.icon;
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-flex items-center gap-1 cursor-help">
+                    <Badge variant={getStatusVariant(status)}>
+                      {formatStatus(status)}
+                    </Badge>
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  <span>{pendingReason.text}</span>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+      }
+
+      return (
         <Badge variant={getStatusVariant(status)}>
           {formatStatus(status)}
         </Badge>
-      ) : (
-        <span>-</span>
       );
     },
     filterFn: (row, id, filterValue) => {
