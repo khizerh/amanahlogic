@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MemberWithMembership } from "@/lib/types";
-import { formatStatus, getStatusVariant, formatDate, formatPlanType } from "@/lib/mock-data";
+import { formatStatus, getStatusVariant, formatDate } from "@/lib/mock-data";
 
-const getPlanTypeBadge = (type: string) => {
+const getPlanTypeBadge = (type: string, name: string) => {
   // Predefined variants for common types
   const variants: Record<string, "info" | "refunded" | "warning"> = {
     single: "info",
@@ -18,7 +18,7 @@ const getPlanTypeBadge = (type: string) => {
   const variant = variants[type.toLowerCase()] || "info";
   return (
     <Badge variant={variant}>
-      {formatPlanType(type)}
+      {name}
     </Badge>
   );
 };
@@ -53,11 +53,13 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
   },
   {
     accessorKey: "planType",
-    header: "Plan Type",
-    accessorFn: (row) => row.plan?.type || null,
+    header: "Plan",
+    accessorFn: (row) => row.plan?.name || row.plan?.type || null,
     cell: ({ row }) => {
-      const planType = row.original.plan?.type;
-      return planType ? getPlanTypeBadge(planType) : <span>-</span>;
+      const plan = row.original.plan;
+      if (!plan) return <span>-</span>;
+      // Show plan name with type-based color
+      return getPlanTypeBadge(plan.type, plan.name);
     },
     filterFn: (row, id, filterValue) => {
       if (filterValue === "all" || !filterValue) return true;
