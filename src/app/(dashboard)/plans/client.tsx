@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +35,6 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
   const [togglingPlanId, setTogglingPlanId] = useState<string | null>(null);
   const [planFormData, setPlanFormData] = useState({
     name: "",
-    type: "single",
     description: "",
     monthly: "",
     biannual: "",
@@ -48,7 +46,6 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
     setEditingPlanId(plan.id);
     setPlanFormData({
       name: plan.name,
-      type: plan.type,
       description: plan.description || "",
       monthly: plan.pricing.monthly.toString(),
       biannual: plan.pricing.biannual.toString(),
@@ -62,7 +59,6 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
     setEditingPlanId(null);
     setPlanFormData({
       name: "",
-      type: "",
       description: "",
       monthly: "",
       biannual: "",
@@ -79,7 +75,6 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
     try {
       const payload = {
         name: planFormData.name,
-        type: planFormData.type,
         description: planFormData.description,
         pricing: {
           monthly: Number(planFormData.monthly) || 0,
@@ -148,38 +143,6 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
     }
   };
 
-  // Get unique plan types from existing plans for suggestions
-  const existingTypes = [...new Set(plans.map((p) => p.type))];
-
-  // Generate consistent badge color based on type string
-  const getPlanTypeBadge = (type: string) => {
-    // Predefined colors for common types, dynamic colors for others
-    const predefinedColors: Record<string, string> = {
-      single: "bg-blue-100 text-blue-800 border-blue-200",
-      married: "bg-purple-100 text-purple-800 border-purple-200",
-      widow: "bg-green-100 text-green-800 border-green-200",
-      family: "bg-orange-100 text-orange-800 border-orange-200",
-      student: "bg-cyan-100 text-cyan-800 border-cyan-200",
-      senior: "bg-amber-100 text-amber-800 border-amber-200",
-    };
-
-    if (predefinedColors[type.toLowerCase()]) {
-      return predefinedColors[type.toLowerCase()];
-    }
-
-    // Generate a color based on string hash for unknown types
-    const colors = [
-      "bg-pink-100 text-pink-800 border-pink-200",
-      "bg-indigo-100 text-indigo-800 border-indigo-200",
-      "bg-teal-100 text-teal-800 border-teal-200",
-      "bg-rose-100 text-rose-800 border-rose-200",
-      "bg-emerald-100 text-emerald-800 border-emerald-200",
-      "bg-violet-100 text-violet-800 border-violet-200",
-    ];
-    const hash = type.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
   return (
     <>
       <Header />
@@ -204,15 +167,10 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
             {plans.map((plan) => (
               <Card key={plan.id} className={plan.isActive ? "" : "opacity-60"}>
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-xl">{plan.name}</CardTitle>
-                      <CardDescription className="mt-1">{plan.description}</CardDescription>
-                    </div>
-                    <Badge variant="outline" className={getPlanTypeBadge(plan.type)}>
-                      {plan.type.charAt(0).toUpperCase() + plan.type.slice(1)}
-                    </Badge>
-                  </div>
+                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  {plan.description && (
+                    <CardDescription className="mt-1">{plan.description}</CardDescription>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -310,44 +268,24 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
           </DialogHeader>
           <form onSubmit={handleSavePlan}>
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-name">Plan Name</Label>
-                  <Input
-                    id="edit-name"
-                    value={planFormData.name}
-                    onChange={(e) => setPlanFormData({ ...planFormData, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-type">Plan Type</Label>
-                  <Input
-                    id="edit-type"
-                    list="plan-types-edit"
-                    value={planFormData.type}
-                    onChange={(e) => setPlanFormData({ ...planFormData, type: e.target.value })}
-                    placeholder="e.g., single, married, family"
-                    required
-                  />
-                  <datalist id="plan-types-edit">
-                    {existingTypes.map((t) => (
-                      <option key={t} value={t} />
-                    ))}
-                  </datalist>
-                  <p className="text-xs text-muted-foreground">
-                    Select existing type or enter a new one
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Plan Name</Label>
+                <Input
+                  id="edit-name"
+                  value={planFormData.name}
+                  onChange={(e) => setPlanFormData({ ...planFormData, name: e.target.value })}
+                  placeholder="e.g., Single, Married, Family"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
+                <Label htmlFor="edit-description">Description (optional)</Label>
                 <Input
                   id="edit-description"
                   value={planFormData.description}
                   onChange={(e) => setPlanFormData({ ...planFormData, description: e.target.value })}
-                  required
+                  placeholder="e.g., Individual coverage only"
                 />
               </div>
 
@@ -423,46 +361,24 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
           </DialogHeader>
           <form onSubmit={handleSavePlan}>
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="add-name">Plan Name</Label>
-                  <Input
-                    id="add-name"
-                    value={planFormData.name}
-                    onChange={(e) => setPlanFormData({ ...planFormData, name: e.target.value })}
-                    placeholder="e.g., Single"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="add-type">Plan Type</Label>
-                  <Input
-                    id="add-type"
-                    list="plan-types-add"
-                    value={planFormData.type}
-                    onChange={(e) => setPlanFormData({ ...planFormData, type: e.target.value })}
-                    placeholder="e.g., single, married, family"
-                    required
-                  />
-                  <datalist id="plan-types-add">
-                    {existingTypes.map((t) => (
-                      <option key={t} value={t} />
-                    ))}
-                  </datalist>
-                  <p className="text-xs text-muted-foreground">
-                    Select existing type or enter a new one
-                  </p>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-name">Plan Name</Label>
+                <Input
+                  id="add-name"
+                  value={planFormData.name}
+                  onChange={(e) => setPlanFormData({ ...planFormData, name: e.target.value })}
+                  placeholder="e.g., Single, Married, Family"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="add-description">Description</Label>
+                <Label htmlFor="add-description">Description (optional)</Label>
                 <Input
                   id="add-description"
                   value={planFormData.description}
                   onChange={(e) => setPlanFormData({ ...planFormData, description: e.target.value })}
                   placeholder="e.g., Individual coverage only"
-                  required
                 />
               </div>
 

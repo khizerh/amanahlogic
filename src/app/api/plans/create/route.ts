@@ -1,29 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { PlansService } from "@/lib/database/plans";
-import type { PlanType, PlanPricing } from "@/lib/types";
+import type { PlanPricing } from "@/lib/types";
 
 /**
  * POST /api/plans/create
  * Create a new membership plan
+ * Type is auto-generated from name (lowercase, spaces to hyphens)
  */
 export async function POST(req: NextRequest) {
   try {
     const organizationId = await getOrganizationId();
     const body = await req.json();
 
-    const { name, type, description, pricing, enrollmentFee } = body;
+    const { name, description, pricing, enrollmentFee } = body;
 
     // Validate required fields
-    if (!name || typeof name !== "string") {
+    if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
-    }
-
-    if (!type || typeof type !== "string" || type.trim() === "") {
-      return NextResponse.json(
-        { error: "type is required" },
-        { status: 400 }
-      );
     }
 
     if (!pricing || typeof pricing !== "object") {
@@ -39,10 +33,14 @@ export async function POST(req: NextRequest) {
       annual: Number(pricing.annual) || 0,
     };
 
+    // Auto-generate type from name: lowercase, spaces to hyphens
+    const planName = name.trim();
+    const planType = planName.toLowerCase().replace(/\s+/g, "-");
+
     const plan = await PlansService.create({
       organizationId,
-      name: name.trim(),
-      type: type.trim(),
+      name: planName,
+      type: planType,
       description: description?.trim() || undefined,
       pricing: planPricing,
       enrollmentFee: Number(enrollmentFee) || 0,
