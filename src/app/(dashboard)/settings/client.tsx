@@ -36,6 +36,7 @@ import {
   Loader2,
   Languages,
   Trash2,
+  Mail,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { getEmailTemplateTypeLabel } from "@/lib/mock-data";
@@ -846,11 +847,14 @@ export function SettingsPageClient({
             <TabsContent value="emails">
               <div className="space-y-6">
                 {/* Email Sender Configuration */}
-                <Card>
+                <Card className="bg-gradient-to-r from-brand-teal/5 to-transparent border-brand-teal/20">
                   <CardHeader>
-                    <CardTitle>Email Sender Configuration</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-brand-teal" />
+                      Email Sender Configuration
+                    </CardTitle>
                     <CardDescription>
-                      How your organization's emails appear to members
+                      How your organization&apos;s emails appear to members
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
