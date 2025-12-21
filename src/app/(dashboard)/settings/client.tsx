@@ -847,10 +847,10 @@ export function SettingsPageClient({
             <TabsContent value="emails">
               <div className="space-y-6">
                 {/* Email Sender Configuration */}
-                <Card className="bg-gradient-to-r from-brand-teal/5 to-transparent border-brand-teal/20">
+                <Card className="bg-gradient-to-br from-blue-50 to-indigo-50/50 border-blue-200">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Mail className="h-5 w-5 text-brand-teal" />
+                      <Mail className="h-5 w-5 text-blue-600" />
                       Email Sender Configuration
                     </CardTitle>
                     <CardDescription>
