@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { MembersService } from "@/lib/database/members";
 import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
+import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
+import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 import type { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
 
 interface ImportChild {
@@ -58,6 +60,12 @@ export async function POST(request: Request) {
     // Pre-fetch all plans to avoid repeated lookups
     const plans = await PlansService.getAll(organizationId);
     const planMap = new Map(plans.map(p => [p.type, p]));
+
+    // Get organization timezone for billing anniversary day calculation
+    const org = await OrganizationsService.getById(organizationId);
+    const orgTimezone = org?.timezone || "America/Los_Angeles";
+    const todayInOrgTz = getTodayInOrgTimezone(orgTimezone); // Returns "YYYY-MM-DD"
+    const billingAnniversaryDay = parseInt(todayInOrgTz.split("-")[2], 10);
 
     // Get existing emails to check for duplicates
     const existingMembers = await MembersService.getAllWithMembership(organizationId);
@@ -120,9 +128,6 @@ export async function POST(request: Request) {
         });
 
         // Create the membership with status "pending"
-        const today = new Date();
-        const billingAnniversaryDay = today.getDate();
-
         await MembershipsService.create({
           organizationId,
           memberId: createdMember.id,

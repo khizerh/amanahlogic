@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { MembersService } from "@/lib/database/members";
 import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
+import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
+import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 import type { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
 
 /**
@@ -120,9 +122,11 @@ export async function POST(request: Request) {
     });
 
     // Create the membership with status "pending"
-    // Use today's date as billing anniversary day
-    const today = new Date();
-    const billingAnniversaryDay = today.getDate();
+    // Use today's date in the organization's timezone as billing anniversary day
+    const org = await OrganizationsService.getById(organizationId);
+    const orgTimezone = org?.timezone || "America/Los_Angeles";
+    const todayInOrgTz = getTodayInOrgTimezone(orgTimezone); // Returns "YYYY-MM-DD"
+    const billingAnniversaryDay = parseInt(todayInOrgTz.split("-")[2], 10);
 
     const membership = await MembershipsService.create({
       organizationId,
