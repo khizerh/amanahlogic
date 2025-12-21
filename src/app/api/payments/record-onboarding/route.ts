@@ -212,6 +212,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update onboarding invite based on what was paid
+    let inviteUpdateError: string | null = null;
     try {
       if (paymentOption === "both") {
         await OnboardingInvitesService.recordFullPayment(inviteId, supabase);
@@ -222,12 +223,15 @@ export async function POST(request: NextRequest) {
       }
     } catch (inviteError) {
       console.error("Failed to update onboarding invite:", inviteError);
+      inviteUpdateError = inviteError instanceof Error ? inviteError.message : "Unknown error";
       // Don't fail the request - payments were recorded
     }
 
     return NextResponse.json({
       success: true,
       ...results,
+      inviteUpdated: !inviteUpdateError,
+      inviteUpdateError,
     });
   } catch (error) {
     console.error("Error recording onboarding payment:", error);

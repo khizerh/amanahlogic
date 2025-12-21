@@ -136,7 +136,17 @@ export function RecordOnboardingPaymentDialog({
       }
 
       const amount = getAmountForOption(paymentOption);
-      toast.success(`Payment of ${formatCurrency(amount)} recorded for ${invite.member.firstName} ${invite.member.lastName}`);
+
+      // Check if invite update failed
+      if (result.inviteUpdateError) {
+        console.error("Invite update error:", result.inviteUpdateError);
+        toast.warning(`Payment recorded, but onboarding status update failed: ${result.inviteUpdateError}`, {
+          duration: 10000,
+        });
+      } else {
+        toast.success(`Payment of ${formatCurrency(amount)} recorded for ${invite.member.firstName} ${invite.member.lastName}`);
+      }
+
       onOpenChange(false);
       onPaymentRecorded?.();
     } catch (error) {
