@@ -913,6 +913,7 @@ export async function settlePayment(
           organization_id,
           status,
           billing_frequency,
+          billing_anniversary_day,
           paid_months,
           next_payment_due,
           last_payment_date,
@@ -1011,13 +1012,29 @@ export async function settlePayment(
     const monthsCredited = payment.months_credited || 0;
     const newPaidMonths = (membership.paid_months || 0) + monthsCredited;
 
-    // Calculate next billing date from current next_payment_due (or today if null)
-    // Advance by the actual months credited to keep schedule aligned for bulk/back-due payments
+    // Calculate next billing date from current next_payment_due
+    // If null (first payment), anchor to billing_anniversary_day to keep payments aligned
     let nextBillingDateStr: string | null = membership.next_payment_due;
     if (monthsCredited > 0) {
-      const currentDueDate = membership.next_payment_due
-        ? parseDateInOrgTimezone(membership.next_payment_due, orgTimezone)
-        : parseDateInOrgTimezone(today, orgTimezone);
+      let currentDueDate: Date;
+
+      if (membership.next_payment_due) {
+        // Use existing next_payment_due as base
+        currentDueDate = parseDateInOrgTimezone(membership.next_payment_due, orgTimezone);
+      } else {
+        // First payment: anchor to billing_anniversary_day
+        // This ensures all future payments fall on the same day of month
+        const todayDate = parseDateInOrgTimezone(today, orgTimezone);
+        const billingDay = membership.billing_anniversary_day || todayDate.getDate();
+
+        // Start with billing day in current month
+        currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), billingDay);
+
+        // If billing day has already passed this month, use next month
+        if (currentDueDate <= todayDate) {
+          currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, billingDay);
+        }
+      }
 
       const advancedDate = addMonthsPreserveDay(currentDueDate, monthsCredited);
       nextBillingDateStr = advancedDate.toISOString().split("T")[0];
