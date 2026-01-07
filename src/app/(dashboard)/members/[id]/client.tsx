@@ -144,6 +144,9 @@ export function MemberDetailClient({
   // State for pausing/resuming subscription
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 
+  // State for sending portal invite
+  const [isSendingPortalInvite, setIsSendingPortalInvite] = useState(false);
+
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<{
@@ -269,6 +272,43 @@ export function MemberDetailClient({
       setIsSendingPortalLink(false);
     }
   }, [membership, memberData.id, router]);
+
+  // Send portal invite to member
+  const handleSendPortalInvite = useCallback(async () => {
+    setIsSendingPortalInvite(true);
+    try {
+      const response = await fetch("/api/members/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: memberData.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send invite");
+      }
+
+      toast.success("Portal invite created!", {
+        description: "Copy the invite link to share with the member.",
+        action: {
+          label: "Copy Link",
+          onClick: () => {
+            navigator.clipboard.writeText(result.inviteUrl);
+            toast.info("Invite link copied to clipboard");
+          },
+        },
+      });
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send invite");
+    } finally {
+      setIsSendingPortalInvite(false);
+    }
+  }, [memberData.id, router]);
 
   // Switch from Stripe recurring payments to manual payments
   const handleSwitchToManual = useCallback(async () => {
@@ -1077,6 +1117,24 @@ export function MemberDetailClient({
                   >
                     <Calendar className="h-4 w-4 mr-2" />
                     Change Frequency
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendPortalInvite}
+                    disabled={isSendingPortalInvite}
+                  >
+                    {isSendingPortalInvite ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Invite to Portal
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>
