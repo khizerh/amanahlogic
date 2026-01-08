@@ -43,7 +43,7 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.26",
     "libphonenumber-js": "^1.11.0",
-    "lucide-react": "^0.561.0",
+    "lucide-react": "^0.562.0",
     "next": "^16.0.10",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
