@@ -24,7 +24,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Menu, ChevronDown, User } from "lucide-react";
+import { Menu, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -144,7 +144,6 @@ export function MemberNavigation() {
                         size="sm"
                         className="text-white/80 hover:text-white hover:bg-white/10"
                       >
-                        <User className="h-4 w-4 mr-2" />
                         <span>{userDisplay || "Account"}</span>
                         <ChevronDown className="ml-1 h-4 w-4" />
                       </Button>

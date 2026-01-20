@@ -128,32 +128,20 @@ export async function getStripePortalUrl(): Promise<{
       return { success: false, error: "Not authenticated" };
     }
 
-    const customerId = await MemberPortalService.getStripeCustomerId(
-      context.memberId,
-      context.organizationId
-    );
-
-    if (!customerId) {
-      return { success: false, error: "No payment method on file" };
-    }
-
-    // Call existing Stripe portal endpoint
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/portal`, {
+    // Call member-facing Stripe portal endpoint
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/portal/stripe-portal`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        customerId,
-        returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/portal`,
-      }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      return { success: false, error: "Failed to create portal session" };
+      return { success: false, error: data.error || "Failed to create portal session" };
     }
 
-    const data = await response.json();
     return { success: true, url: data.url };
   } catch (error) {
     console.error("Error getting Stripe portal:", error);

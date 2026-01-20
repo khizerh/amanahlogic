@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, User, Home, Phone, Mail, Users, AlertCircle, Globe } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { StripePortalButton } from "./StripePortalButton";
+import { EditableProfile } from "./EditableProfile";
 
 export default async function MemberProfilePage() {
   const headersList = await headers();
@@ -46,6 +46,7 @@ export default async function MemberProfilePage() {
   }
 
   const { member, membership, plan, organization } = portalData;
+  const hasPaymentMethod = membership?.autoPayEnabled && membership?.paymentMethod;
 
   return (
     <div className="space-y-6">
@@ -57,108 +58,15 @@ export default async function MemberProfilePage() {
         </p>
       </div>
 
-      {/* Personal Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Personal Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Full Name</p>
-              <p className="font-medium">{member.firstName} {member.lastName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Mail className="w-3 h-3" /> Email
-              </p>
-              <p className="font-medium">{member.email}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Phone className="w-3 h-3" /> Phone
-              </p>
-              <p className="font-medium">{member.phone || "Not provided"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Globe className="w-3 h-3" /> Preferred Language
-              </p>
-              <p className="font-medium">{member.preferredLanguage === "fa" ? "Farsi" : "English"}</p>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <p className="text-sm text-muted-foreground flex items-center gap-1 mb-1">
-              <Home className="w-3 h-3" /> Address
-            </p>
-            <p className="font-medium">
-              {member.address.street}<br />
-              {member.address.city}, {member.address.state} {member.address.zip}
-            </p>
-          </div>
-
-          {member.spouseName && (
-            <>
-              <Separator />
-              <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Users className="w-3 h-3" /> Spouse
-                </p>
-                <p className="font-medium">{member.spouseName}</p>
-              </div>
-            </>
-          )}
-
-          {member.children && member.children.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Children</p>
-                <div className="space-y-1">
-                  {member.children.map((child) => (
-                    <p key={child.id} className="font-medium">{child.name}</p>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Emergency Contact */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            Emergency Contact
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Name</p>
-              <p className="font-medium">{member.emergencyContact.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Phone</p>
-              <p className="font-medium">{member.emergencyContact.phone}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Editable Personal Info & Emergency Contact */}
+      <EditableProfile member={member} />
 
       {/* Membership Details */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Membership Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Plan</p>
@@ -189,37 +97,59 @@ export default async function MemberProfilePage() {
               <p className="font-medium">{membership?.paidMonths || 0} months</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {membership?.autoPayEnabled && membership?.paymentMethod && (
-            <>
-              <Separator />
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Payment Method on File</p>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="capitalize">
-                    {membership.paymentMethod.brand || membership.paymentMethod.type}
-                  </Badge>
-                  <span className="text-sm">ending in {membership.paymentMethod.last4}</span>
-                  {membership.paymentMethod.expiryMonth && membership.paymentMethod.expiryYear && (
-                    <span className="text-sm text-muted-foreground">
-                      (expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear})
+      {/* Payment Settings - Always show if membership exists */}
+      {membership && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Payment Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hasPaymentMethod && membership.paymentMethod ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Payment Method</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="capitalize">
+                      {membership.paymentMethod.brand || membership.paymentMethod.type}
+                    </Badge>
+                    <span className="text-sm font-medium">
+                      ending in {membership.paymentMethod.last4}
                     </span>
-                  )}
+                    {membership.paymentMethod.expiryMonth && membership.paymentMethod.expiryYear && (
+                      <span className="text-sm text-muted-foreground">
+                        (expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear})
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-3">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Auto-Pay</p>
+                  <Badge className="bg-green-100 text-green-800">Enabled</Badge>
+                </div>
+                <div className="pt-2">
                   <StripePortalButton />
                 </div>
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                <p>No automatic payment method on file.</p>
+                <p className="mt-2">
+                  Contact {organization.name} to set up automatic payments.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contact for Changes */}
       <Card className="bg-muted/50">
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
-            Need to update your information? Contact {organization.name} at{" "}
+            Need to change your name or email? Contact {organization.name} at{" "}
             <a href={`mailto:${organization.email}`} className="text-brand-teal hover:underline">
               {organization.email}
             </a>{" "}
