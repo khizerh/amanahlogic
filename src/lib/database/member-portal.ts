@@ -269,6 +269,41 @@ export class MemberPortalService {
     if (error || !data) return null;
     return data.stripe_customer_id;
   }
+
+  /**
+   * Get member's signed agreement
+   */
+  static async getAgreement(
+    memberId: string,
+    organizationId: string
+  ): Promise<{
+    id: string;
+    signedAt: string | null;
+    signedName: string | null;
+    pdfUrl: string | null;
+    templateVersion: string;
+  } | null> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("agreements")
+      .select("id, signed_at, signed_name, pdf_url, template_version")
+      .eq("member_id", memberId)
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      signedAt: data.signed_at,
+      signedName: data.signed_name,
+      pdfUrl: data.pdf_url,
+      templateVersion: data.template_version,
+    };
+  }
 }
 
 // =============================================================================

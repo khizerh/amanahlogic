@@ -60,6 +60,7 @@ export function MemberNavigation() {
   const navItems = [
     { href: "/portal", label: "Dashboard", exact: true },
     { href: "/portal/payments", label: "Payments" },
+    { href: "/portal/agreement", label: "Agreement" },
     { href: "/portal/profile", label: "Profile" },
   ];
 
