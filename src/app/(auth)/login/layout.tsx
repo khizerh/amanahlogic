@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Login | Member Portal",
+  title: "Login",
 };
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {

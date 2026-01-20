@@ -1,4 +1,9 @@
+import { Metadata } from "next";
 import { OrganizationsService } from "@/lib/database/organizations";
+
+export const metadata: Metadata = {
+  title: "Settings",
+};
 import { SettingsPageClient } from "./client";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { AgreementTemplatesService } from "@/lib/database/agreement-templates";

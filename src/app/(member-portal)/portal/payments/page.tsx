@@ -1,4 +1,9 @@
+import { Metadata } from "next";
 import { headers } from "next/headers";
+
+export const metadata: Metadata = {
+  title: "Payments | Member Portal",
+};
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";

@@ -1,4 +1,9 @@
+import { Metadata } from "next";
 import { PaymentsService, type OutstandingPaymentInfo } from "@/lib/database/payments";
+
+export const metadata: Metadata = {
+  title: "Payments",
+};
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { PaymentsPageClient } from "./client";
 import { getOrgContext } from "@/lib/auth/get-organization-id";

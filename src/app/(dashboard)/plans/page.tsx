@@ -1,4 +1,9 @@
+import { Metadata } from "next";
 import { PlansService } from "@/lib/database/plans";
+
+export const metadata: Metadata = {
+  title: "Plans",
+};
 import { PlansPageClient } from "./client";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 

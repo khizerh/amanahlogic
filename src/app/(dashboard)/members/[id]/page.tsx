@@ -1,4 +1,9 @@
+import { Metadata } from "next";
 import { MembersService } from "@/lib/database/members";
+
+export const metadata: Metadata = {
+  title: "Member Details",
+};
 import { PaymentsService } from "@/lib/database/payments";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { MemberDetailClient } from "./client";
