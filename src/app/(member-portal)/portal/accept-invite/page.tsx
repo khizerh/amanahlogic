@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function AcceptInvitePage() {
   const router = useRouter();
@@ -61,16 +62,15 @@ export default function AcceptInvitePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       setSubmitting(false);
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      toast.error("Password must be at least 8 characters");
       setSubmitting(false);
       return;
     }
@@ -91,12 +91,12 @@ export default function AcceptInvitePage() {
           });
 
           if (signInError) {
-            setError("Account exists. Please use the login page.");
+            toast.error("Account exists. Please use the login page.");
             setSubmitting(false);
             return;
           }
         } else {
-          setError(authError.message);
+          toast.error(authError.message);
           setSubmitting(false);
           return;
         }
@@ -113,7 +113,7 @@ export default function AcceptInvitePage() {
 
         if (!response.ok) {
           const data = await response.json();
-          setError(data.error || "Failed to link account");
+          toast.error(data.error || "Failed to link account");
           setSubmitting(false);
           return;
         }
@@ -126,141 +126,127 @@ export default function AcceptInvitePage() {
         router.push("/portal");
       }, 2000);
     } catch {
-      setError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
       setSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
+      <div className="flex min-h-svh flex-col items-center justify-center bg-white">
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }
 
   if (error && !inviteData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-            <div className="mt-4 text-center">
-              <a href="/portal/login" className="text-sm text-brand-teal hover:underline">
-                Go to Login
-              </a>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 bg-white">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <AlertCircle className="h-12 w-12 text-red-600 mx-auto" />
+          <h1 className="text-2xl font-semibold text-red-800">Invalid Invite</h1>
+          <p className="text-muted-foreground">{error}</p>
+          <Link
+            href="/portal/login"
+            className="inline-block text-brand-teal hover:underline"
+          >
+            Go to Login
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-green-800">Account Created!</h2>
-            <p className="text-muted-foreground mt-2">
-              Redirecting to your portal...
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 bg-white">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto" />
+          <h1 className="text-2xl font-semibold">Account Created!</h1>
+          <p className="text-muted-foreground">
+            Redirecting to your portal...
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logos/logo.svg"
-            alt="Logo"
-            className="h-12 mx-auto mb-4"
-          />
-          <CardTitle className="text-2xl">Create Your Account</CardTitle>
-          <CardDescription>
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 bg-white">
+      <div className="w-full max-w-md space-y-8">
+        {/* Header */}
+        <div className="space-y-4 text-center">
+          <div className="mx-auto flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logos/logo-text.svg"
+              alt="Amanah Logic"
+              className="h-10"
+            />
+          </div>
+          <h1 className="text-2xl font-semibold">Create Your Account</h1>
+          <p className="text-muted-foreground">
             Welcome, {inviteData?.memberName}! Create a password to access your member portal at {inviteData?.orgName}.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={inviteData?.email || ""}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Create Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="At least 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={submitting}
-                minLength={8}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={submitting}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                "Create Account"
-              )}
-            </Button>
-          </form>
-
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Already have an account?{" "}
-            <a href="/portal/login" className="text-brand-teal hover:underline">
-              Sign in
-            </a>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={inviteData?.email || ""}
+              disabled
+              className="bg-muted"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Create Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="At least 8 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={submitting}
+              minLength={8}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              disabled={submitting}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-brand-teal hover:bg-brand-teal-hover"
+            disabled={submitting}
+          >
+            {submitting && <Spinner className="mr-2" />}
+            {submitting ? "Creating Account..." : "Create Account"}
+          </Button>
+        </form>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link href="/portal/login" className="text-brand-teal hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,137 +1,123 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Spinner } from "@/components/ui/spinner";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { toast } from "sonner";
+import { CheckCircle2, ArrowLeft } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    setIsLoading(true);
 
-    try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/portal/reset-password`,
-      });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/portal/reset-password`,
+    });
 
-      if (resetError) {
-        setError(resetError.message);
-        return;
-      }
-
-      setSuccess(true);
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
+    if (error) {
+      toast.error(error.message);
+      setIsLoading(false);
+      return;
     }
+
+    setSuccess(true);
+    setIsLoading(false);
   };
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900">Check Your Email</h2>
-            <p className="text-muted-foreground mt-2">
-              We sent a password reset link to <strong>{email}</strong>
-            </p>
-            <p className="text-sm text-muted-foreground mt-4">
-              Didn&apos;t receive the email? Check your spam folder or{" "}
-              <button
-                onClick={() => setSuccess(false)}
-                className="text-brand-teal hover:underline"
-              >
-                try again
-              </button>
-            </p>
-            <Link
-              href="/portal/login"
-              className="inline-flex items-center text-sm text-brand-teal hover:underline mt-6"
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 bg-white">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto" />
+          <h1 className="text-2xl font-semibold">Check Your Email</h1>
+          <p className="text-muted-foreground">
+            We sent a password reset link to <strong>{email}</strong>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Didn&apos;t receive the email? Check your spam folder or{" "}
+            <button
+              onClick={() => setSuccess(false)}
+              className="text-brand-teal hover:underline"
             >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to login
-            </Link>
-          </CardContent>
-        </Card>
+              try again
+            </button>
+          </p>
+          <Link
+            href="/portal/login"
+            className="inline-flex items-center text-sm text-brand-teal hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to login
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logos/logo.svg"
-            alt="Logo"
-            className="h-12 mx-auto mb-4"
-          />
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
-          <CardDescription>
-            Enter your email and we&apos;ll send you a reset link
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                "Send Reset Link"
-              )}
-            </Button>
-          </form>
-
-          <div className="text-center mt-6">
-            <Link
-              href="/portal/login"
-              className="inline-flex items-center text-sm text-brand-teal hover:underline"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to login
-            </Link>
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10 bg-white">
+      <div className="w-full max-w-md space-y-8">
+        {/* Header */}
+        <div className="space-y-4 text-center">
+          <div className="mx-auto flex justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logos/logo-text.svg"
+              alt="Amanah Logic"
+              className="h-10"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <h1 className="text-2xl font-semibold">Reset Password</h1>
+          <p className="text-muted-foreground">
+            Enter your email and we&apos;ll send you a reset link
+          </p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isLoading}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-brand-teal hover:bg-brand-teal-hover"
+            disabled={isLoading}
+          >
+            {isLoading && <Spinner className="mr-2" />}
+            {isLoading ? "Sending..." : "Send Reset Link"}
+          </Button>
+        </form>
+
+        <div className="text-center">
+          <Link
+            href="/portal/login"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to login
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
