@@ -52,6 +52,7 @@ type InvoiceWithSubscription = Stripe.Invoice & {
  * - checkout.session.completed: Save subscription ID to membership
  * - customer.subscription.updated: Sync subscription status
  * - customer.subscription.deleted: Handle cancellation
+ * - invoice.created: Set application_fee_amount for Connect fee splitting
  * - invoice.paid: Create payment record and settle via engine
  * - payment_intent.succeeded/failed: Handle one-off charges
  */
@@ -121,6 +122,12 @@ export async function POST(req: Request) {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         await handleSubscriptionDeleted(subscription, supabase);
+        break;
+      }
+
+      case "invoice.created": {
+        const invoice = event.data.object as InvoiceWithSubscription;
+        await handleInvoiceCreated(invoice, supabase);
         break;
       }
 
@@ -365,6 +372,102 @@ async function handleSubscriptionDeleted(
   }
 
   console.log(`[Webhook] Membership ${metadata.membership_id} subscription cleared and marked as canceled`);
+}
+
+/**
+ * Handle invoice.created
+ * Sets application_fee_amount on subscription invoices for Connect accounts.
+ * This ensures the platform keeps its fee when money is transferred to the org.
+ *
+ * Stripe fires this when a draft invoice is created for a subscription.
+ * We update the invoice before it's finalized and charged.
+ */
+async function handleInvoiceCreated(
+  invoice: InvoiceWithSubscription,
+  supabase: ReturnType<typeof createServiceRoleClient>
+) {
+  if (!stripe) return;
+
+  // Only process subscription invoices
+  if (!invoice.subscription) {
+    console.log("[Webhook] invoice.created - not a subscription invoice, skipping");
+    return;
+  }
+
+  // Skip if invoice already has an application fee set
+  if ((invoice as any).application_fee_amount) {
+    console.log("[Webhook] invoice.created - application_fee_amount already set, skipping");
+    return;
+  }
+
+  const subscriptionId = typeof invoice.subscription === "string"
+    ? invoice.subscription
+    : invoice.subscription.id;
+
+  // Look up membership by subscription ID
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("id, organization_id")
+    .eq("stripe_subscription_id", subscriptionId)
+    .single();
+
+  if (!membership) {
+    console.log(`[Webhook] invoice.created - no membership found for subscription ${subscriptionId}`);
+    return;
+  }
+
+  // Get org's Connect and fee settings
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("stripe_connect_id, stripe_onboarded, platform_fee, pass_fees_to_member")
+    .eq("id", membership.organization_id)
+    .single();
+
+  if (!org?.stripe_connect_id || !org.stripe_onboarded) {
+    // No Connect account — nothing to split, platform holds all funds
+    console.log("[Webhook] invoice.created - org has no Connect account, skipping fee split");
+    return;
+  }
+
+  // Calculate fees based on the invoice amount
+  const invoiceAmountCents = invoice.amount_due || 0;
+  if (invoiceAmountCents <= 0) {
+    console.log("[Webhook] invoice.created - $0 invoice, skipping");
+    return;
+  }
+
+  const platformFeeDollars = org.platform_fee || 0;
+  const passFeesToMember = org.pass_fees_to_member || false;
+
+  // Determine the base amount for fee calculation
+  let baseAmountCents: number;
+  if (passFeesToMember) {
+    // Invoice amount is grossed-up — reverse to get base
+    baseAmountCents = reverseCalculateBaseAmount(invoiceAmountCents, platformFeeDollars);
+  } else {
+    // Invoice amount IS the base amount
+    baseAmountCents = invoiceAmountCents;
+  }
+
+  const fees = calculateFees(baseAmountCents, platformFeeDollars, passFeesToMember);
+
+  console.log(`[Webhook] Setting application_fee_amount on invoice ${invoice.id}`, {
+    invoiceAmount: invoiceAmountCents,
+    applicationFee: fees.applicationFeeCents,
+    platformFee: fees.platformFeeCents,
+    stripeFee: fees.stripeFeeCents,
+    orgReceives: fees.netAmountCents,
+  });
+
+  try {
+    await stripe.invoices.update(invoice.id, {
+      application_fee_amount: fees.applicationFeeCents,
+    });
+    console.log(`[Webhook] application_fee_amount set to ${fees.applicationFeeCents} cents on invoice ${invoice.id}`);
+  } catch (err) {
+    // If the invoice is already finalized we can't update it — log but don't fail the webhook
+    console.error(`[Webhook] Failed to set application_fee_amount on invoice ${invoice.id}:`, err);
+  }
 }
 
 /**

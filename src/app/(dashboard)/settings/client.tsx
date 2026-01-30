@@ -775,62 +775,93 @@ export function SettingsPageClient({
                       </div>
 
                       {/* Example Calculation - Dynamic based on setting */}
-                      <div className="p-4 bg-muted/50 rounded-lg">
-                        <p className="text-sm font-medium mb-3">
-                          Example: $50 dues {organization.passFeesToMember && "(fees passed to member)"}
-                        </p>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Dues amount</span>
-                            <span>$50.00</span>
-                          </div>
-                          {organization.passFeesToMember ? (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">+ Processing fees</span>
-                                <span>+${(1.75 + organization.platformFee).toFixed(2)}</span>
+                      {(() => {
+                        const baseDues = 50;
+                        const baseCents = baseDues * 100;
+                        const platformFeeCents = Math.round(organization.platformFee * 100);
+                        const stripePercent = 0.029;
+                        const stripeFixed = 30; // cents
+
+                        if (organization.passFeesToMember) {
+                          // Gross-up: charge = (base + platformFee + stripeFixed) / (1 - stripePercent)
+                          const chargeCents = Math.ceil(
+                            (baseCents + platformFeeCents + stripeFixed) / (1 - stripePercent)
+                          );
+                          const stripeFeeCents = Math.round(chargeCents * stripePercent) + stripeFixed;
+                          const chargeAmount = chargeCents / 100;
+                          const stripeFee = stripeFeeCents / 100;
+                          const totalFees = stripeFee + organization.platformFee;
+
+                          return (
+                            <div className="p-4 bg-muted/50 rounded-lg">
+                              <p className="text-sm font-medium mb-3">
+                                Example: ${baseDues} dues (fees passed to member)
+                              </p>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Dues amount</span>
+                                  <span>${baseDues.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">+ Processing fees</span>
+                                  <span>+${totalFees.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between pt-2 border-t">
+                                  <span className="font-medium">Member pays</span>
+                                  <span className="font-medium">${chargeAmount.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>Stripe keeps</span>
+                                  <span>-${stripeFee.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>Platform keeps</span>
+                                  <span>-${organization.platformFee.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between pt-2 border-t font-medium">
+                                  <span>You receive</span>
+                                  <span className="text-green-600">${baseDues.toFixed(2)}</span>
+                                </div>
                               </div>
-                              <div className="flex justify-between pt-2 border-t">
-                                <span className="font-medium">Member pays</span>
-                                <span className="font-medium">${(50 + 1.75 + organization.platformFee + 0.08).toFixed(2)}</span>
+                            </div>
+                          );
+                        } else {
+                          // Standard: org absorbs fees
+                          const stripeFeeCents = Math.round(baseCents * stripePercent) + stripeFixed;
+                          const stripeFee = stripeFeeCents / 100;
+                          const netAmount = baseDues - stripeFee - organization.platformFee;
+
+                          return (
+                            <div className="p-4 bg-muted/50 rounded-lg">
+                              <p className="text-sm font-medium mb-3">
+                                Example: ${baseDues} dues
+                              </p>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Dues amount</span>
+                                  <span>${baseDues.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between pt-2 border-t">
+                                  <span className="font-medium">Member pays</span>
+                                  <span className="font-medium">${baseDues.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>Stripe fee (2.9% + $0.30)</span>
+                                  <span className="text-red-600">-${stripeFee.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-muted-foreground">
+                                  <span>Platform fee</span>
+                                  <span className="text-red-600">-${organization.platformFee.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between pt-2 border-t font-medium">
+                                  <span>You receive</span>
+                                  <span className="text-green-600">${netAmount.toFixed(2)}</span>
+                                </div>
                               </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Stripe keeps</span>
-                                <span>-$1.83</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Platform keeps</span>
-                                <span>-${organization.platformFee.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between pt-2 border-t font-medium">
-                                <span>You receive</span>
-                                <span className="text-green-600">$50.00</span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex justify-between pt-2 border-t">
-                                <span className="font-medium">Member pays</span>
-                                <span className="font-medium">$50.00</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Stripe fee (2.9% + $0.30)</span>
-                                <span className="text-red-600">-$1.75</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Platform fee</span>
-                                <span className="text-red-600">-${organization.platformFee.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between pt-2 border-t font-medium">
-                                <span>You receive</span>
-                                <span className="text-green-600">
-                                  ${(50 - 1.75 - organization.platformFee).toFixed(2)}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                            </div>
+                          );
+                        }
+                      })()}
 
                       <p className="text-xs text-muted-foreground">
                         {organization.passFeesToMember

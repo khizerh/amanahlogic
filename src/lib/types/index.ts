@@ -372,7 +372,8 @@ export type EmailTemplateType =
   | 'agreement_sent'
   | 'agreement_signed'
   | 'membership_cancelled'
-  | 'portal_link';
+  | 'portal_link'
+  | 'member_invite';
 
 export type EmailStatus = 'queued' | 'sent' | 'delivered' | 'failed' | 'bounced';
 

@@ -7,6 +7,7 @@ import {
 } from "@/lib/billing/invoice-generator";
 import { logger } from "@/lib/logger";
 import type { BillingFrequency } from "@/lib/types";
+import { sendPaymentFailedEmail } from "@/lib/email/send-payment-failed";
 
 interface HandlerContext {
   organization_id: string;
@@ -333,6 +334,39 @@ export async function handlePaymentIntentFailed(
     });
   }
 
-  // TODO: Send failure notification email
-  // await queueFailureEmail({ ... });
+  // Send failure notification email to the member
+  try {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("member_id")
+      .eq("id", metadata.membership_id)
+      .single();
+
+    if (membership) {
+      const { data: member } = await supabase
+        .from("members")
+        .select("id, email, first_name, last_name, preferred_language")
+        .eq("id", membership.member_id)
+        .single();
+
+      if (member?.email) {
+        const amount = paymentIntent.amount ? (paymentIntent.amount / 100).toFixed(2) : "0.00";
+        await sendPaymentFailedEmail({
+          to: member.email,
+          memberName: `${member.first_name} ${member.last_name}`,
+          memberId: member.id,
+          organizationId: ctx.organization_id,
+          amount,
+          failureReason: errorMessage,
+          language: (member.preferred_language as "en" | "fa") || "en",
+        });
+      }
+    }
+  } catch (emailErr) {
+    // Don't fail the webhook handler if email sending fails
+    logger.error("Failed to send payment failure email", {
+      paymentIntentId: paymentIntent.id,
+      error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+    });
+  }
 }

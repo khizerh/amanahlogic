@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
+import { sendMemberInviteEmail } from "@/lib/email/send-member-invite";
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,14 +54,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
     }
 
-    // TODO: Send email with invite link
-    // For now, return the invite URL
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/accept-invite?token=${invite.token}`;
+
+    // Send invite email to the member
+    const emailResult = await sendMemberInviteEmail({
+      to: member.email,
+      memberName: `${member.first_name} ${member.last_name}`,
+      memberId: member.id,
+      organizationId,
+      inviteUrl,
+      expiresAt: invite.expires_at,
+      language: "en",
+    });
+
+    if (!emailResult.success) {
+      console.error("Failed to send invite email:", emailResult.error);
+    }
 
     return NextResponse.json({
       success: true,
       inviteUrl,
-      message: `Invite created for ${member.first_name} ${member.last_name}`,
+      emailSent: emailResult.success,
+      message: emailResult.success
+        ? `Invite sent to ${member.email}`
+        : `Invite created for ${member.first_name} ${member.last_name} (email delivery failed)`,
     });
   } catch (error) {
     console.error("Error sending invite:", error);

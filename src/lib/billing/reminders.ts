@@ -11,6 +11,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import { loadBillingConfig } from "./config";
+import { sendPaymentReminderEmail } from "@/lib/email/send-payment-reminder";
 
 /**
  * Calculate days between two YYYY-MM-DD date strings
@@ -241,16 +242,46 @@ export async function processOrganizationReminders(
         // Calculate days overdue (using noon-anchored calculation)
         const daysOverdue = calculateDaysBetweenDates(payment.due_date, today);
 
-        // TODO: Queue the reminder email (for now, just log)
-        logger.info("Would queue payment reminder email", {
-          paymentId: payment.id,
-          membershipId: payment.membership_id,
-          invoiceNumber: payment.invoice_number,
-          amount: payment.amount,
-          dueDate: payment.due_date,
-          daysOverdue,
-          reminderCount: newReminderCount,
-        });
+        // Send the reminder email
+        try {
+          const { data: member } = await supabase
+            .from("members")
+            .select("id, email, first_name, last_name, preferred_language")
+            .eq("id", payment.member_id)
+            .single();
+
+          if (member?.email) {
+            const emailResult = await sendPaymentReminderEmail({
+              to: member.email,
+              memberName: `${member.first_name} ${member.last_name}`,
+              memberId: member.id,
+              organizationId,
+              amount: payment.amount.toFixed(2),
+              dueDate: payment.due_date,
+              daysOverdue,
+              reminderNumber: newReminderCount,
+              invoiceNumber: payment.invoice_number || "N/A",
+              language: (member.preferred_language as "en" | "fa") || "en",
+            });
+
+            if (!emailResult.success) {
+              logger.warn("Failed to send reminder email", {
+                paymentId: payment.id,
+                error: emailResult.error,
+              });
+            }
+          } else {
+            logger.warn("No email address for member, skipping reminder email", {
+              paymentId: payment.id,
+              memberId: payment.member_id,
+            });
+          }
+        } catch (emailErr) {
+          logger.error("Error sending reminder email", {
+            paymentId: payment.id,
+            error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+          });
+        }
 
         // Update payment with new reminder count
         const updateData: Record<string, unknown> = {
@@ -354,16 +385,46 @@ export async function sendPaymentReminder(
     const daysOverdue = calculateDaysBetweenDates(payment.due_date, today);
     const newReminderCount = (payment.reminder_count || 0) + 1;
 
-    // TODO: Queue the reminder email (for now, just log)
-    logger.info("Would queue manual payment reminder email", {
-      paymentId: payment.id,
-      membershipId: payment.membership_id,
-      invoiceNumber: payment.invoice_number,
-      amount: payment.amount,
-      dueDate: payment.due_date,
-      daysOverdue: Math.max(daysOverdue, 0),
-      reminderCount: Math.min(newReminderCount, billingConfig.maxReminders),
-    });
+    // Send the reminder email
+    try {
+      const { data: member } = await supabase
+        .from("members")
+        .select("id, email, first_name, last_name, preferred_language")
+        .eq("id", payment.member_id)
+        .single();
+
+      if (member?.email) {
+        const emailResult = await sendPaymentReminderEmail({
+          to: member.email,
+          memberName: `${member.first_name} ${member.last_name}`,
+          memberId: member.id,
+          organizationId: payment.organization_id,
+          amount: payment.amount.toFixed(2),
+          dueDate: payment.due_date,
+          daysOverdue: Math.max(daysOverdue, 0),
+          reminderNumber: Math.min(newReminderCount, billingConfig.maxReminders),
+          invoiceNumber: payment.invoice_number || "N/A",
+          language: (member.preferred_language as "en" | "fa") || "en",
+        });
+
+        if (!emailResult.success) {
+          logger.warn("Failed to send manual reminder email", {
+            paymentId: payment.id,
+            error: emailResult.error,
+          });
+        }
+      } else {
+        logger.warn("No email address for member, skipping reminder email", {
+          paymentId: payment.id,
+          memberId: payment.member_id,
+        });
+      }
+    } catch (emailErr) {
+      logger.error("Error sending manual reminder email", {
+        paymentId: payment.id,
+        error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+      });
+    }
 
     // Update payment
     const updateData: Record<string, unknown> = {
