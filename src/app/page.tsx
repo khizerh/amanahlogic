@@ -169,7 +169,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 bg-gray-100/80">
+      <section id="features" className="py-24 bg-gray-900">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -178,10 +178,10 @@ export default function LandingPage() {
             variants={fadeIn}
             className="text-center mb-16"
           >
-            <p className="text-sm font-semibold uppercase tracking-widest text-[#8F4D05] mb-3">
+            <p className="text-sm font-semibold uppercase tracking-widest text-[#F8CC58] mb-3">
               Everything You Need
             </p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
               Built for community organizations
             </h2>
           </motion.div>
@@ -218,14 +218,14 @@ export default function LandingPage() {
               <motion.div
                 key={feature.title}
                 variants={staggerItem}
-                whileHover={{ y: -4, borderColor: "rgba(248, 204, 88, 0.5)" }}
-                className="rounded-2xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg hover:shadow-amber-100/50"
+                whileHover={{ y: -4, borderColor: "rgba(248, 204, 88, 0.3)" }}
+                className="rounded-2xl border border-gray-700/50 bg-gray-800/50 p-6 transition-shadow hover:shadow-lg hover:shadow-[#F8CC58]/10"
               >
                 <div className="h-12 w-12 rounded-xl bg-[#F8CC58]/15 flex items-center justify-center mb-4">
-                  <feature.icon className="h-5 w-5 text-[#8F4D05]" />
+                  <feature.icon className="h-5 w-5 text-[#F8CC58]" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="font-semibold text-white mb-2">{feature.title}</h3>
+                <p className="text-sm text-gray-400 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -233,7 +233,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-gray-900">
+      <section className="py-24 bg-gray-50">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial="hidden"
@@ -241,19 +241,19 @@ export default function LandingPage() {
             viewport={{ once: true }}
             variants={fadeIn}
           >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-6">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 mb-6">
               Ready to get started?
             </h2>
-            <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-4 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto">
               Simplify how your organization manages memberships, payments, and burial plots.
             </p>
-            <p className="text-sm text-gray-500 mb-10">
+            <p className="text-sm text-gray-400 mb-10">
               Secure. Simple. Purpose-built for your community.
             </p>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#111827] bg-white hover:bg-gray-100 rounded-xl px-8 py-3.5 transition-colors shadow-lg"
+                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-xl px-8 py-3.5 transition-colors shadow-lg shadow-gray-900/20"
               >
                 Get In Touch
                 <ArrowRight className="h-4 w-4" />
