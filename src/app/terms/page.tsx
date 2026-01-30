@@ -27,7 +27,7 @@ export default function TermsOfServicePage() {
             <Link href="/portal/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
               Member Login
             </Link>
-            <Link href="/login" className="text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-4 py-2 transition-colors">
+            <Link href="/login" className="text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-lg px-4 py-2 transition-colors">
               Admin Login
             </Link>
           </div>
@@ -116,7 +116,7 @@ export default function TermsOfServicePage() {
               <li><strong>Data Deletion:</strong> Request deletion at any time, subject to legal requirements.</li>
             </ul>
             <p className="text-gray-600">
-              See our <Link href="/privacy" className="text-[#0638A8] hover:underline">Privacy Policy</Link> for more.
+              See our <Link href="/privacy" className="text-[#111827] hover:underline">Privacy Policy</Link> for more.
             </p>
           </section>
 

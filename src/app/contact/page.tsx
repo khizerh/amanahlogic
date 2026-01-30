@@ -62,7 +62,7 @@ export default function ContactPage() {
             <Link href="/portal/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
               Member Login
             </Link>
-            <Link href="/login" className="text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-4 py-2 transition-colors">
+            <Link href="/login" className="text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-lg px-4 py-2 transition-colors">
               Admin Login
             </Link>
           </div>
@@ -103,9 +103,9 @@ export default function ContactPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className="rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 p-8 text-center"
+                className="rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 p-8 text-center"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#0638A8] text-white mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#111827] text-white mb-6">
                   <CheckCircle className="h-8 w-8" />
                 </div>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -132,7 +132,7 @@ export default function ContactPage() {
                     type="text"
                     required
                     placeholder="Your name"
-                    className="h-12 rounded-lg border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 focus:border-[#0638A8] focus:ring-[#0638A8]"
+                    className="h-12 rounded-lg border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 focus:border-[#111827] focus:ring-[#111827]"
                   />
                 </motion.div>
 
@@ -145,7 +145,7 @@ export default function ContactPage() {
                     type="email"
                     required
                     placeholder="you@example.com"
-                    className="h-12 rounded-lg border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 focus:border-[#0638A8] focus:ring-[#0638A8]"
+                    className="h-12 rounded-lg border-gray-300 bg-white px-4 text-gray-900 placeholder:text-gray-400 focus:border-[#111827] focus:ring-[#111827]"
                   />
                 </motion.div>
 
@@ -158,7 +158,7 @@ export default function ContactPage() {
                     required
                     placeholder="How can we help you?"
                     rows={5}
-                    className="rounded-lg border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:border-[#0638A8] focus:ring-[#0638A8] resize-none"
+                    className="rounded-lg border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:border-[#111827] focus:ring-[#111827] resize-none"
                   />
                 </motion.div>
 
@@ -167,7 +167,7 @@ export default function ContactPage() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-12 bg-[#0638A8] hover:bg-[#021786] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-12 bg-[#111827] hover:bg-[#1f2937] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <span className="flex items-center justify-center gap-2">

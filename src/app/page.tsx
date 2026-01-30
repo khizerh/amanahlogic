@@ -55,7 +55,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/login"
-              className="text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-4 py-2 transition-colors"
+              className="text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-lg px-4 py-2 transition-colors"
             >
               Admin Login
             </Link>
@@ -66,16 +66,16 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
         {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-blue-50/80 via-white to-white" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] opacity-30">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-50 via-white to-white" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] opacity-20">
           <motion.div
             animate={{ scale: [1, 1.1, 1], x: [0, 30, 0], y: [0, -20, 0] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full blur-3xl"
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" as const }}
+            className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full blur-3xl"
           />
           <motion.div
             animate={{ scale: [1, 1.15, 1], x: [0, -20, 0], y: [0, 30, 0] }}
-            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" as const }}
             className="absolute top-40 right-10 w-64 h-64 bg-amber-100 rounded-full blur-3xl"
           />
         </div>
@@ -87,8 +87,8 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-[#0638A8] mb-8">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#0638A8]" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 mb-8">
+              <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />
               Membership Management Platform
             </span>
           </motion.div>
@@ -100,7 +100,7 @@ export default function LandingPage() {
             className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-gray-900 mb-6"
           >
             <span className="block">Community Burial Benefits,</span>
-            <span className="block bg-gradient-to-r from-[#0A68DB] to-[#0638A8] bg-clip-text text-transparent">
+            <span className="block text-gray-900">
               Managed Simply
             </span>
           </motion.h1>
@@ -125,7 +125,7 @@ export default function LandingPage() {
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/portal/login"
-                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-6 py-3 transition-colors shadow-lg shadow-blue-500/20"
+                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-lg px-6 py-3 transition-colors shadow-lg shadow-gray-900/20"
               >
                 Member Portal
                 <ArrowRight className="h-4 w-4" />
@@ -134,7 +134,7 @@ export default function LandingPage() {
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#0638A8] border border-[#0638A8] hover:bg-[#0638A8] hover:text-white rounded-lg px-6 py-3 transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#111827] border border-[#111827] hover:bg-[#111827] hover:text-white rounded-lg px-6 py-3 transition-colors"
               >
                 Admin Dashboard
               </Link>
@@ -168,7 +168,7 @@ export default function LandingPage() {
             variants={fadeIn}
             className="text-center mb-16"
           >
-            <p className="text-sm font-semibold uppercase tracking-widest text-[#0638A8] mb-3">
+            <p className="text-sm font-semibold uppercase tracking-widest text-[#111827] mb-3">
               Everything You Need
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
@@ -211,8 +211,8 @@ export default function LandingPage() {
                 whileHover={{ y: -4, borderColor: "rgba(6, 56, 168, 0.3)" }}
                 className="rounded-2xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg"
               >
-                <div className="h-10 w-10 rounded-lg bg-[#0638A8]/10 flex items-center justify-center mb-4">
-                  <feature.icon className="h-5 w-5 text-[#0638A8]" />
+                <div className="h-10 w-10 rounded-lg bg-[#111827]/10 flex items-center justify-center mb-4">
+                  <feature.icon className="h-5 w-5 text-[#111827]" />
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
@@ -223,7 +223,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-gradient-to-br from-[#021786] to-[#0638A8] text-white">
+      <section className="py-24 bg-gradient-to-br from-[#1f2937] to-[#111827] text-white">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial="hidden"
@@ -234,16 +234,16 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
               Ready to get started?
             </h2>
-            <p className="text-lg sm:text-xl text-blue-100/80 leading-relaxed mb-4 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-4 max-w-2xl mx-auto">
               Simplify how your organization manages memberships, payments, and burial plots.
             </p>
-            <p className="text-sm text-blue-200/60 mb-10">
+            <p className="text-sm text-gray-400 mb-10">
               Secure. Simple. Purpose-built for your community.
             </p>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#021786] bg-white hover:bg-gray-100 rounded-lg px-6 py-3 transition-colors shadow-lg"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#1f2937] bg-white hover:bg-gray-100 rounded-lg px-6 py-3 transition-colors shadow-lg"
               >
                 Get In Touch
                 <ArrowRight className="h-4 w-4" />

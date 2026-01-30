@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
             <Link href="/portal/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
               Member Login
             </Link>
-            <Link href="/login" className="text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-4 py-2 transition-colors">
+            <Link href="/login" className="text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-lg px-4 py-2 transition-colors">
               Admin Login
             </Link>
           </div>
@@ -76,7 +76,7 @@ export default function PrivacyPolicyPage() {
                   { href: "#updates", label: "8. Updates to This Policy" },
                 ].map((item) => (
                   <li key={item.href}>
-                    <a href={item.href} className="text-[#0638A8] hover:underline">{item.label}</a>
+                    <a href={item.href} className="text-[#111827] hover:underline">{item.label}</a>
                   </li>
                 ))}
               </ul>
@@ -135,7 +135,7 @@ export default function PrivacyPolicyPage() {
               <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Payment Processing (Stripe)</h3>
               <p className="text-gray-700 leading-relaxed mb-6">
                 Your payment information is sent directly to Stripe per their{" "}
-                <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#0638A8] hover:underline">Privacy Policy</a>.
+                <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#111827] hover:underline">Privacy Policy</a>.
                 Stripe is PCI-DSS compliant.
               </p>
               <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Authentication (Supabase)</h3>
@@ -153,14 +153,14 @@ export default function PrivacyPolicyPage() {
                 { title: "Right to Opt-Out of Sale", text: "We do not sell your personal information. Amanah Logic does not sell, rent, or trade your data." },
                 { title: "Right to Non-Discrimination", text: "We will not discriminate against you for exercising any of your CCPA rights." },
               ].map((item) => (
-                <div key={item.title} className="bg-blue-50/50 border-l-4 border-[#0638A8] p-6 rounded-r-lg mb-6">
+                <div key={item.title} className="bg-gray-50 border-l-4 border-[#111827] p-6 rounded-r-lg mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h3>
                   <p className="text-gray-700">{item.text}</p>
                 </div>
               ))}
               <p className="text-gray-700 leading-relaxed">
                 To exercise your rights, email{" "}
-                <a href="mailto:privacy@amanahlogic.com" className="text-[#0638A8] hover:underline">privacy@amanahlogic.com</a>.
+                <a href="mailto:privacy@amanahlogic.com" className="text-[#111827] hover:underline">privacy@amanahlogic.com</a>.
               </p>
             </section>
 
@@ -188,7 +188,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 pb-2 border-b border-gray-200">7. Contact Information</h2>
               <div className="bg-gray-50 rounded-lg p-6">
                 <p className="text-gray-700 mb-2"><strong>Amanah Logic</strong></p>
-                <p className="text-gray-700">Email: <a href="mailto:privacy@amanahlogic.com" className="text-[#0638A8] hover:underline">privacy@amanahlogic.com</a></p>
+                <p className="text-gray-700">Email: <a href="mailto:privacy@amanahlogic.com" className="text-[#111827] hover:underline">privacy@amanahlogic.com</a></p>
               </div>
             </section>
 
