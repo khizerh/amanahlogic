@@ -223,7 +223,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-gradient-to-br from-[#1f2937] to-[#111827] text-white">
+      <section className="py-24 bg-gray-50 border-t border-gray-200">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial="hidden"
@@ -231,10 +231,10 @@ export default function LandingPage() {
             viewport={{ once: true }}
             variants={fadeIn}
           >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 mb-6">
               Ready to get started?
             </h2>
-            <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-4 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto">
               Simplify how your organization manages memberships, payments, and burial plots.
             </p>
             <p className="text-sm text-gray-400 mb-10">
@@ -243,7 +243,7 @@ export default function LandingPage() {
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#1f2937] bg-white hover:bg-gray-100 rounded-lg px-6 py-3 transition-colors shadow-lg"
+                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg px-6 py-3 transition-colors shadow-lg shadow-gray-900/20"
               >
                 Get In Touch
                 <ArrowRight className="h-4 w-4" />
