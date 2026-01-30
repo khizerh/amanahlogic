@@ -8,7 +8,9 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Image src="/logos/logo-text.svg" alt="Amanah Logic" width={140} height={20} />
+          <Link href="/">
+            <Image src="/logos/logo-text.svg" alt="Amanah Logic" width={140} height={20} />
+          </Link>
           <div className="flex items-center gap-3">
             <Link
               href="/portal/login"
@@ -132,8 +134,9 @@ export default function LandingPage() {
               <p className="text-sm mt-2">&copy; {new Date().getFullYear()} Amanah Logic. All rights reserved.</p>
             </div>
             <div className="flex items-center gap-6 text-sm">
-              <Link href="/login" className="hover:text-white transition-colors">Admin</Link>
-              <Link href="/portal/login" className="hover:text-white transition-colors">Member Portal</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+              <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
             </div>
           </div>
         </div>

@@ -16,8 +16,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    /* Primary colors - Teal brand */
-    --primary: 154 89% 28%;
+    /* Primary colors - Brand teal */
+    --primary: 185 100% 8.4%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary colors */
@@ -67,9 +67,9 @@
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary colors */
-    --primary: 142 70% 45%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Primary colors - Brand teal */
+    --primary: 185 100% 12%;
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary colors */
     --secondary: 240 3.7% 15.9%;

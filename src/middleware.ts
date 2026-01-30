@@ -71,7 +71,10 @@ export async function middleware(request: NextRequest) {
                         pathname.startsWith("/api/webhooks") ||
                         pathname.startsWith("/api/members/verify-invite") ||
                         pathname.startsWith("/api/members/link-invite") ||
-                        pathname === "/";
+                        pathname === "/" ||
+                        pathname === "/privacy" ||
+                        pathname === "/terms" ||
+                        pathname === "/contact";
 
   // ==========================================================================
   // Public Routes - Allow through immediately
