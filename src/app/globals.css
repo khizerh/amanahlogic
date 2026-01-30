@@ -16,8 +16,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    /* Primary colors - Brand blue */
-    --primary: 220 94% 44%;
+    /* Primary colors - Teal brand */
+    --primary: 154 89% 28%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary colors */
@@ -45,8 +45,8 @@
     --radius: 0.5rem;
 
     /* Brand colors */
-    --brand-blue: 220 94% 44%;
-    --brand-blue-hover: 228 96% 30%;
+    --brand-teal: 185 100% 8.4%;
+    --brand-teal-hover: 186 96% 11%;
 
     --neutral-warm: 30 8% 95%;
 
@@ -67,9 +67,9 @@
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary colors - Brand blue */
-    --primary: 220 94% 50%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary colors */
+    --primary: 142 70% 45%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
     /* Secondary colors */
     --secondary: 240 3.7% 15.9%;
@@ -92,9 +92,9 @@
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
 
-    /* Brand colors - dark mode */
-    --brand-blue: 220 94% 50%;
-    --brand-blue-hover: 228 96% 35%;
+    /* Brand colors - Amanah Logic (dark mode) */
+    --brand-teal: 185 100% 12%;
+    --brand-teal-hover: 186 96% 15%;
 
     --neutral-warm: 30 8% 15%;
 

@@ -87,8 +87,8 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 mb-8">
-              <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#F8CC58]/15 px-4 py-2 text-sm font-medium text-gray-900 mb-8">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#F8CC58]" />
               Membership Management Platform
             </span>
           </motion.div>
@@ -150,7 +150,7 @@ export default function LandingPage() {
           >
             {["Secure payments via Stripe", "Member self-service portal", "Digital agreements"].map((item) => (
               <div key={item} className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-green-500" />
+                <Check className="h-4 w-4 text-[#F8CC58]" />
                 <span>{item}</span>
               </div>
             ))}
@@ -211,8 +211,8 @@ export default function LandingPage() {
                 whileHover={{ y: -4, borderColor: "rgba(6, 56, 168, 0.3)" }}
                 className="rounded-2xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg"
               >
-                <div className="h-10 w-10 rounded-lg bg-[#111827]/10 flex items-center justify-center mb-4">
-                  <feature.icon className="h-5 w-5 text-[#111827]" />
+                <div className="h-10 w-10 rounded-lg bg-[#F8CC58]/15 flex items-center justify-center mb-4">
+                  <feature.icon className="h-5 w-5 text-[#8F4D05]" />
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
@@ -243,7 +243,7 @@ export default function LandingPage() {
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg px-6 py-3 transition-colors shadow-lg shadow-gray-900/20"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#111827] bg-[#F8CC58] hover:bg-[#f0c040] rounded-lg px-6 py-3 transition-colors shadow-lg shadow-[#F8CC58]/30"
               >
                 Get In Touch
                 <ArrowRight className="h-4 w-4" />

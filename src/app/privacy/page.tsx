@@ -153,7 +153,7 @@ export default function PrivacyPolicyPage() {
                 { title: "Right to Opt-Out of Sale", text: "We do not sell your personal information. Amanah Logic does not sell, rent, or trade your data." },
                 { title: "Right to Non-Discrimination", text: "We will not discriminate against you for exercising any of your CCPA rights." },
               ].map((item) => (
-                <div key={item.title} className="bg-gray-50 border-l-4 border-[#111827] p-6 rounded-r-lg mb-6">
+                <div key={item.title} className="bg-[#F8CC58]/5 border-l-4 border-[#F8CC58] p-6 rounded-r-lg mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h3>
                   <p className="text-gray-700">{item.text}</p>
                 </div>

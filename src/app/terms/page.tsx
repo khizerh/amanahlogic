@@ -174,7 +174,7 @@ export default function TermsOfServicePage() {
 
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">13. Contact</h2>
-            <div className="bg-gray-50 rounded-lg p-6 text-gray-600">
+            <div className="bg-[#F8CC58]/5 border border-[#F8CC58]/20 rounded-lg p-6 text-gray-600">
               <p className="font-semibold text-gray-900 mb-2">Amanah Logic</p>
               <p>Email: legal@amanahlogic.com</p>
               <p>Website: www.amanahlogic.com</p>

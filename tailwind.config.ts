@@ -50,7 +50,7 @@ const config: Config = {
               marginBottom: "1.25em",
             },
             a: {
-              color: "#0638A8",
+              color: "#00272B",
               fontWeight: "500",
               textDecoration: "underline",
               "&:hover": {
@@ -74,7 +74,7 @@ const config: Config = {
               marginBottom: "0.5em",
             },
             code: {
-              color: "#0638A8",
+              color: "#00272B",
               backgroundColor: "hsl(var(--muted))",
               padding: "0.25rem 0.375rem",
               borderRadius: "0.25rem",
@@ -90,8 +90,8 @@ const config: Config = {
         },
       },
       colors: {
-        "brand-blue": "#0638A8",
-        "brand-blue-dark": "#021786",
+        "brand-teal": "#00272B",
+        "brand-teal-hover": "#013136",
         "bg-off-white": "#F7F9FC",
         "text-dark-slate": "#30313D",
         border: "hsl(var(--border))",
