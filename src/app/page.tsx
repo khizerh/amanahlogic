@@ -66,27 +66,27 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
         {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-100/70 via-amber-50/30 to-white" />
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-50/40 via-white to-white" />
         <div className="absolute inset-0 overflow-hidden">
           <motion.div
             animate={{ scale: [1, 1.15, 1], x: [0, 40, 0], y: [0, -30, 0] }}
             transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute -top-10 left-[15%] w-[400px] h-[400px] bg-[#F8CC58]/35 rounded-full blur-[100px]"
+            className="absolute -top-10 left-[15%] w-[400px] h-[400px] bg-[#F8CC58]/15 rounded-full blur-[100px]"
           />
           <motion.div
             animate={{ scale: [1, 1.2, 1], x: [0, -30, 0], y: [0, 40, 0] }}
             transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute top-20 right-[10%] w-[350px] h-[350px] bg-amber-200/40 rounded-full blur-[100px]"
+            className="absolute top-20 right-[10%] w-[350px] h-[350px] bg-amber-200/20 rounded-full blur-[100px]"
           />
           <motion.div
             animate={{ scale: [1.1, 1, 1.1], x: [0, 20, 0], y: [0, -20, 0] }}
             transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute top-40 left-[40%] w-[300px] h-[300px] bg-[#F8CC58]/25 rounded-full blur-[120px]"
+            className="absolute top-40 left-[40%] w-[300px] h-[300px] bg-[#F8CC58]/10 rounded-full blur-[120px]"
           />
           <motion.div
             animate={{ scale: [1, 1.1, 1], x: [0, -40, 0], y: [0, 20, 0] }}
             transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute -bottom-20 left-[20%] w-[500px] h-[300px] bg-amber-200/50 rounded-full blur-[100px]"
+            className="absolute -bottom-20 left-[20%] w-[500px] h-[300px] bg-amber-100/25 rounded-full blur-[100px]"
           />
         </div>
 
@@ -233,24 +233,18 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="relative py-24 overflow-hidden">
-        {/* Warm gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-100/80 via-orange-50/60 to-amber-50/70" />
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-0 right-[10%] w-[400px] h-[400px] bg-[#F8CC58]/30 rounded-full blur-[120px]" />
-          <div className="absolute bottom-0 left-[15%] w-[350px] h-[300px] bg-amber-200/35 rounded-full blur-[100px]" />
-        </div>
-        <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
+      <section className="py-24 bg-gray-900">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeIn}
           >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 mb-6">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-6">
               Ready to get started?
             </h2>
-            <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-4 max-w-2xl mx-auto">
               Simplify how your organization manages memberships, payments, and burial plots.
             </p>
             <p className="text-sm text-gray-500 mb-10">
@@ -259,7 +253,7 @@ export default function LandingPage() {
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-xl px-8 py-3.5 transition-colors shadow-lg shadow-gray-900/20"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#111827] bg-white hover:bg-gray-100 rounded-xl px-8 py-3.5 transition-colors shadow-lg"
               >
                 Get In Touch
                 <ArrowRight className="h-4 w-4" />
