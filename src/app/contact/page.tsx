@@ -105,7 +105,7 @@ export default function ContactPage() {
                 transition={{ duration: 0.3 }}
                 className="rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 p-8 text-center"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#F8CC58]/15 text-[#8F4D05] mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-6">
                   <CheckCircle className="h-8 w-8" />
                 </div>
                 <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -167,7 +167,7 @@ export default function ContactPage() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-12 bg-[#F8CC58] hover:bg-[#f0c040] text-[#111827] font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-12 bg-[#111827] hover:bg-[#1f2937] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <span className="flex items-center justify-center gap-2">

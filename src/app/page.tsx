@@ -66,17 +66,27 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
         {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-50 via-white to-white" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] opacity-20">
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-50/60 via-white to-white" />
+        <div className="absolute inset-0 overflow-hidden">
           <motion.div
-            animate={{ scale: [1, 1.1, 1], x: [0, 30, 0], y: [0, -20, 0] }}
+            animate={{ scale: [1, 1.15, 1], x: [0, 40, 0], y: [0, -30, 0] }}
             transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute top-20 left-10 w-72 h-72 bg-gray-300 rounded-full blur-3xl"
+            className="absolute -top-10 left-[15%] w-[400px] h-[400px] bg-[#F8CC58]/25 rounded-full blur-[100px]"
           />
           <motion.div
-            animate={{ scale: [1, 1.15, 1], x: [0, -20, 0], y: [0, 30, 0] }}
+            animate={{ scale: [1, 1.2, 1], x: [0, -30, 0], y: [0, 40, 0] }}
             transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute top-40 right-10 w-64 h-64 bg-amber-100 rounded-full blur-3xl"
+            className="absolute top-20 right-[10%] w-[350px] h-[350px] bg-amber-200/30 rounded-full blur-[100px]"
+          />
+          <motion.div
+            animate={{ scale: [1.1, 1, 1.1], x: [0, 20, 0], y: [0, -20, 0] }}
+            transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" as const }}
+            className="absolute top-40 left-[40%] w-[300px] h-[300px] bg-[#F8CC58]/15 rounded-full blur-[120px]"
+          />
+          <motion.div
+            animate={{ scale: [1, 1.1, 1], x: [0, -40, 0], y: [0, 20, 0] }}
+            transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" as const }}
+            className="absolute -bottom-20 left-[20%] w-[500px] h-[300px] bg-amber-100/40 rounded-full blur-[100px]"
           />
         </div>
 
@@ -122,19 +132,19 @@ export default function LandingPage() {
             transition={{ duration: 0.6, delay: 0.5 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
           >
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
               <Link
                 href="/portal/login"
-                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-lg px-6 py-3 transition-colors shadow-lg shadow-gray-900/20"
+                className="inline-flex items-center gap-2 font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-xl px-8 py-3.5 transition-colors shadow-lg shadow-gray-900/20"
               >
                 Member Portal
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </motion.div>
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#111827] border border-[#111827] hover:bg-[#111827] hover:text-white rounded-lg px-6 py-3 transition-colors"
+                className="inline-flex items-center gap-2 font-medium text-[#111827] bg-white border border-gray-300 hover:border-[#111827] rounded-xl px-8 py-3.5 transition-colors shadow-sm"
               >
                 Admin Dashboard
               </Link>
@@ -168,7 +178,7 @@ export default function LandingPage() {
             variants={fadeIn}
             className="text-center mb-16"
           >
-            <p className="text-sm font-semibold uppercase tracking-widest text-[#111827] mb-3">
+            <p className="text-sm font-semibold uppercase tracking-widest text-[#8F4D05] mb-3">
               Everything You Need
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
@@ -208,10 +218,10 @@ export default function LandingPage() {
               <motion.div
                 key={feature.title}
                 variants={staggerItem}
-                whileHover={{ y: -4, borderColor: "rgba(6, 56, 168, 0.3)" }}
-                className="rounded-2xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg"
+                whileHover={{ y: -4, borderColor: "rgba(248, 204, 88, 0.5)" }}
+                className="rounded-2xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg hover:shadow-amber-100/50"
               >
-                <div className="h-10 w-10 rounded-lg bg-[#F8CC58]/15 flex items-center justify-center mb-4">
+                <div className="h-12 w-12 rounded-xl bg-[#F8CC58]/15 flex items-center justify-center mb-4">
                   <feature.icon className="h-5 w-5 text-[#8F4D05]" />
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
@@ -223,8 +233,14 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-gray-50 border-t border-gray-200">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
+      <section className="relative py-24 overflow-hidden">
+        {/* Warm gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50/50 to-yellow-50" />
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 right-[10%] w-[400px] h-[400px] bg-[#F8CC58]/20 rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 left-[15%] w-[350px] h-[300px] bg-amber-200/25 rounded-full blur-[100px]" />
+        </div>
+        <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -237,13 +253,13 @@ export default function LandingPage() {
             <p className="text-lg sm:text-xl text-gray-600 leading-relaxed mb-4 max-w-2xl mx-auto">
               Simplify how your organization manages memberships, payments, and burial plots.
             </p>
-            <p className="text-sm text-gray-400 mb-10">
+            <p className="text-sm text-gray-500 mb-10">
               Secure. Simple. Purpose-built for your community.
             </p>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-2 text-sm font-medium text-[#111827] bg-[#F8CC58] hover:bg-[#f0c040] rounded-lg px-6 py-3 transition-colors shadow-lg shadow-[#F8CC58]/30"
+                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-xl px-8 py-3.5 transition-colors shadow-lg shadow-gray-900/20"
               >
                 Get In Touch
                 <ArrowRight className="h-4 w-4" />
