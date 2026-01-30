@@ -169,7 +169,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 bg-gray-900">
+      <section id="features" className="py-24 bg-gray-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -178,10 +178,10 @@ export default function LandingPage() {
             variants={fadeIn}
             className="text-center mb-16"
           >
-            <p className="text-sm font-semibold uppercase tracking-widest text-[#F8CC58] mb-3">
+            <p className="text-sm font-semibold uppercase tracking-widest text-[#8F4D05] mb-3">
               Everything You Need
             </p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
               Built for community organizations
             </h2>
           </motion.div>
@@ -218,14 +218,14 @@ export default function LandingPage() {
               <motion.div
                 key={feature.title}
                 variants={staggerItem}
-                whileHover={{ y: -4, borderColor: "rgba(248, 204, 88, 0.3)" }}
-                className="rounded-2xl border border-gray-700/50 bg-gray-800/50 p-6 transition-shadow hover:shadow-lg hover:shadow-[#F8CC58]/10"
+                whileHover={{ y: -4, borderColor: "rgba(248, 204, 88, 0.5)" }}
+                className="rounded-2xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg hover:shadow-amber-100/50"
               >
                 <div className="h-12 w-12 rounded-xl bg-[#F8CC58]/15 flex items-center justify-center mb-4">
-                  <feature.icon className="h-5 w-5 text-[#F8CC58]" />
+                  <feature.icon className="h-5 w-5 text-[#8F4D05]" />
                 </div>
-                <h3 className="font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">{feature.description}</p>
+                <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -233,7 +233,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-gray-50">
+      <section className="py-24 bg-white">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial="hidden"
