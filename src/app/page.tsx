@@ -28,7 +28,7 @@ export default function LandingPage() {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200"
+        className="fixed top-0 inset-x-0 z-50 bg-white/70 backdrop-blur-xl border-b border-gray-200/60"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/">
@@ -64,19 +64,19 @@ export default function LandingPage() {
       </motion.nav>
 
       {/* Hero */}
-      <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-50/40 via-white to-white" />
-        <div className="absolute inset-0 overflow-hidden">
+      <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28">
+        {/* Animated gradient background - extends behind navbar */}
+        <div className="absolute -top-20 inset-x-0 bottom-0 bg-gradient-to-b from-amber-50/40 via-white to-white" />
+        <div className="absolute -top-20 inset-x-0 bottom-0 overflow-hidden">
           <motion.div
             animate={{ scale: [1, 1.15, 1], x: [0, 40, 0], y: [0, -30, 0] }}
             transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute -top-10 left-[15%] w-[400px] h-[400px] bg-[#F8CC58]/15 rounded-full blur-[100px]"
+            className="absolute -top-40 left-[15%] w-[400px] h-[400px] bg-[#F8CC58]/15 rounded-full blur-[100px]"
           />
           <motion.div
             animate={{ scale: [1, 1.2, 1], x: [0, -30, 0], y: [0, 40, 0] }}
             transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute top-20 right-[10%] w-[350px] h-[350px] bg-amber-200/20 rounded-full blur-[100px]"
+            className="absolute -top-20 right-[10%] w-[350px] h-[350px] bg-amber-200/20 rounded-full blur-[100px]"
           />
           <motion.div
             animate={{ scale: [1.1, 1, 1.1], x: [0, 20, 0], y: [0, -20, 0] }}
