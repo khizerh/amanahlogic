@@ -66,27 +66,27 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
         {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-50/60 via-white to-white" />
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-100/70 via-amber-50/30 to-white" />
         <div className="absolute inset-0 overflow-hidden">
           <motion.div
             animate={{ scale: [1, 1.15, 1], x: [0, 40, 0], y: [0, -30, 0] }}
             transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute -top-10 left-[15%] w-[400px] h-[400px] bg-[#F8CC58]/25 rounded-full blur-[100px]"
+            className="absolute -top-10 left-[15%] w-[400px] h-[400px] bg-[#F8CC58]/35 rounded-full blur-[100px]"
           />
           <motion.div
             animate={{ scale: [1, 1.2, 1], x: [0, -30, 0], y: [0, 40, 0] }}
             transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute top-20 right-[10%] w-[350px] h-[350px] bg-amber-200/30 rounded-full blur-[100px]"
+            className="absolute top-20 right-[10%] w-[350px] h-[350px] bg-amber-200/40 rounded-full blur-[100px]"
           />
           <motion.div
             animate={{ scale: [1.1, 1, 1.1], x: [0, 20, 0], y: [0, -20, 0] }}
             transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute top-40 left-[40%] w-[300px] h-[300px] bg-[#F8CC58]/15 rounded-full blur-[120px]"
+            className="absolute top-40 left-[40%] w-[300px] h-[300px] bg-[#F8CC58]/25 rounded-full blur-[120px]"
           />
           <motion.div
             animate={{ scale: [1, 1.1, 1], x: [0, -40, 0], y: [0, 20, 0] }}
             transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" as const }}
-            className="absolute -bottom-20 left-[20%] w-[500px] h-[300px] bg-amber-100/40 rounded-full blur-[100px]"
+            className="absolute -bottom-20 left-[20%] w-[500px] h-[300px] bg-amber-200/50 rounded-full blur-[100px]"
           />
         </div>
 
@@ -169,7 +169,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 bg-gray-50">
+      <section id="features" className="py-24 bg-gray-100/80">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -235,10 +235,10 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="relative py-24 overflow-hidden">
         {/* Warm gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50/50 to-yellow-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-100/80 via-orange-50/60 to-amber-50/70" />
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-0 right-[10%] w-[400px] h-[400px] bg-[#F8CC58]/20 rounded-full blur-[120px]" />
-          <div className="absolute bottom-0 left-[15%] w-[350px] h-[300px] bg-amber-200/25 rounded-full blur-[100px]" />
+          <div className="absolute top-0 right-[10%] w-[400px] h-[400px] bg-[#F8CC58]/30 rounded-full blur-[120px]" />
+          <div className="absolute bottom-0 left-[15%] w-[350px] h-[300px] bg-amber-200/35 rounded-full blur-[100px]" />
         </div>
         <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
