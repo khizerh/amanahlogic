@@ -1,11 +1,24 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
+
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+};
 
 export default function TermsOfServicePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
+      <motion.nav
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200"
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/">
             <Image src="/logos/logo-text.svg" alt="Amanah Logic" width={140} height={20} />
@@ -14,18 +27,22 @@ export default function TermsOfServicePage() {
             <Link href="/portal/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
               Member Login
             </Link>
-            <Link href="/login" className="text-sm font-medium text-white bg-[#00272B] hover:bg-[#013136] rounded-lg px-4 py-2 transition-colors">
+            <Link href="/login" className="text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-4 py-2 transition-colors">
               Admin Login
             </Link>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Header */}
       <div className="bg-gray-50 pt-8 pb-12">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-4">Terms of Service</h1>
-          <p className="text-gray-600">Last updated: January 2026</p>
+          <motion.h1 initial="hidden" animate="visible" variants={fadeIn} className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-4">
+            Terms of Service
+          </motion.h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="text-gray-600">
+            Last updated: January 2026
+          </motion.p>
         </div>
       </div>
 
@@ -33,179 +50,130 @@ export default function TermsOfServicePage() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="prose prose-gray max-w-none">
           <p className="text-lg text-gray-600 leading-relaxed mb-8">
-            Welcome to Amanah Logic. These Terms of Service ("Terms") govern your access to and use of the
-            Amanah Logic platform, website, and services (collectively, the "Service"). Please read these
-            Terms carefully before using our Service.
+            Welcome to Amanah Logic. These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of the
+            Amanah Logic platform, website, and services (collectively, the &ldquo;Service&rdquo;).
           </p>
 
-          {/* Section 1 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">1. Acceptance of Terms</h2>
             <p className="text-gray-600 mb-4">
-              By accessing or using the Service, you agree to be bound by these Terms. If you disagree with
-              any part of the Terms, you may not access the Service.
-            </p>
-            <p className="text-gray-600">
-              If you are using the Service on behalf of an organization, you represent and warrant that you
-              have the authority to bind that organization to these Terms.
+              By accessing or using the Service, you agree to be bound by these Terms. If you are using the Service
+              on behalf of an organization, you represent that you have authority to bind that organization.
             </p>
           </section>
 
-          {/* Section 2 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">2. Description of Service</h2>
             <p className="text-gray-600 mb-4">
-              Amanah Logic is a membership management platform designed for Muslim community organizations
-              managing burial benefit programs. Our Service includes:
+              Amanah Logic is a membership management platform for Muslim community organizations managing burial benefit programs:
             </p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
               <li><strong>Member Management:</strong> Tools for managing member records, dependents, and membership status.</li>
-              <li><strong>Payment Processing:</strong> Integrated payment solutions for collecting membership dues and fees.</li>
-              <li><strong>Plot Management:</strong> Graveyard plot tracking, assignments, and availability management.</li>
-              <li><strong>Member Portal:</strong> A member-facing portal for viewing profiles, making payments, and accessing agreements.</li>
-              <li><strong>Agreement Management:</strong> Digital agreements and document management for memberships.</li>
+              <li><strong>Payment Processing:</strong> Integrated payment solutions for collecting membership dues.</li>
+              <li><strong>Plot Management:</strong> Graveyard plot tracking, assignments, and availability.</li>
+              <li><strong>Member Portal:</strong> A member-facing portal for profiles, payments, and agreements.</li>
+              <li><strong>Agreement Management:</strong> Digital agreements and document management.</li>
             </ul>
-            <p className="text-gray-600">
-              We reserve the right to modify, suspend, or discontinue any aspect of the Service at any time,
-              with or without notice.
-            </p>
           </section>
 
-          {/* Section 3 */}
           <section className="mb-10">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">3. Account Registration and Responsibilities</h2>
-            <p className="text-gray-600 mb-4">
-              To use certain features of the Service, you must register for an account. When you register, you agree to:
-            </p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">3. Account Registration</h2>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li><strong>Age Requirement:</strong> You must be at least 18 years old to create an account.</li>
-              <li><strong>Accurate Information:</strong> Provide accurate, current, and complete information during registration.</li>
-              <li><strong>Credential Security:</strong> Maintain the security of your password and account credentials.</li>
-              <li><strong>Account Activity:</strong> You are solely responsible for all activities that occur under your account.</li>
+              <li><strong>Age Requirement:</strong> You must be at least 18 years old.</li>
+              <li><strong>Accurate Information:</strong> Provide accurate, current, and complete information.</li>
+              <li><strong>Credential Security:</strong> Maintain the security of your password and credentials.</li>
+              <li><strong>Account Activity:</strong> You are responsible for all activities under your account.</li>
             </ul>
-            <p className="text-gray-600">
-              We reserve the right to suspend or terminate your account if any information provided proves to be
-              inaccurate, false, or outdated.
-            </p>
           </section>
 
-          {/* Section 4 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">4. Acceptable Use</h2>
-            <p className="text-gray-600 mb-4">
-              You agree to use the Service only for lawful purposes and in accordance with these Terms. You agree not to:
-            </p>
+            <p className="text-gray-600 mb-4">You agree not to:</p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li><strong>Illegal Activity:</strong> Use the Service for any illegal purpose or in violation of any law.</li>
-              <li><strong>System Abuse:</strong> Engage in any activity that interferes with or disrupts the Service.</li>
-              <li><strong>Unauthorized Access:</strong> Attempt to gain unauthorized access to any portion of the Service.</li>
-              <li><strong>Misrepresentation:</strong> Impersonate any person or entity, or misrepresent your affiliation.</li>
+              <li>Use the Service for any illegal purpose or in violation of any law.</li>
+              <li>Engage in any activity that interferes with or disrupts the Service.</li>
+              <li>Attempt to gain unauthorized access to any portion of the Service.</li>
+              <li>Impersonate any person or entity, or misrepresent your affiliation.</li>
             </ul>
           </section>
 
-          {/* Section 5 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">5. Payment Terms</h2>
-            <p className="text-gray-600 mb-4">
-              Access to certain features requires a paid subscription. By subscribing, you agree to:
-            </p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li><strong>Billing:</strong> Payments are processed through Stripe. By providing payment information, you authorize us to charge your payment method.</li>
-              <li><strong>Recurring Charges:</strong> Subscriptions automatically renew unless cancelled before the renewal date.</li>
-              <li><strong>Cancellation:</strong> You may cancel at any time through your account settings. No refunds for partial billing periods.</li>
+              <li><strong>Billing:</strong> Payments are processed through Stripe.</li>
+              <li><strong>Recurring Charges:</strong> Subscriptions auto-renew unless cancelled.</li>
+              <li><strong>Cancellation:</strong> Cancel anytime. No refunds for partial periods.</li>
               <li><strong>Price Changes:</strong> We reserve the right to change fees with advance notice.</li>
             </ul>
           </section>
 
-          {/* Section 6 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">6. Data and Content Ownership</h2>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li><strong>Your Data:</strong> You retain all rights to data you submit through the Service. Amanah Logic does not claim ownership of your content.</li>
-              <li><strong>License:</strong> You grant Amanah Logic a non-exclusive license to use your content solely for the purpose of providing the Service.</li>
-              <li><strong>Data Export:</strong> You have the right to export your data at any time.</li>
-              <li><strong>Data Deletion:</strong> You may request deletion of your data at any time, subject to legal retention requirements.</li>
+              <li><strong>Your Data:</strong> You retain all rights to data you submit. We do not claim ownership.</li>
+              <li><strong>License:</strong> You grant us a non-exclusive license to use your content to provide the Service.</li>
+              <li><strong>Data Export:</strong> You can export your data at any time.</li>
+              <li><strong>Data Deletion:</strong> Request deletion at any time, subject to legal requirements.</li>
             </ul>
             <p className="text-gray-600">
-              For more information, see our{" "}
-              <Link href="/privacy" className="text-[#00272B] hover:underline">Privacy Policy</Link>.
+              See our <Link href="/privacy" className="text-[#0638A8] hover:underline">Privacy Policy</Link> for more.
             </p>
           </section>
 
-          {/* Section 7 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">7. Third-Party Services</h2>
-            <p className="text-gray-600 mb-4">
-              The Service integrates with third-party services:
-            </p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li><strong>Payment Processing:</strong> Stripe processes payments subject to their own terms and privacy policy.</li>
-              <li><strong>Authentication:</strong> Supabase provides authentication services.</li>
-              <li><strong>Email Services:</strong> We use email providers to send notifications and communications.</li>
+              <li><strong>Stripe:</strong> Processes payments per their own terms and privacy policy.</li>
+              <li><strong>Supabase:</strong> Provides authentication services.</li>
+              <li><strong>Email Providers:</strong> Send notifications and communications on our behalf.</li>
             </ul>
-            <p className="text-gray-600">
-              Amanah Logic is not responsible for the availability or content of third-party services.
-            </p>
           </section>
 
-          {/* Section 8 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">8. Limitation of Liability</h2>
-            <p className="text-gray-600 mb-4">TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW:</p>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li>THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS WITHOUT WARRANTIES OF ANY KIND.</li>
-              <li>WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, TIMELY, SECURE, OR ERROR-FREE.</li>
-              <li>IN NO EVENT SHALL AMANAH LOGIC BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES.</li>
-              <li>OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID TO US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.</li>
+              <li>THE SERVICE IS PROVIDED &ldquo;AS IS&rdquo; WITHOUT WARRANTIES OF ANY KIND.</li>
+              <li>WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED OR ERROR-FREE.</li>
+              <li>WE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES.</li>
+              <li>OUR TOTAL LIABILITY SHALL NOT EXCEED FEES PAID IN THE 12 MONTHS PRECEDING THE CLAIM.</li>
             </ul>
           </section>
 
-          {/* Section 9 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">9. Indemnification</h2>
             <p className="text-gray-600">
-              You agree to defend, indemnify, and hold harmless Amanah Logic from any claims, liabilities,
-              damages, or expenses arising out of your violation of these Terms, your use of the Service,
-              or your violation of any rights of a third party.
+              You agree to defend, indemnify, and hold harmless Amanah Logic from any claims arising from your
+              violation of these Terms or your use of the Service.
             </p>
           </section>
 
-          {/* Section 10 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">10. Termination</h2>
             <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li><strong>By You:</strong> You may terminate your account at any time by contacting us.</li>
-              <li><strong>By Us:</strong> We may terminate or suspend your account immediately for breach of these Terms.</li>
-              <li><strong>Effect:</strong> Upon termination, your right to use the Service ceases immediately. We retain your data for 30 days for export purposes.</li>
+              <li><strong>By You:</strong> Terminate your account at any time by contacting us.</li>
+              <li><strong>By Us:</strong> We may terminate for breach of these Terms.</li>
+              <li><strong>Effect:</strong> We retain your data for 30 days for export purposes.</li>
             </ul>
           </section>
 
-          {/* Section 11 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">11. Governing Law</h2>
             <p className="text-gray-600">
-              These Terms shall be governed by the laws of the State of California, United States. Any disputes
-              shall be resolved exclusively in the state or federal courts located in California.
+              These Terms are governed by the laws of the State of California, United States. Disputes shall be
+              resolved in the state or federal courts located in California.
             </p>
           </section>
 
-          {/* Section 12 */}
           <section className="mb-10">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">12. Changes to Terms</h2>
-            <p className="text-gray-600 mb-4">
-              We reserve the right to modify these Terms at any time. We will notify you of material changes by:
+            <p className="text-gray-600">
+              We may modify these Terms at any time. We will notify you of material changes by updating the date on
+              this page, sending an email, or displaying a notice within the Service.
             </p>
-            <ul className="list-disc pl-6 text-gray-600 space-y-2 mb-4">
-              <li>Updating the "Last updated" date on this page</li>
-              <li>Sending an email notification to your account</li>
-              <li>Displaying a notice within the Service</li>
-            </ul>
           </section>
 
-          {/* Section 13 */}
           <section className="mb-10">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">13. Contact Information</h2>
-            <p className="text-gray-600 mb-4">Questions about these Terms? Contact us:</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">13. Contact</h2>
             <div className="bg-gray-50 rounded-lg p-6 text-gray-600">
               <p className="font-semibold text-gray-900 mb-2">Amanah Logic</p>
               <p>Email: legal@amanahlogic.com</p>
@@ -213,10 +181,9 @@ export default function TermsOfServicePage() {
             </div>
           </section>
 
-          {/* Closing */}
           <div className="border-t border-gray-200 pt-8 mt-12">
             <p className="text-gray-600 text-center">
-              By using Amanah Logic, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
+              By using Amanah Logic, you acknowledge that you have read, understood, and agree to these Terms of Service.
             </p>
           </div>
         </div>

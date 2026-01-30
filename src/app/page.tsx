@@ -1,17 +1,52 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Shield, Users, CreditCard, MapPin } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, Shield, Users, CreditCard, MapPin, Check } from "lucide-react";
+
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+};
+
+const staggerContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1 } },
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+};
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
-      <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
+      <motion.nav
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200"
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/">
             <Image src="/logos/logo-text.svg" alt="Amanah Logic" width={140} height={20} />
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="#features"
+              className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2"
+            >
+              Features
+            </Link>
+            <Link
+              href="/contact"
+              className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2"
+            >
+              Contact
+            </Link>
             <Link
               href="/portal/login"
               className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2"
@@ -20,55 +55,134 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/login"
-              className="text-sm font-medium text-white bg-[#00272B] hover:bg-[#013136] rounded-lg px-4 py-2 transition-colors"
+              className="text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-4 py-2 transition-colors"
             >
               Admin Login
             </Link>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 sm:pt-40 sm:pb-28 bg-gradient-to-b from-[#F7F9FC] to-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6">
+      <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-50/80 via-white to-white" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] opacity-30">
+          <motion.div
+            animate={{ scale: [1, 1.1, 1], x: [0, 30, 0], y: [0, -20, 0] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{ scale: [1, 1.15, 1], x: [0, -20, 0], y: [0, 30, 0] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-40 right-10 w-64 h-64 bg-amber-100 rounded-full blur-3xl"
+          />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-[#0638A8] mb-8">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#0638A8]" />
+              Membership Management Platform
+            </span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tight text-gray-900 mb-6"
+          >
             <span className="block">Community Burial Benefits,</span>
-            <span className="block text-[#00272B]">Managed Simply</span>
-          </h1>
-          <p className="mx-auto max-w-2xl text-lg text-gray-600 leading-relaxed mb-10">
-            The membership management platform built for Muslim community organizations.
-            Handle members, payments, plots, and agreements — all in one place.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/portal/login"
-              className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#00272B] hover:bg-[#013136] rounded-lg px-6 py-3 transition-colors"
-            >
-              Member Portal
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 text-sm font-medium text-[#00272B] border border-[#00272B] hover:bg-[#00272B] hover:text-white rounded-lg px-6 py-3 transition-colors"
-            >
-              Admin Dashboard
-            </Link>
-          </div>
+            <span className="block bg-gradient-to-r from-[#0A68DB] to-[#0638A8] bg-clip-text text-transparent">
+              Managed Simply
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mx-auto max-w-2xl text-lg md:text-xl text-gray-600 leading-relaxed mb-10"
+          >
+            The all-in-one platform built for Muslim community organizations.
+            Handle members, payments, plots, and agreements from a single dashboard.
+          </motion.p>
+
+          {/* CTA Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
+          >
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/portal/login"
+                className="inline-flex items-center gap-2 text-sm font-medium text-white bg-[#0638A8] hover:bg-[#021786] rounded-lg px-6 py-3 transition-colors shadow-lg shadow-blue-500/20"
+              >
+                Member Portal
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#0638A8] border border-[#0638A8] hover:bg-[#0638A8] hover:text-white rounded-lg px-6 py-3 transition-colors"
+              >
+                Admin Dashboard
+              </Link>
+            </motion.div>
+          </motion.div>
+
+          {/* Social proof */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
+            className="flex flex-wrap items-center justify-center gap-8 text-sm text-gray-500"
+          >
+            {["Secure payments via Stripe", "Member self-service portal", "Digital agreements"].map((item) => (
+              <div key={item} className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-500" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="py-20 bg-white">
+      <section id="features" className="py-24 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-sm font-semibold uppercase tracking-widest text-[#00272B]/60 mb-3">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={fadeIn}
+            className="text-center mb-16"
+          >
+            <p className="text-sm font-semibold uppercase tracking-widest text-[#0638A8] mb-3">
               Everything You Need
             </p>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
               Built for community organizations
             </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={staggerContainer}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+          >
             {[
               {
                 icon: Users,
@@ -91,37 +205,51 @@ export default function LandingPage() {
                 description: "Members can view their profile, make payments, and access agreements online.",
               },
             ].map((feature) => (
-              <div
+              <motion.div
                 key={feature.title}
-                className="rounded-xl border border-gray-200 p-6 hover:border-[#00272B]/30 hover:shadow-sm transition-all"
+                variants={staggerItem}
+                whileHover={{ y: -4, borderColor: "rgba(6, 56, 168, 0.3)" }}
+                className="rounded-2xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-lg"
               >
-                <div className="h-10 w-10 rounded-lg bg-[#00272B]/10 flex items-center justify-center mb-4">
-                  <feature.icon className="h-5 w-5 text-[#00272B]" />
+                <div className="h-10 w-10 rounded-lg bg-[#0638A8]/10 flex items-center justify-center mb-4">
+                  <feature.icon className="h-5 w-5 text-[#0638A8]" />
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-[#00272B] text-white">
+      <section className="py-24 bg-gradient-to-br from-[#021786] to-[#0638A8] text-white">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-6">
-            Ready to get started?
-          </h2>
-          <p className="text-lg text-white/70 leading-relaxed mb-10 max-w-2xl mx-auto">
-            Simplify how your organization manages memberships, payments, and burial plots.
-          </p>
-          <Link
-            href="/portal/login"
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#00272B] bg-white hover:bg-gray-100 rounded-lg px-6 py-3 transition-colors"
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
           >
-            Access Member Portal
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
+              Ready to get started?
+            </h2>
+            <p className="text-lg sm:text-xl text-blue-100/80 leading-relaxed mb-4 max-w-2xl mx-auto">
+              Simplify how your organization manages memberships, payments, and burial plots.
+            </p>
+            <p className="text-sm text-blue-200/60 mb-10">
+              Secure. Simple. Purpose-built for your community.
+            </p>
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/contact"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#021786] bg-white hover:bg-gray-100 rounded-lg px-6 py-3 transition-colors shadow-lg"
+              >
+                Get In Touch
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
