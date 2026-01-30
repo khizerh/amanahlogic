@@ -46,7 +46,7 @@ export default function MemberLoginPage() {
           <div className="mx-auto flex justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logos/logo-text.svg"
+              src="/logos/logo-new.svg"
               alt="Amanah Logic"
               className="h-10"
             />

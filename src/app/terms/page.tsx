@@ -21,7 +21,7 @@ export default function TermsOfServicePage() {
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/">
-            <Image src="/logos/logo-text.svg" alt="Amanah Logic" width={140} height={20} />
+            <Image src="/logos/logo-new.svg" alt="Amanah Logic" width={100} height={30} />
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/portal/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">

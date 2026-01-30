@@ -32,7 +32,7 @@ export default function LandingPage() {
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/">
-            <Image src="/logos/logo-text.svg" alt="Amanah Logic" width={140} height={20} />
+            <Image src="/logos/logo-new.svg" alt="Amanah Logic" width={100} height={30} />
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
