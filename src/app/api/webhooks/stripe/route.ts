@@ -261,6 +261,39 @@ async function handleCheckoutCompleted(
       }
     }
 
+    // Fetch payment method details from the subscription so the UI can
+    // display card brand / last4 immediately after checkout completes.
+    if (stripe) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const pmId = typeof subscription.default_payment_method === "string"
+          ? subscription.default_payment_method
+          : subscription.default_payment_method?.id;
+
+        if (pmId) {
+          const pm = await stripe.paymentMethods.retrieve(pmId);
+          const pmDetails: Record<string, unknown> = {
+            type: pm.type === "us_bank_account" ? "us_bank_account" : "card",
+            last4: pm.card?.last4 || pm.us_bank_account?.last4 || "****",
+          };
+          if (pm.card) {
+            pmDetails.brand = pm.card.brand;
+            pmDetails.expiryMonth = pm.card.exp_month;
+            pmDetails.expiryYear = pm.card.exp_year;
+          }
+          if (pm.us_bank_account) {
+            pmDetails.bankName = pm.us_bank_account.bank_name;
+          }
+
+          membershipUpdate.payment_method = pmDetails;
+          console.log(`[Webhook] Saved payment method (${pm.type} ****${pmDetails.last4}) for membership ${metadata.membership_id}`);
+        }
+      } catch (pmErr) {
+        // Non-fatal — subscription is more important than card details
+        console.error("[Webhook] Failed to fetch payment method details:", pmErr);
+      }
+    }
+
     const { error } = await supabase
       .from("memberships")
       .update(membershipUpdate)

@@ -949,6 +949,11 @@ export function MemberDetailClient({
                           </p>
                         )}
                       </div>
+                    ) : membership.stripeCustomerId ? (
+                      <div>
+                        <p className="font-medium">Stripe</p>
+                        <p className="text-xs text-muted-foreground">Awaiting checkout completion</p>
+                      </div>
                     ) : (
                       <div>
                         <p className="font-medium">Manual Payments</p>
