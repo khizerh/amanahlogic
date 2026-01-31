@@ -209,43 +209,53 @@ export async function createSubscriptionCheckoutSession(params: {
       break;
   }
 
-  // If enrollment fee is provided, add it as a one-time invoice item on first invoice
-  const enrollmentFeeInvoiceItems = enrollmentFee
-    ? [
-        {
-          price_data: {
-            currency: "usd" as const,
-            product_data: {
-              name: enrollmentFee.description || `${planName} Enrollment Fee`,
-            },
-            unit_amount: enrollmentFee.amountCents,
-          },
-          quantity: 1,
+  // Build line items: recurring dues + optional one-time enrollment fee.
+  // Checkout sessions support mixing one-time and recurring prices in subscription mode.
+  // The one-time item is charged on the first invoice only.
+  const lineItems: Array<{
+    price_data: {
+      currency: string;
+      product_data: { name: string; description?: string };
+      unit_amount: number;
+      recurring?: { interval: "month" | "year"; interval_count: number };
+    };
+    quantity: number;
+  }> = [
+    {
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: lineItemName ?? `${planName} Dues`,
+          description: lineItemDescription ?? defaultDescription,
         },
-      ]
-    : [];
+        unit_amount: priceAmountCents,
+        recurring: {
+          interval: interval,
+          interval_count: intervalCount,
+        },
+      },
+      quantity: 1,
+    },
+  ];
 
-  // Create an ad-hoc price for this subscription
+  if (enrollmentFee) {
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: enrollmentFee.description || `${planName} Enrollment Fee`,
+        },
+        unit_amount: enrollmentFee.amountCents,
+      },
+      quantity: 1,
+    });
+  }
+
+  // Create checkout session with subscription mode
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: lineItemName ?? `${planName} Dues`,
-            description: lineItemDescription ?? defaultDescription,
-          },
-          unit_amount: priceAmountCents,
-          recurring: {
-            interval: interval,
-            interval_count: intervalCount,
-          },
-        },
-        quantity: 1,
-      },
-    ],
+    line_items: lineItems,
     subscription_data: {
       metadata: {
         membership_id: membershipId,
@@ -258,24 +268,15 @@ export async function createSubscriptionCheckoutSession(params: {
           enrollment_fee_amount_cents: String(enrollmentFee.amountCents),
         }),
       },
-      // Set billing anchor if provided (1-28)
-      ...(billingAnchorDay && {
-        billing_cycle_anchor_config: {
-          day_of_month: billingAnchorDay,
-        },
-      }),
-      // Add enrollment fee as one-time item on first invoice
-      ...(enrollmentFeeInvoiceItems.length > 0 && {
-        add_invoice_items: enrollmentFeeInvoiceItems,
-      }),
+      // Note: billing_cycle_anchor_config is not supported in checkout sessions.
+      // The billing day defaults to the checkout completion date, which matches
+      // the member's billingAnniversaryDay (set to today during member creation).
       // Stripe Connect: Destination charges for subscriptions
       // Each invoice payment will be split automatically
       ...(connectParams && {
-        application_fee_percent: undefined, // We use fixed amount instead
         transfer_data: {
           destination: connectParams.stripeConnectId,
           // Note: For subscriptions, we set the fee on invoices via webhook
-          // or use on_behalf_of for more control
         },
       }),
     },

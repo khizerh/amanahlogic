@@ -197,6 +197,10 @@ export async function orchestrateOnboarding(
         }
       }
 
+      // Set dues amount early (before session creation) so it's always
+      // available for the welcome email even if checkout creation fails
+      duesAmountForEmail = fees.chargeAmountCents / 100;
+
       // Prepare Connect params if org has a connected account
       let connectParams: ConnectParams | undefined;
       if (org?.stripeConnectId && org.stripeOnboarded) {
@@ -223,7 +227,6 @@ export async function orchestrateOnboarding(
       });
 
       checkoutUrl = session.url;
-      duesAmountForEmail = fees.chargeAmountCents / 100;
       result.stripeSessionCreated = true;
 
       // Update membership with customer ID

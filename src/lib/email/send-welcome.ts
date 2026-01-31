@@ -61,6 +61,12 @@ export async function sendWelcomeEmail(
       ? language === "fa" ? "هر ۶ ماه" : "every 6 months"
       : language === "fa" ? "سالانه" : "annually";
 
+  // Format expiry date for display (DB template gets raw value, so format it here)
+  const formattedExpiry = new Date(inviteExpiresAt).toLocaleDateString(
+    language === "fa" ? "fa-IR" : "en-US",
+    { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+  );
+
   // For Stripe payments, try DB template first (it has checkout_url/payment fields).
   // For manual payments, skip DB template — the hardcoded template has proper
   // manual-specific content (no checkout link, cash/check/Zelle reminder).
@@ -73,7 +79,7 @@ export async function sendWelcomeEmail(
         member_name: memberName,
         organization_name: orgName,
         invite_url: inviteUrl,
-        invite_expires_at: inviteExpiresAt,
+        invite_expires_at: formattedExpiry,
         checkout_url: checkoutUrl ?? "",
         plan_name: planName ?? "",
         enrollment_fee: enrollmentFee != null ? `$${enrollmentFee.toFixed(2)}` : "",
@@ -83,6 +89,18 @@ export async function sendWelcomeEmail(
       language,
       orgName
     );
+
+    // Validate DB template actually contains the checkout URL when one was provided.
+    // If checkoutUrl is missing (session creation failed) or the admin removed
+    // {{checkout_url}} from the template, fall back to the hardcoded template.
+    if (dbResult && checkoutUrl && !dbResult.html.includes(checkoutUrl)) {
+      console.warn("[send-welcome] DB template missing checkout_url, falling back to hardcoded");
+      dbResult = null;
+    }
+    if (dbResult && !checkoutUrl) {
+      console.warn("[send-welcome] No checkout URL available for Stripe payment, falling back to hardcoded");
+      dbResult = null;
+    }
   }
 
   // Fall back to hardcoded template (always used for manual payments)

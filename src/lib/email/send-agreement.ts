@@ -34,7 +34,7 @@ export async function sendAgreementEmail(
   const orgName = org?.name ?? "Our Organization";
 
   // Try DB template first
-  const dbResult = await resolveEmailTemplate(
+  let dbResult = await resolveEmailTemplate(
     organizationId,
     "agreement_sent",
     {
@@ -46,6 +46,14 @@ export async function sendAgreementEmail(
     language,
     orgName
   );
+
+  // Validate DB template actually contains the sign URL.
+  // If the admin customized the template and removed {{sign_url}},
+  // the link won't appear — fall back to hardcoded template which always includes it.
+  if (dbResult && !dbResult.html.includes(signUrl)) {
+    console.warn("[send-agreement] DB template missing sign_url, falling back to hardcoded");
+    dbResult = null;
+  }
 
   // Fall back to hardcoded template
   const { subject, html, text } = dbResult ?? getAgreementSentEmail({
