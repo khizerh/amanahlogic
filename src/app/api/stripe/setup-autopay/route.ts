@@ -8,9 +8,8 @@ import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import {
   isStripeConfigured,
   getOrCreateStripeCustomer,
-  createSubscriptionCheckoutSession,
+  createSetupIntent,
   calculateFees,
-  type ConnectParams,
 } from "@/lib/stripe";
 
 interface SetupAutopayBody {
@@ -107,74 +106,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    // Calculate fees - if passFeesToMember is true, gross up the price
-    const fees = calculateFees(baseAmountCents, org.platformFee || 0, org.passFeesToMember);
-
-    // Build URLs
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003";
-    const successUrl = `${baseUrl}/members/${memberId}?autopay=success`;
-    const cancelUrl = `${baseUrl}/members/${memberId}?autopay=cancelled`;
-
-    // Build line item text showing fee breakdown if fees are passed to member
-    const lineItemName = org.passFeesToMember
-      ? `${plan.name} ($${priceAmount.toFixed(2)} + $${fees.breakdown.totalFees.toFixed(2)} fees)`
-      : undefined;
-    const lineItemDescription = org.passFeesToMember
-      ? `Member pays $${(fees.chargeAmountCents / 100).toFixed(2)} so org receives $${priceAmount.toFixed(2)}`
-      : undefined;
-
     // Check if enrollment fee should be included
     // Include if: not paid AND not explicitly skipped
     const includeEnrollmentFee = !membership.enrollmentFeePaid && !skipEnrollmentFee;
 
-    // Calculate enrollment fee with fees if applicable
-    let enrollmentFeeConfig: { amountCents: number; description?: string } | undefined;
-    if (includeEnrollmentFee) {
-      const enrollmentFeeBase = plan.enrollmentFee; // e.g., $500
-      const enrollmentFeeCents = Math.round(enrollmentFeeBase * 100);
-
-      if (org.passFeesToMember) {
-        // Gross up enrollment fee so org receives full amount
-        const enrollmentFees = calculateFees(enrollmentFeeCents, org.platformFee || 0, true);
-        enrollmentFeeConfig = {
-          amountCents: enrollmentFees.chargeAmountCents,
-          description: `${plan.name} Enrollment Fee ($${enrollmentFeeBase.toFixed(2)} + $${enrollmentFees.breakdown.totalFees.toFixed(2)} fees)`,
-        };
-      } else {
-        enrollmentFeeConfig = {
-          amountCents: enrollmentFeeCents,
-          description: `${plan.name} Enrollment Fee`,
-        };
-      }
-    }
-
-    // Prepare Connect params if org has a connected account
-    let connectParams: ConnectParams | undefined;
-    if (org.stripeConnectId && org.stripeOnboarded) {
-      connectParams = {
-        stripeConnectId: org.stripeConnectId,
-        applicationFeeCents: fees.applicationFeeCents,
-      };
-    }
-
-    // Create checkout session with correct billing frequency (with Connect if org is onboarded)
-    // Use chargeAmountCents which includes fees if passFeesToMember is enabled
-    const session = await createSubscriptionCheckoutSession({
+    // Create SetupIntent (no expiration, unlike Checkout Sessions)
+    const setupResult = await createSetupIntent({
       customerId,
-      priceAmountCents: fees.chargeAmountCents,
       membershipId: membership.id,
       memberId: member.id,
       organizationId,
-      successUrl,
-      cancelUrl,
-      billingAnchorDay: membership.billingAnniversaryDay,
-      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
       planName: plan.name,
-      lineItemName,
-      lineItemDescription,
-      // Include enrollment fee if not paid
-      enrollmentFee: enrollmentFeeConfig,
-      connectParams,
+      duesAmountCents: baseAmountCents,
+      enrollmentFeeAmountCents: includeEnrollmentFee ? Math.round(plan.enrollmentFee * 100) : 0,
+      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
+      passFeesToMember: org.passFeesToMember || false,
+      stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
     });
 
     // Update membership with customer ID (subscription ID will be set by webhook)
@@ -183,12 +130,24 @@ export async function POST(req: Request) {
       stripeCustomerId: customerId,
     });
 
+    // Calculate enrollment fee for response
+    let enrollmentFeeAmount: number | undefined;
+    if (includeEnrollmentFee) {
+      const enrollmentFeeCents = Math.round(plan.enrollmentFee * 100);
+      if (org.passFeesToMember) {
+        const enrollmentFees = calculateFees(enrollmentFeeCents, org.platformFee || 0, true);
+        enrollmentFeeAmount = enrollmentFees.chargeAmountCents;
+      } else {
+        enrollmentFeeAmount = enrollmentFeeCents;
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      checkoutUrl: session.url,
-      sessionId: session.sessionId,
+      paymentUrl: setupResult.url,
+      setupIntentId: setupResult.setupIntentId,
       includesEnrollmentFee: includeEnrollmentFee,
-      enrollmentFeeAmount: includeEnrollmentFee ? enrollmentFeeConfig?.amountCents : undefined,
+      enrollmentFeeAmount,
     });
   } catch (error) {
     console.error("Error creating autopay checkout:", error);

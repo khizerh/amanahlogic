@@ -20,6 +20,7 @@ export interface CreateOnboardingInviteInput {
   memberId: string;
   paymentMethod: OnboardingPaymentMethod;
   stripeCheckoutSessionId?: string;
+  stripeSetupIntentId?: string;
   enrollmentFeeAmount: number;
   includesEnrollmentFee: boolean;
   duesAmount: number;
@@ -139,6 +140,29 @@ export class OnboardingInvitesService {
   }
 
   /**
+   * Get invite by Stripe SetupIntent ID
+   */
+  static async getBySetupIntentId(
+    setupIntentId: string,
+    supabase?: SupabaseClient
+  ): Promise<OnboardingInvite | null> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { data, error } = await client
+      .from("onboarding_invites")
+      .select("*")
+      .eq("stripe_setup_intent_id", setupIntentId)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return transformInvite(data);
+  }
+
+  /**
    * Get pending invite for a membership
    */
   static async getPendingForMembership(
@@ -180,6 +204,7 @@ export class OnboardingInvitesService {
         member_id: input.memberId,
         payment_method: input.paymentMethod,
         stripe_checkout_session_id: input.stripeCheckoutSessionId || null,
+        stripe_setup_intent_id: input.stripeSetupIntentId || null,
         enrollment_fee_amount: input.enrollmentFeeAmount,
         includes_enrollment_fee: input.includesEnrollmentFee,
         dues_amount: input.duesAmount,
@@ -461,6 +486,7 @@ function transformInvite(dbInvite: any): OnboardingInvite {
     memberId: dbInvite.member_id,
     paymentMethod: dbInvite.payment_method || "stripe",
     stripeCheckoutSessionId: dbInvite.stripe_checkout_session_id,
+    stripeSetupIntentId: dbInvite.stripe_setup_intent_id || null,
     enrollmentFeeAmount: parseFloat(dbInvite.enrollment_fee_amount) || 0,
     includesEnrollmentFee: dbInvite.includes_enrollment_fee || false,
     enrollmentFeePaidAt: dbInvite.enrollment_fee_paid_at,

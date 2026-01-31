@@ -378,8 +378,8 @@ export function MemberDetailClient({
         throw new Error(result.error || "Failed to set up autopay");
       }
 
-      // Redirect to Stripe Checkout
-      window.location.href = result.checkoutUrl;
+      // Redirect to payment setup page
+      window.location.href = result.paymentUrl;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to set up autopay");
       setIsSettingUpAutopay(false);

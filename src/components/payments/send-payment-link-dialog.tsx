@@ -84,7 +84,7 @@ export function SendPaymentLinkDialog({
         throw new Error(result.error || "Failed to send payment link");
       }
 
-      setCheckoutUrl(result.checkoutUrl);
+      setCheckoutUrl(result.paymentUrl || result.checkoutUrl);
       setSent(true);
 
       if (result.warning) {

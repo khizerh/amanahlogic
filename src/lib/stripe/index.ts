@@ -110,6 +110,73 @@ export async function createCustomerPortalSession(params: {
 }
 
 /**
+ * Create a Stripe SetupIntent for collecting a payment method.
+ *
+ * Unlike Checkout Sessions, SetupIntents have NO expiration. The returned proxy
+ * URL points to our self-hosted /payment/setup page which loads Stripe Elements
+ * using the client secret.
+ */
+export async function createSetupIntent(params: {
+  customerId: string;
+  membershipId: string;
+  memberId: string;
+  organizationId: string;
+  planName: string;
+  duesAmountCents: number;
+  enrollmentFeeAmountCents: number;
+  billingFrequency: StripeBillingFrequency;
+  passFeesToMember: boolean;
+  stripeConnectAccountId?: string;
+}): Promise<{ setupIntentId: string; clientSecret: string; url: string }> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const {
+    customerId,
+    membershipId,
+    memberId,
+    organizationId,
+    planName,
+    duesAmountCents,
+    enrollmentFeeAmountCents,
+    billingFrequency,
+    passFeesToMember,
+    stripeConnectAccountId,
+  } = params;
+
+  const setupIntent = await stripe.setupIntents.create({
+    customer: customerId,
+    usage: "off_session",
+    payment_method_types: ["card"],
+    metadata: {
+      membership_id: membershipId,
+      member_id: memberId,
+      organization_id: organizationId,
+      plan_name: planName,
+      dues_amount_cents: String(duesAmountCents),
+      enrollment_fee_amount_cents: String(enrollmentFeeAmountCents),
+      billing_frequency: billingFrequency,
+      pass_fees_to_member: String(passFeesToMember),
+      ...(stripeConnectAccountId && { stripe_connect_account_id: stripeConnectAccountId }),
+    },
+  });
+
+  if (!setupIntent.client_secret) {
+    throw new Error("Failed to create SetupIntent client secret");
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const url = `${baseUrl}/payment/setup?setup_intent=${setupIntent.id}&setup_intent_client_secret=${setupIntent.client_secret}`;
+
+  return {
+    setupIntentId: setupIntent.id,
+    clientSecret: setupIntent.client_secret,
+    url,
+  };
+}
+
+/**
  * Check if a Stripe error is a configuration error (portal not set up)
  */
 export function isStripeConfigurationError(error: unknown): boolean {

@@ -8,7 +8,9 @@ import { Suspense } from "react";
 function PaymentCompleteContent() {
   const searchParams = useSearchParams();
   const status = searchParams.get("status");
-  const isSuccess = status === "success";
+  // Stripe redirects back with redirect_status after confirmSetup()
+  const redirectStatus = searchParams.get("redirect_status");
+  const isSuccess = status === "success" || redirectStatus === "succeeded";
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -24,8 +26,8 @@ function PaymentCompleteContent() {
                   Payment Setup Complete!
                 </h1>
                 <p className="text-gray-600">
-                  Thank you for completing your payment setup. Your membership is now active
-                  and your card has been saved for automatic future payments.
+                  Thank you for completing your payment setup. Your card has been saved
+                  and your subscription is being activated.
                 </p>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
                   <p className="font-medium">What happens next:</p>

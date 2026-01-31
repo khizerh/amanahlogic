@@ -143,6 +143,12 @@ export async function POST(req: Request) {
         break;
       }
 
+      case "setup_intent.succeeded": {
+        const setupIntent = event.data.object as Stripe.SetupIntent;
+        await handleSetupIntentSucceeded(setupIntent, supabase);
+        break;
+      }
+
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         await handlePaymentIntentSucceeded(paymentIntent, supabase);
@@ -795,6 +801,269 @@ async function handleInvoiceFailed(
       months_credited: 0,
       notes: `Payment failed - ${invoice.last_finalization_error?.message || "Unknown error"}`,
     });
+}
+
+/**
+ * Handle setup_intent.succeeded
+ *
+ * After a member completes our self-hosted payment page, Stripe fires this
+ * event. We use the confirmed payment method to:
+ * 1. Create a Stripe subscription for recurring dues
+ * 2. Charge the enrollment fee (if applicable) as a one-off PaymentIntent
+ * 3. Update the membership record with subscription + payment method details
+ * 4. Mark the onboarding invite as completed
+ */
+async function handleSetupIntentSucceeded(
+  setupIntent: Stripe.SetupIntent,
+  supabase: ReturnType<typeof createServiceRoleClient>
+) {
+  if (!stripe) return;
+
+  const metadata = setupIntent.metadata;
+  if (!metadata?.membership_id || !metadata?.organization_id) {
+    console.log("[Webhook] setup_intent.succeeded - no membership_id/organization_id in metadata, skipping");
+    return;
+  }
+
+  const {
+    membership_id: membershipId,
+    member_id: memberId,
+    organization_id: organizationId,
+    plan_name: planName,
+    dues_amount_cents: duesAmountCentsStr,
+    enrollment_fee_amount_cents: enrollmentFeeAmountCentsStr,
+    billing_frequency: billingFrequency,
+    pass_fees_to_member: passFeesToMemberStr,
+    stripe_connect_account_id: stripeConnectAccountId,
+  } = metadata;
+
+  // Idempotency: check if onboarding invite already completed
+  const existingInvite = await OnboardingInvitesService.getBySetupIntentId(setupIntent.id, supabase);
+  if (existingInvite?.status === "completed") {
+    console.log(`[Webhook] SetupIntent ${setupIntent.id} already processed (invite ${existingInvite.id} completed)`);
+    return;
+  }
+
+  // Check if subscription already exists for this membership
+  const { data: existingMembership } = await supabase
+    .from("memberships")
+    .select("stripe_subscription_id")
+    .eq("id", membershipId)
+    .single();
+
+  if (existingMembership?.stripe_subscription_id) {
+    console.log(`[Webhook] Membership ${membershipId} already has subscription ${existingMembership.stripe_subscription_id}, skipping`);
+    // Still mark invite completed if it exists
+    if (existingInvite) {
+      await OnboardingInvitesService.recordFullPayment(existingInvite.id, supabase);
+    }
+    return;
+  }
+
+  const paymentMethodId = typeof setupIntent.payment_method === "string"
+    ? setupIntent.payment_method
+    : setupIntent.payment_method?.id;
+
+  if (!paymentMethodId) {
+    console.error("[Webhook] setup_intent.succeeded - no payment_method on SetupIntent");
+    throw new Error("No payment method on SetupIntent");
+  }
+
+  const customerId = typeof setupIntent.customer === "string"
+    ? setupIntent.customer
+    : setupIntent.customer?.id;
+
+  if (!customerId) {
+    console.error("[Webhook] setup_intent.succeeded - no customer on SetupIntent");
+    throw new Error("No customer on SetupIntent");
+  }
+
+  // Set as customer default payment method
+  await stripe.customers.update(customerId, {
+    invoice_settings: { default_payment_method: paymentMethodId },
+  });
+
+  // Get payment method details for display
+  const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+  const pmDetails: Record<string, unknown> = {
+    type: pm.type === "us_bank_account" ? "us_bank_account" : "card",
+    last4: pm.card?.last4 || pm.us_bank_account?.last4 || "****",
+  };
+  if (pm.card) {
+    pmDetails.brand = pm.card.brand;
+    pmDetails.expiryMonth = pm.card.exp_month;
+    pmDetails.expiryYear = pm.card.exp_year;
+  }
+
+  // Parse metadata values
+  const duesAmountCents = parseInt(duesAmountCentsStr || "0", 10);
+  const enrollmentFeeAmountCents = parseInt(enrollmentFeeAmountCentsStr || "0", 10);
+  const passFeesToMember = passFeesToMemberStr === "true";
+  const freq = (billingFrequency || "monthly") as BillingFrequency;
+
+  // Get org for fee calculation
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("platform_fee, stripe_connect_id, stripe_onboarded, pass_fees_to_member")
+    .eq("id", organizationId)
+    .single();
+
+  const platformFeeDollars = org?.platform_fee || 0;
+
+  // Calculate fees for subscription price
+  const fees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
+
+  // Determine Stripe interval
+  let interval: "month" | "year" = "month";
+  let intervalCount = 1;
+  switch (freq) {
+    case "monthly":
+      interval = "month";
+      intervalCount = 1;
+      break;
+    case "biannual":
+      interval = "month";
+      intervalCount = 6;
+      break;
+    case "annual":
+      interval = "year";
+      intervalCount = 1;
+      break;
+  }
+
+  // Create an ad-hoc Price for the subscription (subscriptions don't support
+  // inline product_data the way Checkout does, so we create the price first)
+  const price = await stripe.prices.create({
+    currency: "usd",
+    unit_amount: fees.chargeAmountCents,
+    recurring: {
+      interval,
+      interval_count: intervalCount,
+    },
+    product_data: {
+      name: `${planName || "Membership"} Dues`,
+    },
+  });
+
+  // Build subscription parameters
+  const subscriptionParams: Stripe.SubscriptionCreateParams = {
+    customer: customerId,
+    default_payment_method: paymentMethodId,
+    items: [{ price: price.id }],
+    metadata: {
+      membership_id: membershipId,
+      member_id: memberId,
+      organization_id: organizationId,
+      billing_frequency: freq,
+    },
+  };
+
+  // Add Connect transfer_data if org has a connected account
+  if (stripeConnectAccountId || (org?.stripe_connect_id && org.stripe_onboarded)) {
+    const connectId = stripeConnectAccountId || org!.stripe_connect_id;
+    subscriptionParams.transfer_data = {
+      destination: connectId,
+    };
+  }
+
+  // Create the subscription
+  console.log(`[Webhook] Creating subscription for membership ${membershipId}`);
+  const subscription = await stripe.subscriptions.create(subscriptionParams);
+  console.log(`[Webhook] Created subscription ${subscription.id} for membership ${membershipId}`);
+
+  // Build membership update
+  const membershipUpdate: Record<string, unknown> = {
+    stripe_subscription_id: subscription.id,
+    auto_pay_enabled: true,
+    subscription_status: "active",
+    payment_method: pmDetails,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Handle enrollment fee if applicable
+  if (enrollmentFeeAmountCents > 0) {
+    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, platformFeeDollars, passFeesToMember);
+
+    try {
+      const piParams: Stripe.PaymentIntentCreateParams = {
+        amount: enrollmentFees.chargeAmountCents,
+        currency: "usd",
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        description: `${planName || "Membership"} Enrollment Fee`,
+        metadata: {
+          membership_id: membershipId,
+          member_id: memberId,
+          organization_id: organizationId,
+          type: "enrollment_fee",
+        },
+      };
+
+      // Add Connect params
+      const connectId = stripeConnectAccountId || org?.stripe_connect_id;
+      if (connectId && org?.stripe_onboarded) {
+        piParams.application_fee_amount = enrollmentFees.applicationFeeCents;
+        piParams.transfer_data = { destination: connectId };
+      }
+
+      const enrollmentPI = await stripe.paymentIntents.create(piParams);
+      console.log(`[Webhook] Created enrollment fee PaymentIntent ${enrollmentPI.id} (${enrollmentPI.status})`);
+
+      if (enrollmentPI.status === "succeeded") {
+        membershipUpdate.enrollment_fee_paid = true;
+
+        // Create enrollment fee payment record
+        if (memberId) {
+          await supabase.from("payments").insert({
+            organization_id: organizationId,
+            membership_id: membershipId,
+            member_id: memberId,
+            type: "enrollment_fee",
+            method: "stripe",
+            status: "completed",
+            amount: enrollmentFeeAmountCents / 100,
+            stripe_fee: enrollmentFees.breakdown.stripeFee,
+            platform_fee: enrollmentFees.breakdown.platformFee,
+            total_charged: enrollmentFees.breakdown.chargeAmount,
+            net_amount: enrollmentFees.netAmountCents / 100,
+            months_credited: 0,
+            stripe_payment_intent_id: enrollmentPI.id,
+            notes: "Enrollment fee collected via SetupIntent flow",
+            paid_at: new Date().toISOString(),
+          });
+          console.log(`[Webhook] Created enrollment fee payment record for membership ${membershipId}`);
+        }
+      }
+    } catch (err) {
+      // Log but don't fail — subscription is more important
+      console.error("[Webhook] Failed to charge enrollment fee:", err);
+    }
+  }
+
+  // Update membership
+  const { error: updateError } = await supabase
+    .from("memberships")
+    .update(membershipUpdate)
+    .eq("id", membershipId);
+
+  if (updateError) {
+    console.error("[Webhook] Failed to update membership:", updateError);
+    throw updateError;
+  }
+
+  console.log(`[Webhook] Membership ${membershipId} updated with subscription ${subscription.id}`);
+
+  // Mark onboarding invite as completed
+  if (existingInvite) {
+    try {
+      await OnboardingInvitesService.recordFullPayment(existingInvite.id, supabase);
+      console.log(`[Webhook] Marked onboarding invite ${existingInvite.id} as completed`);
+    } catch (err) {
+      console.error("[Webhook] Failed to update onboarding invite:", err);
+    }
+  }
 }
 
 /**

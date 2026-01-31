@@ -9,9 +9,8 @@ import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import {
   isStripeConfigured,
   getOrCreateStripeCustomer,
-  createSubscriptionCheckoutSession,
+  createSetupIntent,
   calculateFees,
-  type ConnectParams,
 } from "@/lib/stripe";
 import { sendPaymentSetupEmail } from "@/lib/email";
 
@@ -94,18 +93,12 @@ export async function POST(req: Request) {
         priceAmount = plan.pricing.monthly;
     }
 
-    // Calculate fees
+    // Calculate fees for email display
     const fees = calculateFees(
       Math.round(priceAmount * 100),
       org.platformFee || 0,
       org.passFeesToMember || false
     );
-
-    // Build URLs - member will be redirected back to a success/cancel page
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003";
-    // Redirect to a public thank-you page (member doesn't have dashboard access)
-    const successUrl = `${baseUrl}/payment-complete?status=success&membership=${membershipId}`;
-    const cancelUrl = `${baseUrl}/payment-complete?status=cancelled&membership=${membershipId}`;
 
     // Determine if enrollment fee should be included
     // Default: include if not paid, unless explicitly set to false
@@ -114,8 +107,7 @@ export async function POST(req: Request) {
         ? includeEnrollmentFee
         : !membership.enrollmentFeePaid;
 
-    // Calculate enrollment fee with fees if applicable
-    let enrollmentFeeConfig: { amountCents: number; description?: string } | undefined;
+    // Calculate enrollment fee for email display
     let enrollmentFeeForEmail: number | undefined;
 
     if (shouldIncludeEnrollmentFee) {
@@ -124,43 +116,24 @@ export async function POST(req: Request) {
 
       if (org.passFeesToMember) {
         const enrollmentFees = calculateFees(enrollmentFeeCents, org.platformFee || 0, true);
-        enrollmentFeeConfig = {
-          amountCents: enrollmentFees.chargeAmountCents,
-          description: `${plan.name} Enrollment Fee ($${enrollmentFeeBase.toFixed(2)} + $${enrollmentFees.breakdown.totalFees.toFixed(2)} fees)`,
-        };
         enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
       } else {
-        enrollmentFeeConfig = {
-          amountCents: enrollmentFeeCents,
-          description: `${plan.name} Enrollment Fee`,
-        };
         enrollmentFeeForEmail = enrollmentFeeBase;
       }
     }
 
-    // Prepare Connect params if org has a connected account
-    let connectParams: ConnectParams | undefined;
-    if (org.stripeConnectId && org.stripeOnboarded) {
-      connectParams = {
-        stripeConnectId: org.stripeConnectId,
-        applicationFeeCents: fees.applicationFeeCents,
-      };
-    }
-
-    // Create checkout session
-    const session = await createSubscriptionCheckoutSession({
+    // Create SetupIntent (no expiration, unlike Checkout Sessions)
+    const setupResult = await createSetupIntent({
       customerId,
-      priceAmountCents: fees.chargeAmountCents,
       membershipId: membership.id,
       memberId: member.id,
       organizationId,
-      successUrl,
-      cancelUrl,
-      billingAnchorDay: membership.billingAnniversaryDay,
-      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
       planName: plan.name,
-      enrollmentFee: enrollmentFeeConfig,
-      connectParams,
+      duesAmountCents: Math.round(priceAmount * 100),
+      enrollmentFeeAmountCents: shouldIncludeEnrollmentFee ? Math.round(plan.enrollmentFee * 100) : 0,
+      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
+      passFeesToMember: org.passFeesToMember || false,
+      stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
     });
 
     // Update membership with customer ID
@@ -175,7 +148,7 @@ export async function POST(req: Request) {
       membershipId: membership.id,
       memberId: member.id,
       paymentMethod: "stripe",
-      stripeCheckoutSessionId: session.sessionId,
+      stripeSetupIntentId: setupResult.setupIntentId,
       enrollmentFeeAmount: shouldIncludeEnrollmentFee ? plan.enrollmentFee : 0,
       includesEnrollmentFee: shouldIncludeEnrollmentFee,
       duesAmount: priceAmount,
@@ -184,13 +157,13 @@ export async function POST(req: Request) {
       sentAt: new Date().toISOString(),
     });
 
-    // Send email to member with checkout link
+    // Send email to member with payment setup link
     const emailResult = await sendPaymentSetupEmail({
       to: member.email,
       memberName: member.firstName,
       memberId: member.id,
       organizationId,
-      checkoutUrl: session.url,
+      checkoutUrl: setupResult.url,
       planName: plan.name,
       enrollmentFee: enrollmentFeeForEmail,
       duesAmount: fees.chargeAmountCents / 100,
@@ -203,10 +176,10 @@ export async function POST(req: Request) {
       // Don't fail the whole request - return success with warning
       return NextResponse.json({
         success: true,
-        warning: "Checkout session created but email failed to send",
+        warning: "SetupIntent created but email failed to send",
         emailError: emailResult.error,
-        checkoutUrl: session.url,
-        sessionId: session.sessionId,
+        paymentUrl: setupResult.url,
+        setupIntentId: setupResult.setupIntentId,
         includesEnrollmentFee: shouldIncludeEnrollmentFee,
       });
     }
@@ -214,8 +187,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: `Payment setup link sent to ${member.email}`,
-      checkoutUrl: session.url,
-      sessionId: session.sessionId,
+      paymentUrl: setupResult.url,
+      setupIntentId: setupResult.setupIntentId,
       includesEnrollmentFee: shouldIncludeEnrollmentFee,
       emailSent: true,
     });

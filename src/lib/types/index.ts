@@ -442,6 +442,7 @@ export interface OnboardingInvite {
 
   // Stripe (null for manual)
   stripeCheckoutSessionId: string | null;
+  stripeSetupIntentId: string | null;
 
   // Enrollment fee tracking
   enrollmentFeeAmount: number;        // $500 or 0 if waived

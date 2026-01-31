@@ -14,9 +14,8 @@ import { sendAgreementEmail } from "@/lib/email/send-agreement";
 import {
   isStripeConfigured,
   getOrCreateStripeCustomer,
-  createSubscriptionCheckoutSession,
+  createSetupIntent,
   calculateFees,
-  type ConnectParams,
 } from "@/lib/stripe";
 import type { Member, Membership, Plan, Organization } from "@/lib/types";
 
@@ -161,70 +160,44 @@ export async function orchestrateOnboarding(
         organizationId,
       });
 
-      // Calculate fees
+      // Calculate fees for email display
       const fees = calculateFees(
         Math.round(priceAmount * 100),
         org?.platformFee || 0,
         org?.passFeesToMember || false
       );
 
-      // Build URLs
-      const successUrl = `${baseUrl}/payment-complete?status=success&membership=${membership.id}`;
-      const cancelUrl = `${baseUrl}/payment-complete?status=cancelled&membership=${membership.id}`;
-
-      // Calculate enrollment fee config
-      let enrollmentFeeConfig: { amountCents: number; description?: string } | undefined;
-
+      // Calculate enrollment fee for email
       if (includeEnrollmentFee) {
         const enrollmentFeeBase = plan.enrollmentFee;
         const enrollmentFeeCents = Math.round(enrollmentFeeBase * 100);
 
         if (org?.passFeesToMember) {
           const enrollmentFees = calculateFees(enrollmentFeeCents, org.platformFee || 0, true);
-          enrollmentFeeConfig = {
-            amountCents: enrollmentFees.chargeAmountCents,
-            description: `${plan.name} Enrollment Fee ($${enrollmentFeeBase.toFixed(2)} + $${enrollmentFees.breakdown.totalFees.toFixed(2)} fees)`,
-          };
           enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
         } else {
-          enrollmentFeeConfig = {
-            amountCents: enrollmentFeeCents,
-            description: `${plan.name} Enrollment Fee`,
-          };
           enrollmentFeeForEmail = enrollmentFeeBase;
         }
       }
 
-      // Set dues amount early (before session creation) so it's always
-      // available for the welcome email even if checkout creation fails
+      // Set dues amount for email
       duesAmountForEmail = fees.chargeAmountCents / 100;
 
-      // Prepare Connect params if org has a connected account
-      let connectParams: ConnectParams | undefined;
-      if (org?.stripeConnectId && org.stripeOnboarded) {
-        connectParams = {
-          stripeConnectId: org.stripeConnectId,
-          applicationFeeCents: fees.applicationFeeCents,
-        };
-      }
-
-      // Create checkout session
-      const session = await createSubscriptionCheckoutSession({
+      // Create SetupIntent (no expiration, unlike Checkout Sessions)
+      const setupResult = await createSetupIntent({
         customerId,
-        priceAmountCents: fees.chargeAmountCents,
         membershipId: membership.id,
         memberId: member.id,
         organizationId,
-        successUrl,
-        cancelUrl,
-        billingAnchorDay: membership.billingAnniversaryDay,
-        billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
         planName: plan.name,
-        enrollmentFee: enrollmentFeeConfig,
-        connectParams,
+        duesAmountCents: Math.round(priceAmount * 100),
+        enrollmentFeeAmountCents: includeEnrollmentFee ? Math.round(plan.enrollmentFee * 100) : 0,
+        billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
+        passFeesToMember: org?.passFeesToMember || false,
+        stripeConnectAccountId: org?.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
       });
 
-      checkoutUrl = session.url;
+      checkoutUrl = setupResult.url;
       result.stripeSessionCreated = true;
 
       // Update membership with customer ID
@@ -239,7 +212,7 @@ export async function orchestrateOnboarding(
         membershipId: membership.id,
         memberId: member.id,
         paymentMethod: "stripe",
-        stripeCheckoutSessionId: session.sessionId,
+        stripeSetupIntentId: setupResult.setupIntentId,
         enrollmentFeeAmount: includeEnrollmentFee ? plan.enrollmentFee : 0,
         includesEnrollmentFee: includeEnrollmentFee,
         duesAmount: priceAmount,
