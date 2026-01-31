@@ -143,6 +143,9 @@ export function MemberDetailClient({
   // State for setting up recurring payment
   const [isSettingUpAutopay, setIsSettingUpAutopay] = useState(false);
 
+  // State for resending Stripe payment link
+  const [isResendingPaymentLink, setIsResendingPaymentLink] = useState(false);
+
   // State for pausing/resuming subscription
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 
@@ -382,6 +385,37 @@ export function MemberDetailClient({
       setIsSettingUpAutopay(false);
     }
     // Don't setIsSettingUpAutopay(false) on success - we're redirecting
+  }, [membership, memberData.id]);
+
+  // Resend Stripe payment link to member via email
+  const handleResendPaymentLink = useCallback(async () => {
+    if (!membership) return;
+
+    setIsResendingPaymentLink(true);
+    try {
+      const response = await fetch("/api/stripe/send-payment-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          memberId: memberData.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send payment link");
+      }
+
+      toast.success("Payment link sent!", {
+        description: "The member will receive an email with a Stripe checkout link.",
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send payment link");
+    } finally {
+      setIsResendingPaymentLink(false);
+    }
   }, [membership, memberData.id]);
 
   // Pause or resume subscription
@@ -684,26 +718,11 @@ export function MemberDetailClient({
                             </button>
                           </>
                         ) : (
-                          <>
-                            <FileText className="h-4 w-4 text-amber-600" />
-                            <span className="text-sm text-amber-700">Awaiting Signature</span>
-                            <div className="flex gap-1 ml-auto">
-                              {currentSignUrl && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(currentSignUrl);
-                                    toast.success("Sign link copied to clipboard");
-                                  }}
-                                  className="h-7 text-xs"
-                                  title="Copy signing link"
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              )}
+                          <div className="space-y-2 w-full">
+                            <span className="text-sm font-medium text-amber-700">Awaiting Signature</span>
+                            <div className="flex gap-2">
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
                                 onClick={handleSendAgreement}
                                 disabled={isSendingAgreement}
@@ -715,14 +734,24 @@ export function MemberDetailClient({
                                     Sending...
                                   </>
                                 ) : (
-                                  <>
-                                    <Send className="h-3 w-3 mr-1" />
-                                    Resend
-                                  </>
+                                  "Resend Link"
                                 )}
                               </Button>
+                              {currentSignUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(currentSignUrl);
+                                    toast.success("Sign link copied to clipboard");
+                                  }}
+                                  className="h-7 text-xs"
+                                >
+                                  Copy Link
+                                </Button>
+                              )}
                             </div>
-                          </>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1078,6 +1107,45 @@ export function MemberDetailClient({
                           )}
                         </Button>
                       ) : null}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSwitchToManual}
+                        disabled={isSwitchingToManual}
+                      >
+                        {isSwitchingToManual ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Switching...
+                          </>
+                        ) : (
+                          <>
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            Switch to Manual
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  ) : membership.stripeCustomerId ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResendPaymentLink}
+                        disabled={isResendingPaymentLink}
+                      >
+                        {isResendingPaymentLink ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4 mr-2" />
+                            Resend Payment Link
+                          </>
+                        )}
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
