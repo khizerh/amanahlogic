@@ -6,10 +6,11 @@ import { MemberNavigation } from "./MemberNavigation";
 
 function MemberPortalContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === "/portal/login";
+  const publicPages = ["/portal/login", "/portal/forgot-password", "/portal/reset-password", "/portal/accept-invite"];
+  const isPublicPage = publicPages.includes(pathname);
 
-  // Login page has its own full-page layout
-  if (isLoginPage) {
+  // Public pages have their own full-page layout
+  if (isPublicPage) {
     return <>{children}</>;
   }
 
