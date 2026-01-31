@@ -49,7 +49,7 @@ export default function LoginPage() {
               className="h-10"
             />
           </div>
-          <h1 className="text-2xl font-semibold">Admin Login</h1>
+          <h1 className="text-2xl font-semibold">Admin Portal</h1>
           <p className="text-muted-foreground">Sign in to your account</p>
         </div>
 
