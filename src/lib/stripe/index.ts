@@ -370,11 +370,11 @@ export function calculateFees(
     // Org receives the base amount (that's the whole point)
     netAmountCents = baseAmountCents;
   } else {
-    // STANDARD MODE: Org absorbs fees, member pays base amount only
-    chargeAmountCents = baseAmountCents;
-    stripeFeeCents = Math.round(baseAmountCents * stripeFeePercent) + stripeFixedFeeCents;
-    // Org receives base minus all fees
-    netAmountCents = baseAmountCents - stripeFeeCents - platformFeeCents;
+    // STANDARD MODE: Org absorbs Stripe fees only; platform fee always passed to member
+    chargeAmountCents = baseAmountCents + platformFeeCents;
+    stripeFeeCents = Math.round(chargeAmountCents * stripeFeePercent) + stripeFixedFeeCents;
+    // Org receives base minus Stripe fee (platform fee is paid by member, not deducted from org)
+    netAmountCents = baseAmountCents - stripeFeeCents;
   }
 
   // For Connect destination charges, application_fee_amount includes both fees
@@ -402,28 +402,34 @@ export function calculateFees(
 
 /**
  * Reverse calculate base amount from a charge amount
- * Used by webhook to determine original dues amount when fees were passed to member
+ * Used by webhook to determine original dues amount from the charged amount
  *
  * @param chargeAmountCents - The total amount charged (includes fees)
  * @param platformFeeDollars - The platform fee in dollars
+ * @param passFeesToMember - Whether Stripe fees were passed to the member
  * @returns The base amount in cents (what the org's dues are)
  */
 export function reverseCalculateBaseAmount(
   chargeAmountCents: number,
-  platformFeeDollars: number
+  platformFeeDollars: number,
+  passFeesToMember: boolean = true
 ): number {
-  const stripeFeePercent = 0.029;
-  const stripeFixedFeeCents = 30;
   const platformFeeCents = Math.round(platformFeeDollars * 100);
 
-  // Reverse the gross-up formula:
-  // charge = (base + platformFee + stripeFixed) / (1 - stripePercent)
-  // base = charge * (1 - stripePercent) - platformFee - stripeFixed
-  const baseAmountCents = Math.round(
-    chargeAmountCents * (1 - stripeFeePercent) - platformFeeCents - stripeFixedFeeCents
-  );
-
-  return Math.max(0, baseAmountCents); // Ensure non-negative
+  if (passFeesToMember) {
+    // Reverse the gross-up formula:
+    // charge = (base + platformFee + stripeFixed) / (1 - stripePercent)
+    // base = charge * (1 - stripePercent) - platformFee - stripeFixed
+    const stripeFeePercent = 0.029;
+    const stripeFixedFeeCents = 30;
+    const baseAmountCents = Math.round(
+      chargeAmountCents * (1 - stripeFeePercent) - platformFeeCents - stripeFixedFeeCents
+    );
+    return Math.max(0, baseAmountCents);
+  } else {
+    // Standard mode: charge = base + platformFee, so base = charge - platformFee
+    return Math.max(0, chargeAmountCents - platformFeeCents);
+  }
 }
 
 /**

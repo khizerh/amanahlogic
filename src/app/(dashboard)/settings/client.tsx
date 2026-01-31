@@ -287,8 +287,8 @@ export function SettingsPageClient({
       setOrganization(json.organization);
       toast.success(
         json.organization.passFeesToMember
-          ? "Processing fees will now be added to member payments"
-          : "Organization will now absorb processing fees"
+          ? "Stripe processing fees will now be added to member payments"
+          : "Organization will now absorb Stripe processing fees"
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update fee settings");
@@ -733,11 +733,11 @@ export function SettingsPageClient({
                       {/* Pass Fees Toggle */}
                       <div className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex-1">
-                          <p className="font-medium">Pass fees to members</p>
+                          <p className="font-medium">Pass Stripe processing fees to members</p>
                           <p className="text-sm text-muted-foreground">
                             {organization.passFeesToMember
-                              ? "Members pay processing fees on top of their dues"
-                              : "Your organization absorbs all processing fees"}
+                              ? "Members pay Stripe processing fees on top of their dues"
+                              : "Your organization absorbs Stripe processing fees. The platform fee is always included in member payments."}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
@@ -767,7 +767,7 @@ export function SettingsPageClient({
                           <div>
                             <p className="font-medium">Platform Fee</p>
                             <p className="text-sm text-muted-foreground">
-                              Amanah Logic service fee
+                              Amanah Logic service fee — always included in member payments
                             </p>
                           </div>
                           <p className="font-mono text-sm">${organization.platformFee.toFixed(2)}</p>
@@ -826,31 +826,37 @@ export function SettingsPageClient({
                             </div>
                           );
                         } else {
-                          // Standard: org absorbs fees
-                          const stripeFeeCents = Math.round(baseCents * stripePercent) + stripeFixed;
+                          // Standard: org absorbs Stripe fees, platform fee always passed to member
+                          const chargeCents = baseCents + platformFeeCents;
+                          const chargeAmount = chargeCents / 100;
+                          const stripeFeeCents = Math.round(chargeCents * stripePercent) + stripeFixed;
                           const stripeFee = stripeFeeCents / 100;
-                          const netAmount = baseDues - stripeFee - organization.platformFee;
+                          const netAmount = baseDues - stripeFee;
 
                           return (
                             <div className="p-4 bg-muted/50 rounded-lg">
                               <p className="text-sm font-medium mb-3">
-                                Example: ${baseDues} dues
+                                Example: ${baseDues} dues (org absorbs Stripe fees)
                               </p>
                               <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">Dues amount</span>
                                   <span>${baseDues.toFixed(2)}</span>
                                 </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">+ Platform fee</span>
+                                  <span>+${organization.platformFee.toFixed(2)}</span>
+                                </div>
                                 <div className="flex justify-between pt-2 border-t">
                                   <span className="font-medium">Member pays</span>
-                                  <span className="font-medium">${baseDues.toFixed(2)}</span>
+                                  <span className="font-medium">${chargeAmount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-muted-foreground">
                                   <span>Stripe fee (2.9% + $0.30)</span>
                                   <span className="text-red-600">-${stripeFee.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-muted-foreground">
-                                  <span>Platform fee</span>
+                                  <span>Platform fee (to Amanah Logic)</span>
                                   <span className="text-red-600">-${organization.platformFee.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between pt-2 border-t font-medium">
@@ -864,9 +870,10 @@ export function SettingsPageClient({
                       })()}
 
                       <p className="text-xs text-muted-foreground">
+                        The ${organization.platformFee.toFixed(2)} platform fee is always included in member payments.{" "}
                         {organization.passFeesToMember
-                          ? "Members will see the fee breakdown when making payments. You receive the full dues amount."
-                          : "Fees are automatically deducted from each transaction. You receive the net amount."}
+                          ? "Stripe processing fees are also passed to members. You receive the full dues amount."
+                          : "Stripe processing fees are deducted from each transaction. You receive the net amount after Stripe fees."}
                       </p>
                     </div>
                   </CardContent>

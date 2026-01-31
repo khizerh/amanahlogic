@@ -440,14 +440,8 @@ async function handleInvoiceCreated(
   const passFeesToMember = org.pass_fees_to_member || false;
 
   // Determine the base amount for fee calculation
-  let baseAmountCents: number;
-  if (passFeesToMember) {
-    // Invoice amount is grossed-up — reverse to get base
-    baseAmountCents = reverseCalculateBaseAmount(invoiceAmountCents, platformFeeDollars);
-  } else {
-    // Invoice amount IS the base amount
-    baseAmountCents = invoiceAmountCents;
-  }
+  // In both modes, the invoice amount includes the platform fee, so we reverse calculate
+  const baseAmountCents = reverseCalculateBaseAmount(invoiceAmountCents, platformFeeDollars, passFeesToMember);
 
   const fees = calculateFees(baseAmountCents, platformFeeDollars, passFeesToMember);
 
@@ -583,20 +577,10 @@ async function handleInvoicePaid(
   const today = getTodayInOrgTimezone(orgTimezone);
 
   // Determine base amount (dues) vs total charged
-  // If passFeesToMember is true, `amount` from Stripe includes fees - reverse calculate base
+  // In both modes, the charge includes the platform fee, so we always reverse calculate
   const chargeAmountCents = Math.round(amount * 100);
-  let baseAmountCents: number;
-  let baseAmount: number;
-
-  if (passFeesToMember) {
-    // Reverse calculate the original dues from the grossed-up charge
-    baseAmountCents = reverseCalculateBaseAmount(chargeAmountCents, platformFeeDollars);
-    baseAmount = baseAmountCents / 100;
-  } else {
-    // Standard mode: charge amount = base amount
-    baseAmountCents = chargeAmountCents;
-    baseAmount = amount;
-  }
+  const baseAmountCents = reverseCalculateBaseAmount(chargeAmountCents, platformFeeDollars, passFeesToMember);
+  const baseAmount = baseAmountCents / 100;
 
   // Calculate months credited based on billing frequency and plan pricing
   // Use baseAmount (actual dues) for comparison, not the charged amount
