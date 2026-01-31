@@ -49,6 +49,7 @@ export default function LoginPage() {
               className="h-10"
             />
           </div>
+          <h1 className="text-2xl font-semibold">Admin Login</h1>
           <p className="text-muted-foreground">Sign in to your account</p>
         </div>
 
@@ -98,6 +99,13 @@ export default function LoginPage() {
             {isLoading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Are you a member?{" "}
+          <Link href="/portal/login" className="text-brand-teal hover:underline">
+            Log in here
+          </Link>
+        </p>
       </div>
     </div>
   );
