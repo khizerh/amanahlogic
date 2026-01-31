@@ -123,23 +123,35 @@ export async function POST(request: Request) {
 
     // Create the membership with status "pending"
     // Use today's date in the organization's timezone as billing anniversary day
+    // Clamp to 28 max since months like February only have 28 days
     const org = await OrganizationsService.getById(organizationId);
     const orgTimezone = org?.timezone || "America/Los_Angeles";
     const todayInOrgTz = getTodayInOrgTimezone(orgTimezone); // Returns "YYYY-MM-DD"
-    const billingAnniversaryDay = parseInt(todayInOrgTz.split("-")[2], 10);
+    const billingAnniversaryDay = Math.min(parseInt(todayInOrgTz.split("-")[2], 10), 28);
 
-    const membership = await MembershipsService.create({
-      organizationId,
-      memberId: member.id,
-      planId: plan.id,
-      status: "pending",
-      billingFrequency: billingFrequency || "monthly",
-      billingAnniversaryDay,
-      paidMonths: 0,
-      enrollmentFeePaid: enrollmentFeePaid || false,
-      // joinDate is set when BOTH agreement signed AND first payment completed
-      joinDate: null,
-    });
+    let membership;
+    try {
+      membership = await MembershipsService.create({
+        organizationId,
+        memberId: member.id,
+        planId: plan.id,
+        status: "pending",
+        billingFrequency: billingFrequency || "monthly",
+        billingAnniversaryDay,
+        paidMonths: 0,
+        enrollmentFeePaid: enrollmentFeePaid || false,
+        // joinDate is set when BOTH agreement signed AND first payment completed
+        joinDate: null,
+      });
+    } catch (membershipError) {
+      // Roll back: delete the orphaned member record
+      try {
+        await MembersService.delete(member.id);
+      } catch {
+        // Best effort cleanup
+      }
+      throw membershipError;
+    }
 
     return NextResponse.json({
       success: true,
