@@ -1,7 +1,7 @@
 "use server";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { resend, FROM_EMAIL, isEmailConfigured } from "@/lib/email/resend";
+import { resend, isEmailConfigured } from "@/lib/email/resend";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.amanahlogic.com";
 
@@ -41,7 +41,7 @@ export async function requestPasswordReset(
     }
 
     await resend!.emails.send({
-      from: `"Amanah Logic" <${FROM_EMAIL}>`,
+      from: `"Amanah Logic" <support@amanahlogic.com>`,
       to: email,
       subject: "Reset Your Password",
       html: `

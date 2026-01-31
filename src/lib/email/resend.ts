@@ -9,7 +9,7 @@ export const resend = resendApiKey ? new Resend(resendApiKey) : null;
 const EMAIL_DOMAIN = "amanahlogic.com";
 
 // Default from address (used when org info not available)
-export const FROM_EMAIL = process.env.RESEND_FROM_ADDRESS || `noreply@${EMAIL_DOMAIN}`;
+export const FROM_EMAIL = process.env.RESEND_FROM_ADDRESS || `support@${EMAIL_DOMAIN}`;
 
 /**
  * Check if email sending is configured
