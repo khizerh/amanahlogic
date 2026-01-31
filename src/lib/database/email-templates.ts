@@ -80,16 +80,21 @@ export class EmailTemplatesService {
   static async seedDefaults(organizationId: string): Promise<void> {
     const supabase = createServiceRoleClient();
 
-    // Check if any templates already exist for this org
-    const { count, error: countError } = await supabase
+    // Fetch existing template types for this org
+    const { data: existing, error: fetchError } = await supabase
       .from("email_templates")
-      .select("*", { count: "exact", head: true })
+      .select("type")
       .eq("organization_id", organizationId);
 
-    if (countError) throw countError;
-    if (count && count > 0) return; // Already seeded
+    if (fetchError) throw fetchError;
 
-    const rows = DEFAULT_EMAIL_TEMPLATES.map((t) => ({
+    const existingTypes = new Set((existing || []).map((t: { type: string }) => t.type));
+
+    // Only insert templates whose type doesn't already exist
+    const missing = DEFAULT_EMAIL_TEMPLATES.filter((t) => !existingTypes.has(t.type));
+    if (missing.length === 0) return;
+
+    const rows = missing.map((t) => ({
       organization_id: organizationId,
       type: t.type,
       name: t.name,

@@ -18,15 +18,13 @@ export default async function SettingsPage() {
     EmailTemplatesService.getAll(organizationId),
   ]);
 
-  // Seed default email templates if none exist for this org
+  // Ensure all default email templates exist (inserts any missing types)
   let emailTemplates = initialEmailTemplates;
-  if (emailTemplates.length === 0) {
-    try {
-      await EmailTemplatesService.seedDefaults(organizationId);
-      emailTemplates = await EmailTemplatesService.getAll(organizationId);
-    } catch (err) {
-      console.error("Failed to seed default email templates:", err);
-    }
+  try {
+    await EmailTemplatesService.seedDefaults(organizationId);
+    emailTemplates = await EmailTemplatesService.getAll(organizationId);
+  } catch (err) {
+    console.error("Failed to seed default email templates:", err);
   }
 
   if (!organization) {
