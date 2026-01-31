@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { MemberPortalService } from "@/lib/database/member-portal";
+import { normalizePhoneNumber } from "@/lib/utils";
 
 export async function PUT(request: NextRequest) {
   try {
@@ -25,13 +26,22 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { phone, address, emergencyContact, preferredLanguage } = body;
 
+    // Normalize phone numbers to E.164 before storage
+    const normalizedPhone = phone ? normalizePhoneNumber(phone) : undefined;
+    const normalizedEmergencyContact = emergencyContact
+      ? {
+          ...emergencyContact,
+          phone: emergencyContact.phone ? normalizePhoneNumber(emergencyContact.phone) : "",
+        }
+      : undefined;
+
     const updatedMember = await MemberPortalService.updateProfile(
       member.id,
       member.organization_id,
       {
-        phone,
+        phone: normalizedPhone,
         address,
-        emergencyContact,
+        emergencyContact: normalizedEmergencyContact,
         preferredLanguage,
       }
     );

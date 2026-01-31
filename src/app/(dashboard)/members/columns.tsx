@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { MemberWithMembership } from "@/lib/types";
 import { formatStatus, getStatusVariant, formatDate } from "@/lib/mock-data";
+import { formatPhoneNumber } from "@/lib/utils";
 import { FileSignature, CreditCard, HelpCircle } from "lucide-react";
 
 const getPlanTypeBadge = (type: string, name: string) => {
@@ -56,7 +57,7 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
   {
     accessorKey: "phone",
     header: "Phone",
-    cell: ({ row }) => <span>{row.original.phone}</span>,
+    cell: ({ row }) => <span>{formatPhoneNumber(row.original.phone)}</span>,
   },
   {
     accessorKey: "planType",

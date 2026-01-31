@@ -61,7 +61,9 @@ import {
   getEmailTemplateTypeLabel,
   getEmailStatusVariant,
 } from "@/lib/mock-data";
+import { formatPhoneNumber } from "@/lib/utils";
 import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage, Agreement } from "@/lib/types";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import {
   CheckCircle2,
@@ -423,14 +425,14 @@ export function MemberDetailClient({
   const handleStartEdit = () => {
     setEditForm({
       email: memberData.email,
-      phone: memberData.phone,
+      phone: formatPhoneNumber(memberData.phone),
       street: memberData.address.street,
       city: memberData.address.city,
       state: memberData.address.state,
       zip: memberData.address.zip,
       preferredLanguage: memberData.preferredLanguage,
       emergencyName: memberData.emergencyContact.name,
-      emergencyPhone: memberData.emergencyContact.phone,
+      emergencyPhone: formatPhoneNumber(memberData.emergencyContact.phone),
     });
     setIsEditing(true);
   };
@@ -785,7 +787,7 @@ export function MemberDetailClient({
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Phone</p>
-                        <p className="font-medium">{memberData.phone}</p>
+                        <p className="font-medium">{formatPhoneNumber(memberData.phone)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Preferred Language</p>
@@ -807,7 +809,7 @@ export function MemberDetailClient({
                         <p className="text-sm text-muted-foreground">Emergency Contact</p>
                         <p className="font-medium">{memberData.emergencyContact.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {memberData.emergencyContact.phone}
+                          {formatPhoneNumber(memberData.emergencyContact.phone)}
                         </p>
                       </div>
                     </div>
@@ -826,10 +828,10 @@ export function MemberDetailClient({
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="phone">Phone</Label>
-                        <Input
+                        <PhoneInput
                           id="phone"
                           value={editForm.phone}
-                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                          onChange={(value) => setEditForm({ ...editForm, phone: value })}
                         />
                       </div>
                       <div className="space-y-2">
@@ -891,10 +893,10 @@ export function MemberDetailClient({
                           onChange={(e) => setEditForm({ ...editForm, emergencyName: e.target.value })}
                           className="mb-2"
                         />
-                        <Input
+                        <PhoneInput
                           placeholder="Phone"
                           value={editForm.emergencyPhone}
-                          onChange={(e) => setEditForm({ ...editForm, emergencyPhone: e.target.value })}
+                          onChange={(value) => setEditForm({ ...editForm, emergencyPhone: value })}
                         />
                       </div>
                     </div>

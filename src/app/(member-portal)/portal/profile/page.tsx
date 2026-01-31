@@ -10,6 +10,7 @@ import { AlertTriangle } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { StripePortalButton } from "./StripePortalButton";
 import { EditableProfile } from "./EditableProfile";
+import { formatPhoneNumber } from "@/lib/utils";
 
 export default async function MemberProfilePage() {
   const headersList = await headers();
@@ -160,7 +161,7 @@ export default async function MemberProfilePage() {
             </a>{" "}
             or call{" "}
             <a href={`tel:${organization.phone}`} className="text-brand-teal hover:underline">
-              {organization.phone}
+              {formatPhoneNumber(organization.phone)}
             </a>
           </p>
         </CardContent>

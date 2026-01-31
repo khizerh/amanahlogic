@@ -5,6 +5,7 @@ import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
+import { normalizePhoneNumber } from "@/lib/utils";
 import type { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
 
 interface ImportChild {
@@ -105,13 +106,17 @@ export async function POST(request: Request) {
           dateOfBirth: child.dateOfBirth,
         }));
 
+        // Normalize phone numbers to E.164 before storage
+        const normalizedPhone = member.phone ? normalizePhoneNumber(member.phone) : undefined;
+        const normalizedEmergencyPhone = member.emergencyContactPhone ? normalizePhoneNumber(member.emergencyContactPhone) : "";
+
         // Create the member
         const createdMember = await MembersService.create({
           organizationId,
           firstName: member.firstName,
           lastName: member.lastName,
           email: member.email,
-          phone: member.phone || undefined,
+          phone: normalizedPhone || undefined,
           address: {
             street: member.street || "",
             city: member.city || "",
@@ -122,7 +127,7 @@ export async function POST(request: Request) {
           children: childrenWithIds,
           emergencyContact: {
             name: member.emergencyContactName || "",
-            phone: member.emergencyContactPhone || "",
+            phone: normalizedEmergencyPhone,
           },
           preferredLanguage: member.preferredLanguage || "en",
         });

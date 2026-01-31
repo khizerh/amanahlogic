@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { formatCurrency } from "@/lib/utils/currency";
+import { formatPhoneNumber } from "@/lib/utils";
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "N/A";
@@ -235,7 +236,7 @@ export default async function MemberDashboardPage() {
             <p>
               <span className="font-medium">Phone:</span>{" "}
               <a href={`tel:${organization.phone}`} className="text-brand-teal hover:underline">
-                {organization.phone}
+                {formatPhoneNumber(organization.phone)}
               </a>
             </p>
           </div>

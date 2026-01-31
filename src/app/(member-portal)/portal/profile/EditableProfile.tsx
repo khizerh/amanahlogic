@@ -16,6 +16,8 @@ import {
 import { Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Member } from "@/lib/types";
+import { formatPhoneNumber, normalizePhoneNumber } from "@/lib/utils";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 interface EditableProfileProps {
   member: Member;
@@ -35,11 +37,14 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
   const [emergency, setEmergency] = useState(member.emergencyContact);
 
   const startEdit = (field: EditingField) => {
-    // Reset to current values
-    setPhone(member.phone);
+    // Reset to current values, formatting phone numbers for editing
+    setPhone(formatPhoneNumber(member.phone));
     setAddress(member.address);
     setLanguage(member.preferredLanguage);
-    setEmergency(member.emergencyContact);
+    setEmergency({
+      ...member.emergencyContact,
+      phone: formatPhoneNumber(member.emergencyContact.phone),
+    });
     setEditing(field);
   };
 
@@ -144,14 +149,14 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
                 )}
               </div>
               {editing === "phone" ? (
-                <Input
+                <PhoneInput
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(value) => setPhone(value)}
                   placeholder="(555) 555-5555"
                   className="mt-1"
                 />
               ) : (
-                <p className="font-medium">{member.phone || "Not provided"}</p>
+                <p className="font-medium">{member.phone ? formatPhoneNumber(member.phone) : "Not provided"}</p>
               )}
             </div>
 
@@ -286,9 +291,9 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
               </div>
               <div>
                 <Label className="text-xs">Phone</Label>
-                <Input
+                <PhoneInput
                   value={emergency.phone}
-                  onChange={(e) => setEmergency({ ...emergency, phone: e.target.value })}
+                  onChange={(value) => setEmergency({ ...emergency, phone: value })}
                 />
               </div>
             </div>
@@ -300,7 +305,7 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-medium">{member.emergencyContact.phone}</p>
+                <p className="font-medium">{formatPhoneNumber(member.emergencyContact.phone)}</p>
               </div>
             </div>
           )}
