@@ -11,6 +11,7 @@ import {
   getOrCreateStripeCustomer,
   createSubscriptionCheckoutSession,
   calculateFees,
+  type ConnectParams,
 } from "@/lib/stripe";
 import { sendPaymentSetupEmail } from "@/lib/email";
 
@@ -137,6 +138,15 @@ export async function POST(req: Request) {
       }
     }
 
+    // Prepare Connect params if org has a connected account
+    let connectParams: ConnectParams | undefined;
+    if (org.stripeConnectId && org.stripeOnboarded) {
+      connectParams = {
+        stripeConnectId: org.stripeConnectId,
+        applicationFeeCents: fees.applicationFeeCents,
+      };
+    }
+
     // Create checkout session
     const session = await createSubscriptionCheckoutSession({
       customerId,
@@ -150,6 +160,7 @@ export async function POST(req: Request) {
       billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
       planName: plan.name,
       enrollmentFee: enrollmentFeeConfig,
+      connectParams,
     });
 
     // Update membership with customer ID

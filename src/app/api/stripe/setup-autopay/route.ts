@@ -10,6 +10,7 @@ import {
   getOrCreateStripeCustomer,
   createSubscriptionCheckoutSession,
   calculateFees,
+  type ConnectParams,
 } from "@/lib/stripe";
 
 interface SetupAutopayBody {
@@ -147,6 +148,15 @@ export async function POST(req: Request) {
       }
     }
 
+    // Prepare Connect params if org has a connected account
+    let connectParams: ConnectParams | undefined;
+    if (org.stripeConnectId && org.stripeOnboarded) {
+      connectParams = {
+        stripeConnectId: org.stripeConnectId,
+        applicationFeeCents: fees.applicationFeeCents,
+      };
+    }
+
     // Create checkout session with correct billing frequency (with Connect if org is onboarded)
     // Use chargeAmountCents which includes fees if passFeesToMember is enabled
     const session = await createSubscriptionCheckoutSession({
@@ -164,6 +174,7 @@ export async function POST(req: Request) {
       lineItemDescription,
       // Include enrollment fee if not paid
       enrollmentFee: enrollmentFeeConfig,
+      connectParams,
     });
 
     // Update membership with customer ID (subscription ID will be set by webhook)
