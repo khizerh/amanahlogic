@@ -29,9 +29,6 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Eye,
-  Edit2,
-  ToggleLeft,
-  ToggleRight,
   UploadCloud,
   Loader2,
   Languages,
@@ -935,7 +932,11 @@ export function SettingsPageClient({
 
                 <div className="grid gap-4">
                   {allEmailTemplates.map((template) => (
-                    <Card key={template.id} className={template.isActive ? "" : "opacity-60"}>
+                    <Card
+                      key={template.id}
+                      className={`cursor-pointer transition-colors hover:border-brand-teal/40 ${template.isActive ? "" : "opacity-60"}`}
+                      onClick={() => handleEditTemplate(template)}
+                    >
                       <CardContent className="pt-6">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 space-y-3">
@@ -968,49 +969,13 @@ export function SettingsPageClient({
                                 <p className="text-xs text-muted-foreground line-clamp-2" dir="rtl">{template.body.fa.substring(0, 100)}...</p>
                               </div>
                             </div>
-
-                            {template.variables.length > 0 && (
-                              <div className="pt-2">
-                                <p className="text-xs text-muted-foreground mb-1">Variables:</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {template.variables.map((v) => (
-                                    <Badge key={v} variant="secondary" className="text-xs font-mono">
-                                      {`{{${v}}}`}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
 
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditTemplate(template)}
-                              className="gap-2"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant={template.isActive ? "outline" : "default"}
-                              size="sm"
-                              onClick={() => handleToggleTemplateActive(template)}
-                              className="gap-2"
-                            >
-                              {template.isActive ? (
-                                <>
-                                  <ToggleLeft className="h-4 w-4" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleRight className="h-4 w-4" />
-                                  Activate
-                                </>
-                              )}
-                            </Button>
+                          <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                            <Switch
+                              checked={template.isActive}
+                              onCheckedChange={() => handleToggleTemplateActive(template)}
+                            />
                           </div>
                         </div>
                       </CardContent>
