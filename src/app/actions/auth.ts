@@ -1,7 +1,7 @@
 "use server";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { resend, isEmailConfigured } from "@/lib/email/resend";
+import { resend, isEmailConfigured, getOrgEmailConfig, FROM_EMAIL } from "@/lib/email/resend";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.amanahlogic.com";
 
@@ -40,14 +40,40 @@ export async function requestPasswordReset(
       return { success: true };
     }
 
+    // Look up the user's org for branded sender config
+    const orgId = data.user?.app_metadata?.organization_id;
+    let fromAddress = `"Amanah Logic" <${FROM_EMAIL}>`;
+    let replyTo: string | undefined;
+    let orgName = "Amanah Logic";
+
+    if (orgId) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("name, slug, email")
+        .eq("id", orgId)
+        .single();
+
+      if (org) {
+        const emailConfig = getOrgEmailConfig({
+          name: org.name,
+          slug: org.slug,
+          email: org.email,
+        });
+        fromAddress = emailConfig.from;
+        replyTo = emailConfig.replyTo;
+        orgName = org.name;
+      }
+    }
+
     await resend!.emails.send({
-      from: `"Amanah Logic" <support@amanahlogic.com>`,
+      from: fromAddress,
+      ...(replyTo ? { replyTo } : {}),
       to: email,
       subject: "Reset Your Password",
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
           <div style="text-align: center; margin-bottom: 32px;">
-            <h2 style="color: #111827; margin: 0;">Amanah Logic</h2>
+            <h2 style="color: #111827; margin: 0;">${orgName}</h2>
           </div>
           <p style="color: #374151; font-size: 16px; line-height: 1.6;">
             We received a request to reset your password. Click the button below to set a new password:
