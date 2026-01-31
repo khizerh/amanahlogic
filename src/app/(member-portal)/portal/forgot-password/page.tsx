@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { createClient } from "@/lib/supabase/client";
+import { requestPasswordReset } from "@/app/actions/auth";
 import { toast } from "sonner";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
 
@@ -14,24 +14,19 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const supabase = createClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/portal/reset-password`,
-    });
-
-    if (error) {
-      toast.error(error.message);
+    try {
+      await requestPasswordReset(email, "portal");
+      setSuccess(true);
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    setSuccess(true);
-    setIsLoading(false);
   };
 
   if (success) {

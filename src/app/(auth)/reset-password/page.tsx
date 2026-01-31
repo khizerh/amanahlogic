@@ -22,14 +22,57 @@ export default function ResetPasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const extractTokensAndSetSession = async () => {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+
+      const errorParam = params.get("error");
+      const errorCode = params.get("error_code");
+      const errorDescription = params.get("error_description");
+
+      if (errorParam) {
+        const message =
+          errorCode === "otp_expired"
+            ? "This reset link has expired. Please request a new one."
+            : errorDescription?.replace(/\+/g, " ") ||
+              "Invalid reset link. Please request a new one.";
+        setError(message);
+        setChecking(false);
+        return;
+      }
+
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (sessionError) {
+          setError("Invalid or expired reset link. Please request a new one.");
+          setChecking(false);
+          return;
+        }
+
+        // Clean the hash from the URL
+        window.history.replaceState(null, "", window.location.pathname);
+        setChecking(false);
+        return;
+      }
+
+      // No hash tokens — check if there's already a session (e.g. page refresh)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         setError("Invalid or expired reset link. Please request a new one.");
       }
       setChecking(false);
     };
-    checkSession();
+
+    extractTokensAndSetSession();
   }, [supabase.auth]);
 
   const handleSubmit = async (e: React.FormEvent) => {
