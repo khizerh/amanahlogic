@@ -6,6 +6,7 @@ import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 import { normalizePhoneNumber } from "@/lib/utils";
+import { orchestrateOnboarding } from "@/lib/onboarding/orchestrate-onboarding";
 import type { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
 
 /**
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       preferredLanguage,
       children,
       enrollmentFeePaid,
+      paymentMethod,
     } = body as {
       firstName: string;
       lastName: string;
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
       preferredLanguage: CommunicationLanguage;
       children?: { id: string; name: string; dateOfBirth: string }[];
       enrollmentFeePaid?: boolean;
+      paymentMethod?: "stripe" | "manual";
     };
 
     // Validate required fields
@@ -158,10 +161,35 @@ export async function POST(request: Request) {
       throw membershipError;
     }
 
+    // Orchestrate onboarding (best-effort — failures don't roll back member creation)
+    let onboarding = null;
+    try {
+      onboarding = await orchestrateOnboarding({
+        organizationId,
+        member,
+        membership,
+        plan,
+        paymentMethod: paymentMethod || "manual",
+        includeEnrollmentFee: !enrollmentFeePaid,
+      });
+    } catch (err) {
+      console.error("Onboarding orchestration failed:", err);
+      onboarding = {
+        welcomeEmailSent: false,
+        agreementEmailSent: false,
+        inviteCreated: false,
+        onboardingInviteCreated: false,
+        stripeSessionCreated: false,
+        agreementCreated: false,
+        errors: [err instanceof Error ? err.message : "Onboarding orchestration failed"],
+      };
+    }
+
     return NextResponse.json({
       success: true,
       member,
       membership,
+      onboarding,
     });
   } catch (error) {
     console.error("Error creating member:", error);

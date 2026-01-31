@@ -174,6 +174,7 @@ export default function NewMemberPage() {
           })),
           // Pass if enrollment fee is waived (applies to both payment methods)
           enrollmentFeePaid: waiveEnrollmentFee,
+          paymentMethod,
         }),
       });
 
@@ -183,43 +184,29 @@ export default function NewMemberPage() {
         throw new Error(data.error || "Failed to create member");
       }
 
-      // If Stripe payment method selected, send payment link to member
-      if (paymentMethod === "stripe") {
-        toast.loading("Sending payment setup link...", { id: "payment-setup" });
+      // Show success with onboarding status
+      const onboarding = data.onboarding;
+      if (onboarding) {
+        const emailsSent = [
+          onboarding.welcomeEmailSent && "welcome",
+          onboarding.agreementEmailSent && "agreement",
+        ].filter(Boolean);
 
-        // Call send-payment-setup to create checkout and email member
-        const setupResponse = await fetch("/api/stripe/send-payment-setup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            membershipId: data.membership.id,
-            memberId: data.member.id,
-            includeEnrollmentFee: !waiveEnrollmentFee,
-          }),
-        });
-
-        const setupData = await setupResponse.json();
-        toast.dismiss("payment-setup");
-
-        if (!setupResponse.ok) {
-          // Email failed, but member was created - redirect to detail page
-          toast.error(setupData.error || "Failed to send payment link. You can try again from the member page.");
-          router.push(`/members/${data.member.id}`);
-          return;
+        if (emailsSent.length > 0) {
+          toast.success("Member created successfully", {
+            description: `Sent ${emailsSent.join(" & ")} email${emailsSent.length > 1 ? "s" : ""} to ${email}`,
+          });
+        } else if (onboarding.errors?.length > 0) {
+          toast.success("Member created, but some emails failed to send", {
+            description: "You can resend from the member detail page.",
+          });
+        } else {
+          toast.success("Member created successfully");
         }
-
-        // Success - payment link sent to member
-        toast.success(`Payment setup link sent to ${email}`, {
-          description: !waiveEnrollmentFee
-            ? "Member will complete enrollment fee and subscription setup"
-            : "Member will complete subscription setup",
-        });
-        router.push(`/members/${data.member.id}`);
-        return;
+      } else {
+        toast.success("Member created successfully");
       }
 
-      // Manual payment - just redirect to member page
-      toast.success("Member created successfully");
       router.push(`/members/${data.member.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create member");
@@ -618,29 +605,26 @@ export default function NewMemberPage() {
                           </div>
                         </div>
 
-                        {/* Info Box for Stripe */}
-                        {paymentMethod === "stripe" && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                            <div className="flex items-start gap-2">
-                              <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                              <div className="text-blue-800">
-                                <p className="font-medium">Payment link will be emailed to member</p>
-                                <p className="mt-1 text-blue-700">
-                                  {!waiveEnrollmentFee
-                                    ? `Member will pay $${enrollmentFeeAmount} enrollment fee + set up $${currentDuesAmount} recurring dues.`
-                                    : `Member will set up $${currentDuesAmount} recurring dues only.`}
-                                </p>
-                              </div>
+                        {/* Info Box - Onboarding emails */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                          <div className="flex items-start gap-2">
+                            <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="text-blue-800">
+                              <p className="font-medium">Two emails will be sent to the member:</p>
+                              <ul className="mt-1 text-blue-700 list-disc list-inside space-y-0.5">
+                                <li>
+                                  <strong>Welcome email</strong> &mdash; portal invite
+                                  {paymentMethod === "stripe"
+                                    ? !waiveEnrollmentFee
+                                      ? ` + payment setup ($${enrollmentFeeAmount} enrollment fee + $${currentDuesAmount} recurring dues)`
+                                      : ` + payment setup ($${currentDuesAmount} recurring dues)`
+                                    : " + payment reminder (cash, check, or Zelle)"}
+                                </li>
+                                <li><strong>Agreement email</strong> &mdash; membership agreement to sign</li>
+                              </ul>
                             </div>
                           </div>
-                        )}
-
-                        {/* Info Box for Manual */}
-                        {paymentMethod === "manual" && !waiveEnrollmentFee && (
-                          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                            Enrollment fee will need to be collected from the member page
-                          </p>
-                        )}
+                        </div>
                       </div>
                     </div>
                   </>
@@ -656,13 +640,7 @@ export default function NewMemberPage() {
                 </Button>
               </Link>
               <Button type="submit" disabled={isSubmitting || plansLoading || plans.length === 0}>
-                {isSubmitting
-                  ? paymentMethod === "stripe"
-                    ? "Creating & Sending Link..."
-                    : "Creating..."
-                  : paymentMethod === "stripe"
-                  ? "Create Member & Send Payment Link"
-                  : "Create Member"}
+                {isSubmitting ? "Creating..." : "Create Member"}
               </Button>
             </div>
           </form>
