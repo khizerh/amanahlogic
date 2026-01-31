@@ -1,8 +1,9 @@
 import "server-only";
 
-import { createClientForContext } from "@/lib/supabase/server";
+import { createClientForContext, createServiceRoleClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailTemplate, EmailTemplateType } from "@/lib/types";
+import { DEFAULT_EMAIL_TEMPLATES } from "@/lib/email/default-templates";
 
 export interface CreateEmailTemplateInput {
   organizationId: string;
@@ -56,6 +57,51 @@ export class EmailTemplatesService {
 
     if (error) throw error;
     return transformTemplate(data);
+  }
+
+  static async getByType(
+    organizationId: string,
+    type: EmailTemplateType
+  ): Promise<EmailTemplate | null> {
+    const supabase = createServiceRoleClient();
+
+    const { data, error } = await supabase
+      .from("email_templates")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .eq("type", type)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ? transformTemplate(data) : null;
+  }
+
+  static async seedDefaults(organizationId: string): Promise<void> {
+    const supabase = createServiceRoleClient();
+
+    // Check if any templates already exist for this org
+    const { count, error: countError } = await supabase
+      .from("email_templates")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", organizationId);
+
+    if (countError) throw countError;
+    if (count && count > 0) return; // Already seeded
+
+    const rows = DEFAULT_EMAIL_TEMPLATES.map((t) => ({
+      organization_id: organizationId,
+      type: t.type,
+      name: t.name,
+      description: t.description,
+      subject: t.subject,
+      body: t.body,
+      variables: t.variables,
+      is_active: true,
+    }));
+
+    const { error } = await supabase.from("email_templates").insert(rows);
+    if (error) throw error;
   }
 
   static async update(

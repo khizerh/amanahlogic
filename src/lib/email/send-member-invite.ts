@@ -1,5 +1,6 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { getMemberInviteEmail } from "./templates/member-invite";
+import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
 
@@ -28,11 +29,30 @@ export async function sendMemberInviteEmail(
 ): Promise<SendMemberInviteEmailResult> {
   const { to, memberName, memberId, organizationId, inviteUrl, expiresAt, language } = params;
 
-  // Get email content based on language
-  const { subject, html, text } = getMemberInviteEmail({
+  // Fetch org early (needed for DB template + email config)
+  const org = await OrganizationsService.getById(organizationId);
+  const orgName = org?.name ?? "Our Organization";
+
+  // Try DB template first
+  const dbResult = await resolveEmailTemplate(
+    organizationId,
+    "member_invite",
+    {
+      member_name: memberName,
+      organization_name: orgName,
+      invite_url: inviteUrl,
+      expires_at: expiresAt,
+    },
+    language,
+    orgName
+  );
+
+  // Fall back to hardcoded template
+  const { subject, html, text } = dbResult ?? getMemberInviteEmail({
     memberName,
     inviteUrl,
     expiresAt,
+    organizationName: orgName,
     language,
   });
 
@@ -82,7 +102,6 @@ export async function sendMemberInviteEmail(
   }
 
   try {
-    const org = await OrganizationsService.getById(organizationId);
     const emailConfig = org
       ? getOrgEmailConfig({ name: org.name, slug: org.slug, email: org.email })
       : { from: FROM_EMAIL, replyTo: undefined };

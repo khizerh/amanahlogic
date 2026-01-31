@@ -1,5 +1,6 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { getPortalLinkEmail } from "./templates/portal-link";
+import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
 
@@ -27,10 +28,28 @@ export async function sendPortalLinkEmail(
 ): Promise<SendPortalLinkEmailResult> {
   const { to, memberName, memberId, organizationId, portalUrl, language } = params;
 
-  // Get email content based on language
-  const { subject, html, text } = getPortalLinkEmail({
+  // Fetch org early (needed for DB template + email config)
+  const org = await OrganizationsService.getById(organizationId);
+  const orgName = org?.name ?? "Our Organization";
+
+  // Try DB template first
+  const dbResult = await resolveEmailTemplate(
+    organizationId,
+    "portal_link",
+    {
+      member_name: memberName,
+      organization_name: orgName,
+      portal_url: portalUrl,
+    },
+    language,
+    orgName
+  );
+
+  // Fall back to hardcoded template
+  const { subject, html, text } = dbResult ?? getPortalLinkEmail({
     memberName,
     portalUrl,
+    organizationName: orgName,
     language,
   });
 
@@ -51,14 +70,12 @@ export async function sendPortalLinkEmail(
     });
   } catch (err) {
     console.error("Failed to create email log:", err);
-    // Continue anyway - email sending is more important than logging
   }
 
   // Check if email is configured
   if (!isEmailConfigured() || !resend) {
     console.warn("Email not configured - RESEND_API_KEY not set");
 
-    // Update log to failed if we created one
     if (emailLog) {
       await EmailLogsService.markFailed(
         emailLog.id,
@@ -66,7 +83,6 @@ export async function sendPortalLinkEmail(
       );
     }
 
-    // In development, skip email and return success so the flow continues
     if (process.env.NODE_ENV === "development") {
       return {
         success: true,
@@ -83,13 +99,10 @@ export async function sendPortalLinkEmail(
   }
 
   try {
-    // Get organization info for email config
-    const org = await OrganizationsService.getById(organizationId);
     const emailConfig = org
       ? getOrgEmailConfig({ name: org.name, slug: org.slug, email: org.email })
       : { from: FROM_EMAIL, replyTo: undefined };
 
-    // Send email via Resend
     const { data, error } = await resend.emails.send({
       from: emailConfig.from,
       replyTo: emailConfig.replyTo,
@@ -100,7 +113,6 @@ export async function sendPortalLinkEmail(
     });
 
     if (error) {
-      // Update log to failed
       if (emailLog) {
         await EmailLogsService.markFailed(emailLog.id, error.message);
       }
@@ -112,7 +124,6 @@ export async function sendPortalLinkEmail(
       };
     }
 
-    // Update log to sent
     if (emailLog && data?.id) {
       await EmailLogsService.markSent(emailLog.id, data.id);
     }
@@ -125,7 +136,6 @@ export async function sendPortalLinkEmail(
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error sending email";
 
-    // Update log to failed
     if (emailLog) {
       await EmailLogsService.markFailed(emailLog.id, errorMessage);
     }

@@ -1,5 +1,6 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { getPaymentReminderEmail } from "./templates/payment-reminder";
+import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
 
@@ -44,8 +45,29 @@ export async function sendPaymentReminderEmail(
 
   const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/payments`;
 
-  // Get email content based on language
-  const { subject, html, text } = getPaymentReminderEmail({
+  // Fetch org early (needed for DB template + email config)
+  const org = await OrganizationsService.getById(organizationId);
+  const orgName = org?.name ?? "Our Organization";
+
+  // Try DB template first
+  const dbResult = await resolveEmailTemplate(
+    organizationId,
+    "payment_reminder",
+    {
+      member_name: memberName,
+      organization_name: orgName,
+      amount,
+      due_date: dueDate,
+      days_overdue: String(daysOverdue),
+      invoice_number: invoiceNumber,
+      portal_url: portalUrl,
+    },
+    language,
+    orgName
+  );
+
+  // Fall back to hardcoded template
+  const { subject, html, text } = dbResult ?? getPaymentReminderEmail({
     memberName,
     amount,
     dueDate,
@@ -53,6 +75,7 @@ export async function sendPaymentReminderEmail(
     reminderNumber,
     invoiceNumber,
     portalUrl,
+    organizationName: orgName,
     language,
   });
 
@@ -102,7 +125,6 @@ export async function sendPaymentReminderEmail(
   }
 
   try {
-    const org = await OrganizationsService.getById(organizationId);
     const emailConfig = org
       ? getOrgEmailConfig({ name: org.name, slug: org.slug, email: org.email })
       : { from: FROM_EMAIL, replyTo: undefined };
