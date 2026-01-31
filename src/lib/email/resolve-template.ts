@@ -51,7 +51,7 @@ export function wrapInEmailHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: ${lineHeight}; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;${direction}">
-  <div style="text-align: center; margin-bottom: 30px;">
+  <div style="margin-bottom: 30px;">
     <h1 style="color: #1a1a1a; margin: 0;">${escapeHtml(orgName)}</h1>
   </div>
 

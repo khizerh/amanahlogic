@@ -28,9 +28,8 @@ export function getAgreementSentEmailEN(props: AgreementSentEmailProps) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="text-align: center; margin-bottom: 30px;">
+  <div style="margin-bottom: 30px;">
     <h1 style="color: #1a1a1a; margin: 0;">${organizationName}</h1>
-    <p style="color: #666; margin: 5px 0 0 0;">Membership Agreement</p>
   </div>
 
   <p>Assalamu Alaikum ${memberName},</p>
@@ -101,9 +100,8 @@ export function getAgreementSentEmailFA(props: AgreementSentEmailProps) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
-  <div style="text-align: center; margin-bottom: 30px;">
+  <div style="margin-bottom: 30px;">
     <h1 style="color: #1a1a1a; margin: 0;">${organizationName}</h1>
-    <p style="color: #666; margin: 5px 0 0 0;">قرارداد عضویت</p>
   </div>
 
   <p>السلام علیکم ${memberName} عزیز،</p>

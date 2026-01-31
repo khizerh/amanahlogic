@@ -68,16 +68,15 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="text-align: center; margin-bottom: 30px;">
+  <div style="margin-bottom: 30px;">
     <h1 style="color: #1a1a1a; margin: 0;">${organizationName}</h1>
-    <p style="color: #666; margin: 5px 0 0 0;">Welcome to Our Community</p>
   </div>
 
   <p>Assalamu Alaikum ${memberName},</p>
 
   <p>Welcome! Your membership account has been created at ${organizationName}. To get started, please set up your member portal account and complete your payment setup.</p>
 
-  <h3 style="color: #1a1a1a; margin: 25px 0 10px 0;">Step 1: Create Your Portal Account</h3>
+  <h2 style="color: #1a1a1a; font-size: 18px; margin: 30px 0 10px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">Step 1: Create Your Portal Account</h2>
   <p style="color: #666; font-size: 14px;">Access your membership details, track payments, and manage your profile.</p>
 
   <div style="text-align: center; margin: 20px 0;">
@@ -86,7 +85,7 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
     </a>
   </div>
 
-  <h3 style="color: #1a1a1a; margin: 25px 0 10px 0;">Step 2: Complete Payment Setup</h3>
+  <h2 style="color: #1a1a1a; font-size: 18px; margin: 30px 0 10px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">Step 2: Complete Payment Setup</h2>
 
   <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
     <h4 style="margin: 0 0 15px 0; color: #1a1a1a;">Payment Summary</h4>
@@ -194,9 +193,8 @@ function getWelcomeEmailManualEN(props: WelcomeEmailProps) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="text-align: center; margin-bottom: 30px;">
+  <div style="margin-bottom: 30px;">
     <h1 style="color: #1a1a1a; margin: 0;">${organizationName}</h1>
-    <p style="color: #666; margin: 5px 0 0 0;">Welcome to Our Community</p>
   </div>
 
   <p>Assalamu Alaikum ${memberName},</p>
@@ -317,16 +315,15 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
-  <div style="text-align: center; margin-bottom: 30px;">
+  <div style="margin-bottom: 30px;">
     <h1 style="color: #1a1a1a; margin: 0;">${organizationName}</h1>
-    <p style="color: #666; margin: 5px 0 0 0;">\u0628\u0647 \u062C\u0645\u0639 \u0645\u0627 \u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F</p>
   </div>
 
   <p>\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u06CC\u06A9\u0645 ${memberName} \u0639\u0632\u06CC\u0632\u060C</p>
 
   <p>\u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F! \u062D\u0633\u0627\u0628 \u0639\u0636\u0648\u06CC\u062A \u0634\u0645\u0627 \u062F\u0631 ${organizationName} \u0627\u06CC\u062C\u0627\u062F \u0634\u062F\u0647 \u0627\u0633\u062A. \u0628\u0631\u0627\u06CC \u0634\u0631\u0648\u0639\u060C \u0644\u0637\u0641\u0627\u064B \u062D\u0633\u0627\u0628 \u067E\u0648\u0631\u062A\u0627\u0644 \u0627\u0639\u0636\u0627\u06CC \u062E\u0648\u062F \u0631\u0627 \u0627\u06CC\u062C\u0627\u062F \u06A9\u0646\u06CC\u062F \u0648 \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A \u062E\u0648\u062F \u0631\u0627 \u062A\u06A9\u0645\u06CC\u0644 \u06A9\u0646\u06CC\u062F.</p>
 
-  <h3 style="color: #1a1a1a; margin: 25px 0 10px 0;">\u0645\u0631\u062D\u0644\u0647 \u06F1: \u0627\u06CC\u062C\u0627\u062F \u062D\u0633\u0627\u0628 \u067E\u0648\u0631\u062A\u0627\u0644</h3>
+  <h2 style="color: #1a1a1a; font-size: 18px; margin: 30px 0 10px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">\u0645\u0631\u062D\u0644\u0647 \u06F1: \u0627\u06CC\u062C\u0627\u062F \u062D\u0633\u0627\u0628 \u067E\u0648\u0631\u062A\u0627\u0644</h2>
   <p style="color: #666; font-size: 14px;">\u062C\u0632\u0626\u06CC\u0627\u062A \u0639\u0636\u0648\u06CC\u062A\u060C \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u067E\u0631\u062F\u0627\u062E\u062A\u200C\u0647\u0627 \u0648 \u0645\u062F\u06CC\u0631\u06CC\u062A \u067E\u0631\u0648\u0641\u0627\u06CC\u0644 \u062E\u0648\u062F \u0631\u0627 \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u06CC\u062F.</p>
 
   <div style="text-align: center; margin: 20px 0;">
@@ -335,7 +332,7 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
     </a>
   </div>
 
-  <h3 style="color: #1a1a1a; margin: 25px 0 10px 0;">\u0645\u0631\u062D\u0644\u0647 \u06F2: \u062A\u06A9\u0645\u06CC\u0644 \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A</h3>
+  <h2 style="color: #1a1a1a; font-size: 18px; margin: 30px 0 10px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">\u0645\u0631\u062D\u0644\u0647 \u06F2: \u062A\u06A9\u0645\u06CC\u0644 \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A</h2>
 
   <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
     <h4 style="margin: 0 0 15px 0; color: #1a1a1a;">\u062E\u0644\u0627\u0635\u0647 \u067E\u0631\u062F\u0627\u062E\u062A</h4>
@@ -442,9 +439,8 @@ function getWelcomeEmailManualFA(props: WelcomeEmailProps) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
-  <div style="text-align: center; margin-bottom: 30px;">
+  <div style="margin-bottom: 30px;">
     <h1 style="color: #1a1a1a; margin: 0;">${organizationName}</h1>
-    <p style="color: #666; margin: 5px 0 0 0;">\u0628\u0647 \u062C\u0645\u0639 \u0645\u0627 \u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F</p>
   </div>
 
   <p>\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u06CC\u06A9\u0645 ${memberName} \u0639\u0632\u06CC\u0632\u060C</p>
