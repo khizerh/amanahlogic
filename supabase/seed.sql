@@ -56,11 +56,11 @@ INSERT INTO memberships (id, organization_id, member_id, plan_id, status, billin
 -- Insert some sample payments for active member
 INSERT INTO payments (organization_id, membership_id, member_id, type, method, status, amount, stripe_fee, platform_fee, total_charged, net_amount, months_credited, invoice_number, period_label, created_at, paid_at) VALUES
 -- Enrollment fee
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'enrollment_fee', 'card', 'completed', 500.00, 14.80, 2.00, 514.80, 483.20, 0, 'INV-2019-0001', 'Enrollment Fee', '2019-07-15T10:00:00Z', '2019-07-15T10:00:00Z'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'enrollment_fee', 'stripe', 'completed', 500.00, 14.80, 2.00, 514.80, 483.20, 0, 'INV-2019-0001', 'Enrollment Fee', '2019-07-15T10:00:00Z', '2019-07-15T10:00:00Z'),
 -- Recent dues payments
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'dues', 'card', 'completed', 40.00, 1.46, 2.00, 41.46, 36.54, 1, 'INV-2024-0010', 'December 2024', '2024-12-01T10:00:00Z', '2024-12-01T10:00:00Z'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'dues', 'card', 'completed', 40.00, 1.46, 2.00, 41.46, 36.54, 1, 'INV-2024-0009', 'November 2024', '2024-11-01T10:00:00Z', '2024-11-01T10:00:00Z'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'dues', 'card', 'completed', 40.00, 1.46, 2.00, 41.46, 36.54, 1, 'INV-2024-0008', 'October 2024', '2024-10-01T10:00:00Z', '2024-10-01T10:00:00Z');
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'dues', 'stripe', 'completed', 40.00, 1.46, 2.00, 41.46, 36.54, 1, 'INV-2024-0010', 'December 2024', '2024-12-01T10:00:00Z', '2024-12-01T10:00:00Z'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'dues', 'stripe', 'completed', 40.00, 1.46, 2.00, 41.46, 36.54, 1, 'INV-2024-0009', 'November 2024', '2024-11-01T10:00:00Z', '2024-11-01T10:00:00Z'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'dues', 'stripe', 'completed', 40.00, 1.46, 2.00, 41.46, 36.54, 1, 'INV-2024-0008', 'October 2024', '2024-10-01T10:00:00Z', '2024-10-01T10:00:00Z');
 
 -- Insert payments for waiting period member
 INSERT INTO payments (organization_id, membership_id, member_id, type, method, status, amount, stripe_fee, platform_fee, total_charged, net_amount, months_credited, invoice_number, period_label, created_at, paid_at) VALUES
@@ -81,8 +81,8 @@ INSERT INTO email_logs (organization_id, member_id, member_name, member_email, t
 ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c03', 'Fatima Hassan', 'fatima.hassan@email.com', 'payment_reminder', 'fatima.hassan@email.com', 'Payment Reminder - Due Nov 5, 2024', 'This is a friendly reminder that your membership dues...', 'fa', 'delivered', '2024-11-08T10:00:00Z', '2024-11-08T10:00:30Z', 're_def456'),
 ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c05', 'Aisha Rahman', 'aisha.rahman@email.com', 'agreement_sent', 'aisha.rahman@email.com', 'Membership Agreement Ready for Signature', 'Your membership agreement is ready for your signature...', 'en', 'delivered', '2024-12-10T10:00:00Z', '2024-12-10T10:00:30Z', 're_ghi789');
 
--- Insert auto-pay invite for awaiting signature member
-INSERT INTO auto_pay_invites (organization_id, membership_id, member_id, planned_amount, status, sent_at) VALUES
+-- Insert onboarding invite for awaiting signature member
+INSERT INTO onboarding_invites (organization_id, membership_id, member_id, planned_amount, status, sent_at) VALUES
 ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d05', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c05', 20.00, 'pending', '2024-12-10T11:00:00Z');
 
 -- =============================================================================

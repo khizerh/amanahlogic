@@ -54,7 +54,7 @@ COMMENT ON COLUMN organizations.pass_fees_to_member IS 'If true, gross-up charge
 CREATE TABLE IF NOT EXISTS plans (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  type text NOT NULL CHECK (type IN ('single', 'married', 'widow')),
+  type text NOT NULL,
   name text NOT NULL,
   description text,
   pricing jsonb NOT NULL DEFAULT '{"monthly": 0, "biannual": 0, "annual": 0}',
@@ -185,7 +185,7 @@ CREATE TABLE IF NOT EXISTS payments (
   membership_id uuid NOT NULL REFERENCES memberships(id) ON DELETE CASCADE,
   member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
   type text NOT NULL CHECK (type IN ('enrollment_fee', 'dues', 'back_dues')),
-  method text CHECK (method IN ('card', 'ach', 'cash', 'check', 'zelle')),
+  method text CHECK (method IN ('stripe', 'cash', 'check', 'zelle')),
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
   amount numeric(10,2) NOT NULL,
   stripe_fee numeric(10,2) DEFAULT 0,
@@ -375,12 +375,12 @@ CREATE TABLE IF NOT EXISTS onboarding_invites (
   expired_at timestamptz,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
-  payment_method text DEFAULT 'stripe',
+  payment_method text DEFAULT 'stripe' CHECK (payment_method IN ('stripe', 'manual')),
   enrollment_fee_amount numeric(10,2) DEFAULT 0,
   includes_enrollment_fee boolean DEFAULT false,
   enrollment_fee_paid_at timestamptz,
   dues_amount numeric(10,2) DEFAULT 0,
-  billing_frequency text,
+  billing_frequency text CHECK (billing_frequency IN ('monthly', 'biannual', 'annual') OR billing_frequency IS NULL),
   dues_paid_at timestamptz
 );
 
@@ -428,7 +428,7 @@ COMMENT ON TABLE member_invites IS 'Portal access invitations sent to members';
 CREATE TABLE IF NOT EXISTS agreement_templates (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  language text NOT NULL DEFAULT 'en',
+  language text NOT NULL DEFAULT 'en' CHECK (language IN ('en', 'fa')),
   version text NOT NULL,
   storage_path text NOT NULL,
   is_active boolean DEFAULT true,
