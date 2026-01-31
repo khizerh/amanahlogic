@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS members (
   children jsonb DEFAULT '[]',
   emergency_contact jsonb NOT NULL DEFAULT '{"name": "", "phone": ""}',
   preferred_language text DEFAULT 'en' CHECK (preferred_language IN ('en', 'fa')),
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
   UNIQUE(organization_id, email)
@@ -357,10 +358,10 @@ CREATE INDEX IF NOT EXISTS idx_email_templates_org ON email_templates(organizati
 CREATE INDEX IF NOT EXISTS idx_email_templates_type ON email_templates(type);
 
 -- =============================================================================
--- Auto Pay Invites
+-- Onboarding Invites (replaces auto_pay_invites)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS auto_pay_invites (
+CREATE TABLE IF NOT EXISTS onboarding_invites (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   membership_id uuid NOT NULL REFERENCES memberships(id) ON DELETE CASCADE,
@@ -373,22 +374,92 @@ CREATE TABLE IF NOT EXISTS auto_pay_invites (
   completed_at timestamptz,
   expired_at timestamptz,
   created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  updated_at timestamptz DEFAULT now(),
+  payment_method text,
+  enrollment_fee_amount numeric(10,2) DEFAULT 0,
+  includes_enrollment_fee boolean DEFAULT false,
+  enrollment_fee_paid_at timestamptz,
+  dues_amount numeric(10,2) DEFAULT 0,
+  billing_frequency text,
+  dues_paid_at timestamptz
 );
 
-CREATE INDEX IF NOT EXISTS idx_auto_pay_invites_organization_id ON auto_pay_invites(organization_id);
-CREATE INDEX IF NOT EXISTS idx_auto_pay_invites_membership_id ON auto_pay_invites(membership_id);
-CREATE INDEX IF NOT EXISTS idx_auto_pay_invites_member_id ON auto_pay_invites(member_id);
-CREATE INDEX IF NOT EXISTS idx_auto_pay_invites_status ON auto_pay_invites(status);
-CREATE INDEX IF NOT EXISTS idx_auto_pay_invites_stripe_checkout_session_id ON auto_pay_invites(stripe_checkout_session_id)
+CREATE INDEX IF NOT EXISTS idx_onboarding_invites_organization_id ON onboarding_invites(organization_id);
+CREATE INDEX IF NOT EXISTS idx_onboarding_invites_membership_id ON onboarding_invites(membership_id);
+CREATE INDEX IF NOT EXISTS idx_onboarding_invites_member_id ON onboarding_invites(member_id);
+CREATE INDEX IF NOT EXISTS idx_onboarding_invites_status ON onboarding_invites(status);
+CREATE INDEX IF NOT EXISTS idx_onboarding_invites_stripe_checkout_session_id ON onboarding_invites(stripe_checkout_session_id)
   WHERE stripe_checkout_session_id IS NOT NULL;
 
-CREATE TRIGGER auto_pay_invites_updated_at
-  BEFORE UPDATE ON auto_pay_invites
+CREATE TRIGGER onboarding_invites_updated_at
+  BEFORE UPDATE ON onboarding_invites
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-COMMENT ON TABLE auto_pay_invites IS 'Tracks Stripe Checkout sessions for auto-pay enrollment';
+COMMENT ON TABLE onboarding_invites IS 'Tracks onboarding payment flows (Stripe Checkout and manual)';
+
+-- =============================================================================
+-- Member Invites (portal access invitations)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS member_invites (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  token text NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'expired')),
+  sent_at timestamptz DEFAULT now(),
+  accepted_at timestamptz,
+  expires_at timestamptz DEFAULT now() + interval '7 days',
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_member_invites_token ON member_invites(token);
+CREATE INDEX IF NOT EXISTS idx_member_invites_member_id ON member_invites(member_id);
+CREATE INDEX IF NOT EXISTS idx_member_invites_status ON member_invites(status);
+
+COMMENT ON TABLE member_invites IS 'Portal access invitations sent to members';
+
+-- =============================================================================
+-- Agreement Templates
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS agreement_templates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  language text NOT NULL DEFAULT 'en',
+  version text NOT NULL,
+  storage_path text NOT NULL,
+  is_active boolean DEFAULT true,
+  notes text,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(organization_id, language, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agreement_templates_org ON agreement_templates(organization_id);
+CREATE INDEX IF NOT EXISTS idx_agreement_templates_active ON agreement_templates(organization_id, language) WHERE is_active = true;
+
+-- Storage bucket for agreement templates
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('agreement-templates', 'agreement-templates', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- RLS for agreement templates storage
+CREATE POLICY agreement_templates_service_upload ON storage.objects
+  FOR ALL
+  TO service_role
+  WITH CHECK (bucket_id = 'agreement-templates');
+
+CREATE POLICY agreement_templates_org_read ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (
+    bucket_id = 'agreement-templates'
+    AND (storage.foldername(name))[1] = current_setting('app.organization_id', true)
+  );
+
+COMMENT ON TABLE agreement_templates IS 'PDF agreement templates per organization and language';
 
 -- =============================================================================
 -- Organization Settings
@@ -502,7 +573,9 @@ ALTER TABLE agreements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agreement_signing_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE auto_pay_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE onboarding_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE member_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agreement_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_sequences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stripe_webhook_events ENABLE ROW LEVEL SECURITY;
 
@@ -568,11 +641,23 @@ CREATE POLICY "Users can view email logs in their org" ON email_logs FOR SELECT 
 CREATE POLICY "Users can insert email logs in their org" ON email_logs FOR INSERT WITH CHECK (organization_id = get_user_organization_id());
 CREATE POLICY "Users can update email logs in their org" ON email_logs FOR UPDATE USING (organization_id = get_user_organization_id());
 
--- Auto Pay Invites
-CREATE POLICY "Users can view auto pay invites in their org" ON auto_pay_invites FOR SELECT USING (organization_id = get_user_organization_id());
-CREATE POLICY "Users can insert auto pay invites in their org" ON auto_pay_invites FOR INSERT WITH CHECK (organization_id = get_user_organization_id());
-CREATE POLICY "Users can update auto pay invites in their org" ON auto_pay_invites FOR UPDATE USING (organization_id = get_user_organization_id());
-CREATE POLICY "Users can delete auto pay invites in their org" ON auto_pay_invites FOR DELETE USING (organization_id = get_user_organization_id());
+-- Onboarding Invites
+CREATE POLICY "Users can view onboarding invites in their org" ON onboarding_invites FOR SELECT USING (organization_id = get_user_organization_id());
+CREATE POLICY "Users can insert onboarding invites in their org" ON onboarding_invites FOR INSERT WITH CHECK (organization_id = get_user_organization_id());
+CREATE POLICY "Users can update onboarding invites in their org" ON onboarding_invites FOR UPDATE USING (organization_id = get_user_organization_id());
+CREATE POLICY "Users can delete onboarding invites in their org" ON onboarding_invites FOR DELETE USING (organization_id = get_user_organization_id());
+
+-- Member Invites
+CREATE POLICY "Users can view member invites in their org" ON member_invites FOR SELECT USING (organization_id = get_user_organization_id());
+CREATE POLICY "Users can insert member invites in their org" ON member_invites FOR INSERT WITH CHECK (organization_id = get_user_organization_id());
+CREATE POLICY "Users can update member invites in their org" ON member_invites FOR UPDATE USING (organization_id = get_user_organization_id());
+CREATE POLICY "Service role full access to member_invites" ON member_invites FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- Agreement Templates
+CREATE POLICY "Users can view agreement templates in their org" ON agreement_templates FOR SELECT USING (organization_id = get_user_organization_id());
+CREATE POLICY "Users can insert agreement templates in their org" ON agreement_templates FOR INSERT WITH CHECK (organization_id = get_user_organization_id());
+CREATE POLICY "Users can update agreement templates in their org" ON agreement_templates FOR UPDATE USING (organization_id = get_user_organization_id());
+CREATE POLICY "Users can delete agreement templates in their org" ON agreement_templates FOR DELETE USING (organization_id = get_user_organization_id());
 
 -- Invoice Sequences
 CREATE POLICY "Users can view invoice sequences in their org" ON invoice_sequences FOR SELECT USING (organization_id = get_user_organization_id());
