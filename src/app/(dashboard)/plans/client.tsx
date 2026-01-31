@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit2, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Edit2, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
 import { Plan } from "@/lib/types";
 import { toast } from "sonner";
@@ -167,10 +168,24 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
             {plans.map((plan) => (
               <Card key={plan.id} className={plan.isActive ? "" : "opacity-60"}>
                 <CardHeader>
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
-                  {plan.description && (
-                    <CardDescription className="mt-1">{plan.description}</CardDescription>
-                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-xl">{plan.name}</CardTitle>
+                      {plan.description && (
+                        <CardDescription className="mt-1">{plan.description}</CardDescription>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {togglingPlanId === plan.id && (
+                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      )}
+                      <Switch
+                        checked={plan.isActive}
+                        onCheckedChange={() => handleToggleActive(plan)}
+                        disabled={togglingPlanId === plan.id}
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -210,36 +225,15 @@ export function PlansPageClient({ initialPlans }: PlansPageClientProps) {
                     <p className="text-lg font-bold">{formatCurrency(plan.enrollmentFee)}</p>
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="pt-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEditPlan(plan)}
-                      className="flex-1 gap-2"
+                      className="w-full gap-2"
                     >
                       <Edit2 className="h-4 w-4" />
                       Edit
-                    </Button>
-                    <Button
-                      variant={plan.isActive ? "outline" : "default"}
-                      size="sm"
-                      onClick={() => handleToggleActive(plan)}
-                      className="flex-1 gap-2"
-                      disabled={togglingPlanId === plan.id}
-                    >
-                      {togglingPlanId === plan.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : plan.isActive ? (
-                        <>
-                          <ToggleLeft className="h-4 w-4" />
-                          Deactivate
-                        </>
-                      ) : (
-                        <>
-                          <ToggleRight className="h-4 w-4" />
-                          Activate
-                        </>
-                      )}
                     </Button>
                   </div>
                 </CardContent>
