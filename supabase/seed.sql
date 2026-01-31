@@ -41,17 +41,17 @@ INSERT INTO members (id, organization_id, first_name, last_name, email, phone, a
 
 -- Insert memberships
 INSERT INTO memberships (id, organization_id, member_id, plan_id, status, billing_frequency, billing_anniversary_day, paid_months, enrollment_fee_paid, join_date, last_payment_date, next_payment_due, eligible_date, agreement_signed_at, auto_pay_enabled, stripe_customer_id, stripe_subscription_id, subscription_status, payment_method) VALUES
--- Active eligible member with STRIPE AUTOPAY (65 months paid)
+-- Current eligible member with STRIPE AUTOPAY (65 months paid)
 -- This member has full Stripe integration for testing autopay flows
-('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b02', 'active', 'monthly', 15, 65, true, '2019-07-15', '2024-12-01', '2025-01-15', '2024-12-15', '2019-07-15T10:00:00Z', true, 'cus_test_ahmed_khan', 'sub_test_ahmed_khan', 'active', '{"type": "card", "last4": "4242", "brand": "visa", "expiryMonth": 12, "expiryYear": 2027}'),
--- Waiting period member with MANUAL PAYMENTS (24 months paid)
-('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d02', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c02', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b01', 'waiting_period', 'monthly', 10, 24, true, '2022-12-10', '2024-12-01', '2025-01-10', NULL, '2022-12-10T10:00:00Z', false, NULL, NULL, NULL, NULL),
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d01', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c01', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b02', 'current', 'monthly', 15, 65, true, '2019-07-15', '2024-12-01', '2025-01-15', '2024-12-15', '2019-07-15T10:00:00Z', true, 'cus_test_ahmed_khan', 'sub_test_ahmed_khan', 'active', '{"type": "card", "last4": "4242", "brand": "visa", "expiryMonth": 12, "expiryYear": 2027}'),
+-- Current member (not yet eligible) with MANUAL PAYMENTS (24 months paid)
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d02', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c02', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b01', 'current', 'monthly', 10, 24, true, '2022-12-10', '2024-12-01', '2025-01-10', NULL, '2022-12-10T10:00:00Z', false, NULL, NULL, NULL, NULL),
 -- Lapsed member with MANUAL PAYMENTS (missed payments)
 ('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d03', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c03', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b02', 'lapsed', 'monthly', 5, 45, true, '2021-01-05', '2024-10-01', '2024-11-05', NULL, '2021-01-05T10:00:00Z', false, NULL, NULL, NULL, NULL),
 -- Pending member (no agreement, no payments)
 ('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d04', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c04', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b01', 'pending', 'monthly', 1, 0, false, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL, NULL),
--- Awaiting signature (agreement sent but not signed)
-('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d05', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c05', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b01', 'awaiting_signature', 'monthly', 20, 0, true, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL, NULL);
+-- Pending (agreement sent but not signed, enrollment fee paid)
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d05', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380c05', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380b01', 'pending', 'monthly', 20, 0, true, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL, NULL);
 
 -- Insert some sample payments for active member
 INSERT INTO payments (organization_id, membership_id, member_id, type, method, status, amount, stripe_fee, platform_fee, total_charged, net_amount, months_credited, invoice_number, period_label, created_at, paid_at) VALUES
@@ -92,11 +92,11 @@ INSERT INTO auto_pay_invites (organization_id, membership_id, member_id, planned
 -- Plans: 3 (Single, Married, Widow)
 -- Members: 5 (various statuses)
 -- Memberships: 5
---   - Ahmed Khan: active, STRIPE AUTOPAY (has stripe_customer_id, stripe_subscription_id, subscription_status=active)
---   - Muhammad Ali: waiting_period, MANUAL payments
+--   - Ahmed Khan: current (eligible), STRIPE AUTOPAY (has stripe_customer_id, stripe_subscription_id, subscription_status=active)
+--   - Muhammad Ali: current (not yet eligible), MANUAL payments
 --   - Fatima Hassan: lapsed, MANUAL payments
 --   - Omar Syed: pending, no payments yet (enrollment fee NOT paid)
---   - Aisha Rahman: awaiting_signature, enrollment fee paid but agreement not signed
+--   - Aisha Rahman: pending, enrollment fee paid but agreement not signed
 -- Payments: 7 (enrollment fees and dues)
 -- Agreements: 1 (unsigned)
 -- Email Logs: 3
