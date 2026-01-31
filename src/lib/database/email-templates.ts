@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClientForContext, createServiceRoleClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailTemplate, EmailTemplateType } from "@/lib/types";
 import { DEFAULT_EMAIL_TEMPLATES } from "@/lib/email/default-templates";
@@ -22,7 +22,7 @@ export interface UpdateEmailTemplateInput extends Partial<CreateEmailTemplateInp
 
 export class EmailTemplatesService {
   static async getAll(organizationId: string): Promise<EmailTemplate[]> {
-    const supabase = await createClientForContext();
+    const supabase = createServiceRoleClient();
 
     const { data, error } = await supabase
       .from("email_templates")
@@ -38,7 +38,7 @@ export class EmailTemplatesService {
     input: CreateEmailTemplateInput,
     supabase?: SupabaseClient
   ): Promise<EmailTemplate> {
-    const client = supabase ?? (await createClientForContext());
+    const client = supabase ?? createServiceRoleClient();
 
     const { data, error } = await client
       .from("email_templates")
@@ -108,7 +108,7 @@ export class EmailTemplatesService {
     input: UpdateEmailTemplateInput,
     supabase?: SupabaseClient
   ): Promise<EmailTemplate> {
-    const client = supabase ?? (await createClientForContext());
+    const client = supabase ?? createServiceRoleClient();
     const { id, ...updates } = input;
 
     const dbUpdates: Record<string, unknown> = {};
