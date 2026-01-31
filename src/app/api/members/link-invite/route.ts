@@ -27,10 +27,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invite already used" }, { status: 400 });
     }
 
-    if (new Date(invite.expires_at) < new Date()) {
-      return NextResponse.json({ error: "Invite expired" }, { status: 400 });
-    }
-
     // Link member to user
     const { error: updateMemberError } = await supabase
       .from("members")

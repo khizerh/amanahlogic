@@ -55,7 +55,6 @@ export class AgreementSigningLinksService {
       .select("*")
       .eq("token", token)
       .is("used_at", null)
-      .gt("expires_at", new Date().toISOString())
       .maybeSingle();
 
     if (error) {
@@ -94,7 +93,6 @@ export class AgreementSigningLinksService {
       .select("*")
       .eq("agreement_id", agreementId)
       .is("used_at", null)
-      .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

@@ -9,8 +9,6 @@ import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { sendAgreementEmail } from "@/lib/email/send-agreement";
 import { AgreementTemplatesService } from "@/lib/database/agreement-templates";
 
-const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
 interface SendAgreementBody {
   membershipId: string;
   memberId: string;
@@ -50,7 +48,8 @@ export async function POST(req: Request) {
 
     const memberLanguage = language || member.preferredLanguage || "en";
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + ONE_WEEK_MS).toISOString();
+    // No expiry — links remain valid until used
+    const expiresAt = new Date("2099-12-31T23:59:59Z").toISOString();
 
     // Find active template for language (or fallback to provided version)
     let resolvedTemplateVersion = templateVersion;

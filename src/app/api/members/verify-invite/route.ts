@@ -29,11 +29,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid invite" }, { status: 404 });
     }
 
-    // Check if expired
-    if (new Date(invite.expires_at) < new Date()) {
-      return NextResponse.json({ error: "Invite has expired" }, { status: 400 });
-    }
-
     // Check if already used
     if (invite.status !== "pending") {
       return NextResponse.json({ error: "Invite has already been used" }, { status: 400 });

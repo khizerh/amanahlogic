@@ -28,20 +28,12 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
     memberName,
     organizationName = "Masjid Muhajireen",
     inviteUrl,
-    inviteExpiresAt,
     checkoutUrl,
     planName,
     enrollmentFee,
     duesAmount,
     billingFrequency,
   } = props;
-
-  const expiryDate = new Date(inviteExpiresAt).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 
   const frequencyText =
     billingFrequency === "monthly"
@@ -118,7 +110,7 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
   </ul>
 
   <p style="color: #666; font-size: 14px;">
-    Your portal invitation expires on <strong>${expiryDate}</strong>. If you have any questions, please contact us at info@masjidmuhajireen.org.
+    If you have any questions, please contact us at info@masjidmuhajireen.org.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -159,7 +151,7 @@ What happens next:
 ${enrollmentFee ? "- Your enrollment fee will be charged immediately\n" : ""}- Your card will be saved for automatic future payments
 - You'll also receive a separate email to sign your membership agreement
 
-Your portal invitation expires on ${expiryDate}. If you have any questions, please contact us at info@masjidmuhajireen.org.
+If you have any questions, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544
@@ -173,15 +165,7 @@ function getWelcomeEmailManualEN(props: WelcomeEmailProps) {
     memberName,
     organizationName = "Masjid Muhajireen",
     inviteUrl,
-    inviteExpiresAt,
   } = props;
-
-  const expiryDate = new Date(inviteExpiresAt).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 
   const subject = `Welcome to ${organizationName} - Your Member Portal Invitation`;
 
@@ -224,7 +208,7 @@ function getWelcomeEmailManualEN(props: WelcomeEmailProps) {
   </div>
 
   <p style="color: #666; font-size: 14px;">
-    This invitation expires on <strong>${expiryDate}</strong>. If you have any questions, please contact us at info@masjidmuhajireen.org.
+    If you have any questions, please contact us at info@masjidmuhajireen.org.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -257,7 +241,7 @@ With your portal account you can:
 
 PAYMENT REMINDER: Please arrange your membership payment (cash, check, or Zelle) with the administration. You'll also receive a separate email to sign your membership agreement.
 
-This invitation expires on ${expiryDate}. If you have any questions, please contact us at info@masjidmuhajireen.org.
+If you have any questions, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544
@@ -275,20 +259,12 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
     memberName,
     organizationName = "\u0645\u0633\u062C\u062F \u062C\u0627\u0645\u0639 \u0645\u0647\u0627\u062C\u0631\u06CC\u0646",
     inviteUrl,
-    inviteExpiresAt,
     checkoutUrl,
     planName,
     enrollmentFee,
     duesAmount,
     billingFrequency,
   } = props;
-
-  const expiryDate = new Date(inviteExpiresAt).toLocaleDateString("fa-IR", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 
   const frequencyText =
     billingFrequency === "monthly"
@@ -365,7 +341,7 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
   </ul>
 
   <p style="color: #666; font-size: 14px;">
-    \u062F\u0639\u0648\u062A\u0646\u0627\u0645\u0647 \u067E\u0648\u0631\u062A\u0627\u0644 \u062F\u0631 \u062A\u0627\u0631\u06CC\u062E <strong>${expiryDate}</strong> \u0645\u0646\u0642\u0636\u06CC \u0645\u06CC\u200C\u0634\u0648\u062F. \u0627\u06AF\u0631 \u0633\u0648\u0627\u0644\u06CC \u062F\u0627\u0631\u06CC\u062F\u060C \u0644\u0637\u0641\u0627\u064B \u0628\u0627 \u0645\u0627 \u062F\u0631 info@masjidmuhajireen.org \u062A\u0645\u0627\u0633 \u0628\u06AF\u06CC\u0631\u06CC\u062F.
+    اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -405,7 +381,7 @@ ${enrollmentFee ? `\u0647\u0632\u06CC\u0646\u0647 \u062B\u0628\u062A\u200C\u0646
 ${enrollmentFee ? "- \u0647\u0632\u06CC\u0646\u0647 \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u0634\u0645\u0627 \u0641\u0648\u0631\u0627\u064B \u06A9\u0633\u0631 \u0645\u06CC\u200C\u0634\u0648\u062F\n" : ""}- \u06A9\u0627\u0631\u062A \u0634\u0645\u0627 \u0628\u0631\u0627\u06CC \u067E\u0631\u062F\u0627\u062E\u062A\u200C\u0647\u0627\u06CC \u062E\u0648\u062F\u06A9\u0627\u0631 \u0622\u06CC\u0646\u062F\u0647 \u0630\u062E\u06CC\u0631\u0647 \u0645\u06CC\u200C\u0634\u0648\u062F
 - \u0647\u0645\u0686\u0646\u06CC\u0646 \u06CC\u06A9 \u0627\u06CC\u0645\u06CC\u0644 \u062C\u062F\u0627\u06AF\u0627\u0646\u0647 \u0628\u0631\u0627\u06CC \u0627\u0645\u0636\u0627\u06CC \u0642\u0631\u0627\u0631\u062F\u0627\u062F \u0639\u0636\u0648\u06CC\u062A \u062F\u0631\u06CC\u0627\u0641\u062A \u062E\u0648\u0627\u0647\u06CC\u062F \u06A9\u0631\u062F
 
-\u062F\u0639\u0648\u062A\u0646\u0627\u0645\u0647 \u067E\u0648\u0631\u062A\u0627\u0644 \u062F\u0631 \u062A\u0627\u0631\u06CC\u062E ${expiryDate} \u0645\u0646\u0642\u0636\u06CC \u0645\u06CC\u200C\u0634\u0648\u062F. \u0627\u06AF\u0631 \u0633\u0648\u0627\u0644\u06CC \u062F\u0627\u0631\u06CC\u062F\u060C \u0644\u0637\u0641\u0627\u064B \u0628\u0627 \u0645\u0627 \u062F\u0631 info@masjidmuhajireen.org \u062A\u0645\u0627\u0633 \u0628\u06AF\u06CC\u0631\u06CC\u062F.
+اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544
@@ -421,13 +397,6 @@ function getWelcomeEmailManualFA(props: WelcomeEmailProps) {
     inviteUrl,
     inviteExpiresAt,
   } = props;
-
-  const expiryDate = new Date(inviteExpiresAt).toLocaleDateString("fa-IR", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 
   const subject = `\u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F \u0628\u0647 ${organizationName} - \u062F\u0639\u0648\u062A \u0628\u0647 \u067E\u0648\u0631\u062A\u0627\u0644 \u0627\u0639\u0636\u0627`;
 
@@ -470,7 +439,7 @@ function getWelcomeEmailManualFA(props: WelcomeEmailProps) {
   </div>
 
   <p style="color: #666; font-size: 14px;">
-    \u0627\u06CC\u0646 \u062F\u0639\u0648\u062A\u0646\u0627\u0645\u0647 \u062F\u0631 \u062A\u0627\u0631\u06CC\u062E <strong>${expiryDate}</strong> \u0645\u0646\u0642\u0636\u06CC \u0645\u06CC\u200C\u0634\u0648\u062F. \u0627\u06AF\u0631 \u0633\u0648\u0627\u0644\u06CC \u062F\u0627\u0631\u06CC\u062F\u060C \u0644\u0637\u0641\u0627\u064B \u0628\u0627 \u0645\u0627 \u062F\u0631 info@masjidmuhajireen.org \u062A\u0645\u0627\u0633 \u0628\u06AF\u06CC\u0631\u06CC\u062F.
+    اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -503,7 +472,7 @@ function getWelcomeEmailManualFA(props: WelcomeEmailProps) {
 
 \u06CC\u0627\u062F\u0622\u0648\u0631\u06CC \u067E\u0631\u062F\u0627\u062E\u062A: \u0644\u0637\u0641\u0627\u064B \u067E\u0631\u062F\u0627\u062E\u062A \u0639\u0636\u0648\u06CC\u062A \u062E\u0648\u062F \u0631\u0627 (\u0646\u0642\u062F\u06CC\u060C \u0686\u06A9 \u06CC\u0627 Zelle) \u0628\u0627 \u0645\u062F\u06CC\u0631\u06CC\u062A \u0647\u0645\u0627\u0647\u0646\u06AF \u06A9\u0646\u06CC\u062F. \u0647\u0645\u0686\u0646\u06CC\u0646 \u06CC\u06A9 \u0627\u06CC\u0645\u06CC\u0644 \u062C\u062F\u0627\u06AF\u0627\u0646\u0647 \u0628\u0631\u0627\u06CC \u0627\u0645\u0636\u0627\u06CC \u0642\u0631\u0627\u0631\u062F\u0627\u062F \u0639\u0636\u0648\u06CC\u062A \u062F\u0631\u06CC\u0627\u0641\u062A \u062E\u0648\u0627\u0647\u06CC\u062F \u06A9\u0631\u062F.
 
-\u0627\u06CC\u0646 \u062F\u0639\u0648\u062A\u0646\u0627\u0645\u0647 \u062F\u0631 \u062A\u0627\u0631\u06CC\u062E ${expiryDate} \u0645\u0646\u0642\u0636\u06CC \u0645\u06CC\u200C\u0634\u0648\u062F. \u0627\u06AF\u0631 \u0633\u0648\u0627\u0644\u06CC \u062F\u0627\u0631\u06CC\u062F\u060C \u0644\u0637\u0641\u0627\u064B \u0628\u0627 \u0645\u0627 \u062F\u0631 info@masjidmuhajireen.org \u062A\u0645\u0627\u0633 \u0628\u06AF\u06CC\u0631\u06CC\u062F.
+اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544

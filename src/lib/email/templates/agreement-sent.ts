@@ -9,14 +9,7 @@ interface AgreementSentEmailProps {
  * English email template for agreement signing request
  */
 export function getAgreementSentEmailEN(props: AgreementSentEmailProps) {
-  const { memberName, signUrl, expiresAt, organizationName = "Masjid Muhajireen" } = props;
-
-  const expiryDate = new Date(expiresAt).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const { memberName, signUrl, organizationName = "Masjid Muhajireen" } = props;
 
   const subject = `Action Required: Sign Your ${organizationName} Membership Agreement`;
 
@@ -43,7 +36,7 @@ export function getAgreementSentEmailEN(props: AgreementSentEmailProps) {
   </div>
 
   <p style="color: #666; font-size: 14px;">
-    This link will expire on <strong>${expiryDate}</strong>. If you have any questions, please contact us at info@masjidmuhajireen.org.
+    If you have any questions, please contact us at info@masjidmuhajireen.org.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -68,7 +61,7 @@ Welcome to ${organizationName}! To complete your membership enrollment, please r
 
 Sign your agreement here: ${signUrl}
 
-This link will expire on ${expiryDate}. If you have any questions, please contact us at info@masjidmuhajireen.org.
+If you have any questions, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544
@@ -81,14 +74,7 @@ ${organizationName}
  * Farsi/Dari email template for agreement signing request
  */
 export function getAgreementSentEmailFA(props: AgreementSentEmailProps) {
-  const { memberName, signUrl, expiresAt, organizationName = "مسجد جامع مهاجرین" } = props;
-
-  const expiryDate = new Date(expiresAt).toLocaleDateString("fa-IR", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const { memberName, signUrl, organizationName = "مسجد جامع مهاجرین" } = props;
 
   const subject = `اقدام لازم: امضای قرارداد عضویت ${organizationName}`;
 
@@ -115,7 +101,7 @@ export function getAgreementSentEmailFA(props: AgreementSentEmailProps) {
   </div>
 
   <p style="color: #666; font-size: 14px;">
-    این لینک در تاریخ <strong>${expiryDate}</strong> منقضی می‌شود. اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
+    اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -140,7 +126,7 @@ export function getAgreementSentEmailFA(props: AgreementSentEmailProps) {
 
 قرارداد خود را اینجا امضا کنید: ${signUrl}
 
-این لینک در تاریخ ${expiryDate} منقضی می‌شود. اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
+اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544

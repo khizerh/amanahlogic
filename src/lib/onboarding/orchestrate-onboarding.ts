@@ -20,8 +20,6 @@ import {
 } from "@/lib/stripe";
 import type { Member, Membership, Plan, Organization } from "@/lib/types";
 
-const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
 // =============================================================================
 // Types
 // =============================================================================
@@ -297,7 +295,8 @@ export async function orchestrateOnboarding(
     }
 
     const now = new Date();
-    agreementExpiresAt = new Date(now.getTime() + ONE_WEEK_MS).toISOString();
+    // No expiry — links remain valid until used
+    agreementExpiresAt = new Date("2099-12-31T23:59:59Z").toISOString();
 
     // Create agreement record
     const agreement = await AgreementsService.create({

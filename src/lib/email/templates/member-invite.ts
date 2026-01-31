@@ -9,14 +9,7 @@ interface MemberInviteEmailProps {
  * English email template for member portal invite
  */
 export function getMemberInviteEmailEN(props: MemberInviteEmailProps) {
-  const { memberName, inviteUrl, expiresAt, organizationName = "Masjid Muhajireen" } = props;
-
-  const expiryDate = new Date(expiresAt).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const { memberName, inviteUrl, organizationName = "Masjid Muhajireen" } = props;
 
   const subject = `You're Invited to the ${organizationName} Member Portal`;
 
@@ -54,7 +47,7 @@ export function getMemberInviteEmailEN(props: MemberInviteEmailProps) {
   </ul>
 
   <p style="color: #666; font-size: 14px;">
-    This invitation expires on <strong>${expiryDate}</strong>. If you have any questions, please contact us at info@masjidmuhajireen.org.
+    If you have any questions, please contact us at info@masjidmuhajireen.org.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -85,7 +78,7 @@ With your portal account you can:
 - Update your profile and contact information
 - View and sign your membership agreement
 
-This invitation expires on ${expiryDate}. If you have any questions, please contact us at info@masjidmuhajireen.org.
+If you have any questions, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544
@@ -98,14 +91,7 @@ ${organizationName}
  * Farsi/Dari email template for member portal invite
  */
 export function getMemberInviteEmailFA(props: MemberInviteEmailProps) {
-  const { memberName, inviteUrl, expiresAt, organizationName = "مسجد جامع مهاجرین" } = props;
-
-  const expiryDate = new Date(expiresAt).toLocaleDateString("fa-IR", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const { memberName, inviteUrl, organizationName = "مسجد جامع مهاجرین" } = props;
 
   const subject = `دعوت به پورتال اعضای ${organizationName}`;
 
@@ -143,7 +129,7 @@ export function getMemberInviteEmailFA(props: MemberInviteEmailProps) {
   </ul>
 
   <p style="color: #666; font-size: 14px;">
-    این دعوتنامه در تاریخ <strong>${expiryDate}</strong> منقضی می‌شود. اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
+    اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
   </p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -174,7 +160,7 @@ export function getMemberInviteEmailFA(props: MemberInviteEmailProps) {
 - پروفایل و اطلاعات تماس خود را بروزرسانی کنید
 - قرارداد عضویت خود را مشاهده و امضا کنید
 
-این دعوتنامه در تاریخ ${expiryDate} منقضی می‌شود. اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
+اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
 185 Folsom Ave, Hayward, CA 94544
