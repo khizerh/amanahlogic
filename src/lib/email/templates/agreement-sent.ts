@@ -47,8 +47,7 @@ export function getAgreementSentEmailEN(props: AgreementSentEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -64,7 +63,6 @@ Sign your agreement here: ${signUrl}
 If you have any questions, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };
@@ -112,8 +110,7 @@ export function getAgreementSentEmailFA(props: AgreementSentEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -129,7 +126,6 @@ export function getAgreementSentEmailFA(props: AgreementSentEmailProps) {
 اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };

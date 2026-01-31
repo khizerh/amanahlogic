@@ -101,8 +101,7 @@ export function getPaymentReminderEmailEN(props: PaymentReminderEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -123,7 +122,6 @@ Make your payment here: ${portalUrl}
 If you have already made this payment, please disregard this email. For questions, contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };
@@ -221,8 +219,7 @@ export function getPaymentReminderEmailFA(props: PaymentReminderEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -243,7 +240,6 @@ ${urgencyMessageText}
 اگر قبلاً این پرداخت را انجام داده‌اید، لطفاً این ایمیل را نادیده بگیرید. برای سوالات، با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };

@@ -61,8 +61,7 @@ export function getPaymentFailedEmailEN(props: PaymentFailedEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -80,7 +79,6 @@ Update your payment method here: ${portalUrl}
 If you believe this is an error or need assistance, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };
@@ -141,8 +139,7 @@ export function getPaymentFailedEmailFA(props: PaymentFailedEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -160,7 +157,6 @@ export function getPaymentFailedEmailFA(props: PaymentFailedEmailProps) {
 اگر فکر می‌کنید این یک خطا است یا به کمک نیاز دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };

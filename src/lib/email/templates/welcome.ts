@@ -122,8 +122,7 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -154,7 +153,6 @@ ${enrollmentFee ? "- Your enrollment fee will be charged immediately\n" : ""}- Y
 If you have any questions, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };
@@ -219,8 +217,7 @@ function getWelcomeEmailManualEN(props: WelcomeEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -244,7 +241,6 @@ PAYMENT REMINDER: Please arrange your membership payment (cash, check, or Zelle)
 If you have any questions, please contact us at info@masjidmuhajireen.org.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };
@@ -353,8 +349,7 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -384,7 +379,6 @@ ${enrollmentFee ? "- \u0647\u0632\u06CC\u0646\u0647 \u062B\u0628\u062A\u200C\u06
 اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };
@@ -450,8 +444,7 @@ function getWelcomeEmailManualFA(props: WelcomeEmailProps) {
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${organizationName}<br>
-    185 Folsom Ave, Hayward, CA 94544
+    ${organizationName}
   </p>
 </body>
 </html>
@@ -475,7 +468,6 @@ function getWelcomeEmailManualFA(props: WelcomeEmailProps) {
 اگر سوالی دارید، لطفاً با ما در info@masjidmuhajireen.org تماس بگیرید.
 
 ${organizationName}
-185 Folsom Ave, Hayward, CA 94544
   `.trim();
 
   return { subject, html, text };
