@@ -84,6 +84,8 @@ import {
   Edit,
   X,
   Copy,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -106,7 +108,6 @@ export function MemberDetailClient({
 }: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
-  const recentPayments = initialPayments.slice(0, 10);
   const memberEmails = initialEmails;
 
   // State for payment details sheet
@@ -151,6 +152,15 @@ export function MemberDetailClient({
 
   // State for sending portal invite
   const [isSendingPortalInvite, setIsSendingPortalInvite] = useState(false);
+
+  // Pagination
+  const PAGE_SIZE = 5;
+  const [paymentsPage, setPaymentsPage] = useState(0);
+  const [emailsPage, setEmailsPage] = useState(0);
+  const paymentsTotal = initialPayments.length;
+  const emailsTotal = memberEmails.length;
+  const paginatedPayments = initialPayments.slice(paymentsPage * PAGE_SIZE, (paymentsPage + 1) * PAGE_SIZE);
+  const paginatedEmails = memberEmails.slice(emailsPage * PAGE_SIZE, (emailsPage + 1) * PAGE_SIZE);
 
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
@@ -1237,55 +1247,82 @@ export function MemberDetailClient({
               <CardTitle>Payment History</CardTitle>
             </CardHeader>
             <CardContent>
-              {recentPayments.length === 0 ? (
+              {paymentsTotal === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No payments yet</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Method</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {recentPayments.map((payment) => (
-                        <TableRow
-                          key={payment.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleViewPayment(payment)}
-                        >
-                          <TableCell>{formatDate(payment.paidAt || payment.createdAt)}</TableCell>
-                          <TableCell>{getPaymentTypeBadge(payment.type)}</TableCell>
-                          <TableCell>{getPaymentMethodBadge(payment.method)}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(payment.amount)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                payment.status === "completed"
-                                  ? "success"
-                                  : payment.status === "pending"
-                                  ? "warning"
-                                  : payment.status === "failed"
-                                  ? "error"
-                                  : payment.status === "refunded"
-                                  ? "refunded"
-                                  : "inactive"
-                              }
-                            >
-                              {payment.status}
-                            </Badge>
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Method</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedPayments.map((payment) => (
+                          <TableRow
+                            key={payment.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleViewPayment(payment)}
+                          >
+                            <TableCell>{formatDate(payment.paidAt || payment.createdAt)}</TableCell>
+                            <TableCell>{getPaymentTypeBadge(payment.type)}</TableCell>
+                            <TableCell>{getPaymentMethodBadge(payment.method)}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(payment.amount)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  payment.status === "completed"
+                                    ? "success"
+                                    : payment.status === "pending"
+                                    ? "warning"
+                                    : payment.status === "failed"
+                                    ? "error"
+                                    : payment.status === "refunded"
+                                    ? "refunded"
+                                    : "inactive"
+                                }
+                              >
+                                {payment.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {paymentsTotal > PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        {paymentsPage * PAGE_SIZE + 1}-{Math.min((paymentsPage + 1) * PAGE_SIZE, paymentsTotal)} of {paymentsTotal}
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPaymentsPage(p => p - 1)}
+                          disabled={paymentsPage === 0}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPaymentsPage(p => p + 1)}
+                          disabled={(paymentsPage + 1) * PAGE_SIZE >= paymentsTotal}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -1296,56 +1333,83 @@ export function MemberDetailClient({
               <CardTitle>Email History</CardTitle>
             </CardHeader>
             <CardContent>
-              {memberEmails.length === 0 ? (
+              {emailsTotal === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No emails sent yet</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Subject</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Language</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {memberEmails.map((email) => (
-                        <TableRow
-                          key={email.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleViewEmail(email)}
-                        >
-                          <TableCell className="whitespace-nowrap">
-                            {formatDate(email.sentAt || email.createdAt)}
-                          </TableCell>
-                          <TableCell className="max-w-[250px] truncate">
-                            {email.subject}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {getEmailTemplateTypeLabel(email.templateType)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={email.language === "fa" ? "info" : "inactive"}>
-                              {email.language === "fa" ? "FA" : "EN"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getEmailStatusIcon(email.status)}
-                              <Badge variant={getEmailStatusVariant(email.status)}>
-                                {email.status}
-                              </Badge>
-                            </div>
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Subject</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Language</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedEmails.map((email) => (
+                          <TableRow
+                            key={email.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleViewEmail(email)}
+                          >
+                            <TableCell className="whitespace-nowrap">
+                              {formatDate(email.sentAt || email.createdAt)}
+                            </TableCell>
+                            <TableCell className="max-w-[250px] truncate">
+                              {email.subject}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {getEmailTemplateTypeLabel(email.templateType)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={email.language === "fa" ? "info" : "inactive"}>
+                                {email.language === "fa" ? "FA" : "EN"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {getEmailStatusIcon(email.status)}
+                                <Badge variant={getEmailStatusVariant(email.status)}>
+                                  {email.status}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {emailsTotal > PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        {emailsPage * PAGE_SIZE + 1}-{Math.min((emailsPage + 1) * PAGE_SIZE, emailsTotal)} of {emailsTotal}
+                      </p>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEmailsPage(p => p - 1)}
+                          disabled={emailsPage === 0}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEmailsPage(p => p + 1)}
+                          disabled={(emailsPage + 1) * PAGE_SIZE >= emailsTotal}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
