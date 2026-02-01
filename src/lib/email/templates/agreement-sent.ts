@@ -29,7 +29,7 @@ export function getAgreementSentEmailEN(props: AgreementSentEmailProps) {
 
   <p>Welcome to ${organizationName}! To complete your membership enrollment, please review and sign your membership agreement.</p>
 
-  <div style="text-align: center; margin: 30px 0;">
+  <div style="margin: 30px 0;">
     <a href="${signUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       Sign Agreement
     </a>
@@ -92,7 +92,7 @@ export function getAgreementSentEmailFA(props: AgreementSentEmailProps) {
 
   <p>به ${organizationName} خوش آمدید! برای تکمیل ثبت نام عضویت خود، لطفاً قرارداد عضویت خود را بررسی و امضا کنید.</p>
 
-  <div style="text-align: center; margin: 30px 0;">
+  <div style="margin: 30px 0;">
     <a href="${signUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       امضای قرارداد
     </a>
