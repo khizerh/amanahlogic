@@ -71,7 +71,7 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
   <h2 style="color: #1a1a1a; font-size: 18px; margin: 30px 0 10px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">Step 1: Create Your Portal Account</h2>
   <p style="color: #666; font-size: 14px;">Access your membership details, track payments, and manage your profile.</p>
 
-  <div style="text-align: center; margin: 20px 0;">
+  <div style="margin: 20px 0;">
     <a href="${inviteUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       Create Your Account
     </a>
@@ -94,8 +94,8 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
     </table>
   </div>
 
-  <div style="text-align: center; margin: 20px 0;">
-    <a href="${checkoutUrl}" style="display: inline-block; background-color: #16a34a; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+  <div style="margin: 20px 0;">
+    <a href="${checkoutUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       Complete Payment Setup
     </a>
   </div>
@@ -118,7 +118,7 @@ function getWelcomeEmailStripeEN(props: WelcomeEmailProps) {
   <p style="color: #999; font-size: 12px;">
     If the buttons above don't work, copy and paste these links into your browser:<br>
     Portal: <a href="${inviteUrl}" style="color: #2563eb; word-break: break-all;">${inviteUrl}</a><br>
-    Payment: <a href="${checkoutUrl}" style="color: #16a34a; word-break: break-all;">${checkoutUrl}</a>
+    Payment: <a href="${checkoutUrl}" style="color: #2563eb; word-break: break-all;">${checkoutUrl}</a>
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
@@ -298,7 +298,7 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
   <h2 style="color: #1a1a1a; font-size: 18px; margin: 30px 0 10px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">\u0645\u0631\u062D\u0644\u0647 \u06F1: \u0627\u06CC\u062C\u0627\u062F \u062D\u0633\u0627\u0628 \u067E\u0648\u0631\u062A\u0627\u0644</h2>
   <p style="color: #666; font-size: 14px;">\u062C\u0632\u0626\u06CC\u0627\u062A \u0639\u0636\u0648\u06CC\u062A\u060C \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u067E\u0631\u062F\u0627\u062E\u062A\u200C\u0647\u0627 \u0648 \u0645\u062F\u06CC\u0631\u06CC\u062A \u067E\u0631\u0648\u0641\u0627\u06CC\u0644 \u062E\u0648\u062F \u0631\u0627 \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u06CC\u062F.</p>
 
-  <div style="text-align: center; margin: 20px 0;">
+  <div style="margin: 20px 0;">
     <a href="${inviteUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       \u0627\u06CC\u062C\u0627\u062F \u062D\u0633\u0627\u0628 \u06A9\u0627\u0631\u0628\u0631\u06CC
     </a>
@@ -321,8 +321,8 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
     </table>
   </div>
 
-  <div style="text-align: center; margin: 20px 0;">
-    <a href="${checkoutUrl}" style="display: inline-block; background-color: #16a34a; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+  <div style="margin: 20px 0;">
+    <a href="${checkoutUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       \u062A\u06A9\u0645\u06CC\u0644 \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A
     </a>
   </div>
@@ -345,7 +345,7 @@ function getWelcomeEmailStripeFA(props: WelcomeEmailProps) {
   <p style="color: #999; font-size: 12px;">
     \u0627\u06AF\u0631 \u062F\u06A9\u0645\u0647\u200C\u0647\u0627\u06CC \u0628\u0627\u0644\u0627 \u06A9\u0627\u0631 \u0646\u0645\u06CC\u200C\u06A9\u0646\u0646\u062F\u060C \u0627\u06CC\u0646 \u0644\u06CC\u0646\u06A9\u200C\u0647\u0627 \u0631\u0627 \u062F\u0631 \u0645\u0631\u0648\u0631\u06AF\u0631 \u062E\u0648\u062F \u06A9\u067E\u06CC \u0648 \u067E\u06CC\u0633\u062A \u06A9\u0646\u06CC\u062F:<br>
     \u067E\u0648\u0631\u062A\u0627\u0644: <a href="${inviteUrl}" style="color: #2563eb; word-break: break-all;">${inviteUrl}</a><br>
-    \u067E\u0631\u062F\u0627\u062E\u062A: <a href="${checkoutUrl}" style="color: #16a34a; word-break: break-all;">${checkoutUrl}</a>
+    \u067E\u0631\u062F\u0627\u062E\u062A: <a href="${checkoutUrl}" style="color: #2563eb; word-break: break-all;">${checkoutUrl}</a>
   </p>
 
   <p style="color: #999; font-size: 12px; margin-top: 30px;">
