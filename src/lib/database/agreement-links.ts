@@ -43,6 +43,27 @@ export class AgreementSigningLinksService {
   }
 
   /**
+   * Get a link by token regardless of used/expired status.
+   * Uses service role because public signers are unauthenticated.
+   */
+  static async getByToken(token: string): Promise<AgreementSigningLink | null> {
+    const supabase = createServiceRoleClient();
+
+    const { data, error } = await supabase
+      .from("agreement_signing_links")
+      .select("*")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return data ? transformLink(data) : null;
+  }
+
+  /**
    * Get an active (unused + unexpired) link by token
    *
    * Uses service role because public signers are unauthenticated.
