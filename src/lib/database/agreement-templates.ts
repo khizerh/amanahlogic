@@ -151,10 +151,10 @@ function transformTemplates(dbTemplates: any[]): AgreementTemplate[] {
  * - If storagePath is already a URL, return it.
  * - Otherwise, create a signed URL from the bucket.
  */
-export async function resolveTemplateUrl(storagePath: string): Promise<string> {
+export async function resolveTemplateUrl(storagePath: string, client?: SupabaseClient): Promise<string> {
   if (storagePath.startsWith("http")) return storagePath;
 
-  const supabase = await createClientForContext();
+  const supabase = client ?? (await createClientForContext());
   const bucket = process.env.AGREEMENT_TEMPLATES_BUCKET || "agreement-templates";
 
   const { data, error } = await supabase.storage

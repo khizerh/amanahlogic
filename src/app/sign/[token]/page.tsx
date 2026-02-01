@@ -59,7 +59,7 @@ export default async function SignPage({ params }: SignPageProps) {
 
   if (template) {
     try {
-      pdfPath = await resolveTemplateUrl(template.storagePath);
+      pdfPath = await resolveTemplateUrl(template.storagePath, serviceClient);
     } catch {
       // Storage file missing — fall through to static fallback
     }
