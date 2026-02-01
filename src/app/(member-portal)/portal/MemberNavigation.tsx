@@ -131,7 +131,6 @@ export function MemberNavigation() {
                     alt="Member Portal"
                     className="h-8"
                   />
-                  <span className="text-white/60 text-sm hidden sm:inline">Member Portal</span>
                 </Link>
               </div>
 
