@@ -14,7 +14,7 @@ export function StripePortalButton() {
     try {
       const result = await getStripePortalUrl();
       if (result.success && result.url) {
-        window.location.href = result.url;
+        window.open(result.url, "_blank");
       } else {
         toast.error(result.error || "Failed to open payment portal");
       }

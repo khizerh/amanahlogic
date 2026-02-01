@@ -2,6 +2,13 @@
 
 import { headers } from "next/headers";
 import { MemberPortalService } from "@/lib/database/member-portal";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import {
+  isStripeConfigured,
+  createCustomerPortalSession,
+  isStripeConfigurationError,
+  isStripeResourceMissingError,
+} from "@/lib/stripe";
 import type { MemberDashboardData, MemberPaymentHistory } from "@/lib/database/member-portal";
 
 /**
@@ -128,21 +135,41 @@ export async function getStripePortalUrl(): Promise<{
       return { success: false, error: "Not authenticated" };
     }
 
-    // Call member-facing Stripe portal endpoint
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/portal/stripe-portal`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return { success: false, error: data.error || "Failed to create portal session" };
+    if (!isStripeConfigured()) {
+      return { success: false, error: "Payment system is not configured" };
     }
 
-    return { success: true, url: data.url };
+    // Look up membership's Stripe customer ID
+    const supabase = createServiceRoleClient();
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("stripe_customer_id")
+      .eq("member_id", context.memberId)
+      .eq("organization_id", context.organizationId)
+      .single();
+
+    if (!membership?.stripe_customer_id) {
+      return { success: false, error: "No payment method on file. Contact your organization to set up payments." };
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3003";
+    const returnUrl = `${baseUrl}/portal/profile`;
+
+    try {
+      const portalSession = await createCustomerPortalSession({
+        customerId: membership.stripe_customer_id,
+        returnUrl,
+      });
+      return { success: true, url: portalSession.url };
+    } catch (error) {
+      if (isStripeConfigurationError(error)) {
+        return { success: false, error: "Payment portal is not configured. Please contact support." };
+      }
+      if (isStripeResourceMissingError(error)) {
+        return { success: false, error: "Payment account not found. Please contact your organization." };
+      }
+      throw error;
+    }
   } catch (error) {
     console.error("Error getting Stripe portal:", error);
     return { success: false, error: "Failed to access payment portal" };
