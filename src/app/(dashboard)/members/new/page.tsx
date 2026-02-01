@@ -383,7 +383,7 @@ export default function NewMemberPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="spouseName">Spouse Name (Optional)</Label>
+                  <Label htmlFor="spouseName">Spouse Name</Label>
                   <Input
                     id="spouseName"
                     value={spouseName}
@@ -394,7 +394,7 @@ export default function NewMemberPage() {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label>Children (Optional)</Label>
+                    <Label>Children</Label>
                     <Button type="button" variant="outline" size="sm" onClick={addChild}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Child
