@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, FileText } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -163,18 +163,15 @@ export default async function MemberDashboardPage() {
       {membership?.status === "pending" && (
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2 text-blue-900">
-              <FileText className="w-5 h-5" />
+            <CardTitle className="text-lg text-blue-900">
               Complete Your Membership Setup
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Sign Agreement */}
             {!agreementSigned && (
-              <div className="flex items-start gap-3">
-                <FileText className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">Sign Your Agreement</p>
+              <div>
+                <p className="font-medium text-gray-900">Sign Your Agreement</p>
                   {signingLink ? (
                     <a
                       href={signingLink}
@@ -187,40 +184,36 @@ export default async function MemberDashboardPage() {
                       Check your email for the signing link.
                     </p>
                   )}
-                </div>
               </div>
             )}
 
             {/* Payment */}
             {!paymentDone && (
-              <div className="flex items-start gap-3">
-                <CreditCard className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  {isManualPayment ? (
-                    <>
-                      <p className="font-medium text-gray-900">Arrange Payment</p>
+              <div>
+                {isManualPayment ? (
+                  <>
+                    <p className="font-medium text-gray-900">Arrange Payment</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Please contact {organization.name} to arrange your first payment.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-gray-900">Complete Payment</p>
+                    {paymentLink ? (
+                      <a
+                        href={paymentLink}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
+                      >
+                        Complete Payment &rarr;
+                      </a>
+                    ) : (
                       <p className="text-sm text-gray-600 mt-1">
-                        Please contact {organization.name} to arrange your first payment.
+                        Check your email for the payment link.
                       </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-medium text-gray-900">Complete Payment</p>
-                      {paymentLink ? (
-                        <a
-                          href={paymentLink}
-                          className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
-                        >
-                          Complete Payment &rarr;
-                        </a>
-                      ) : (
-                        <p className="text-sm text-gray-600 mt-1">
-                          Check your email for the payment link.
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </CardContent>
