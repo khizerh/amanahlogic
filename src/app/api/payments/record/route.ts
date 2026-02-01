@@ -4,6 +4,7 @@ import { settlePayment } from "@/lib/billing/engine";
 import {
   generateAdHocInvoiceMetadata,
   getTodayInOrgTimezone,
+  parseDateInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import type { PaymentType, PaymentMethod } from "@/lib/types";
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
       .from("memberships")
       .select(`
         billing_frequency,
+        billing_anniversary_day,
         next_payment_due,
         auto_pay_enabled,
         stripe_customer_id,
@@ -270,11 +272,28 @@ export async function POST(request: NextRequest) {
 
     const orgTimezone = org?.timezone || "America/Los_Angeles";
     const today = getTodayInOrgTimezone(orgTimezone);
-    const billingAnchor =
+
+    // Determine billing anchor for period calculation
+    let billingAnchor: string;
+    if (
       membershipWithPlan?.next_payment_due &&
       /^\d{4}-\d{2}-\d{2}$/.test(membershipWithPlan.next_payment_due)
-        ? membershipWithPlan.next_payment_due
-        : today;
+    ) {
+      billingAnchor = membershipWithPlan.next_payment_due;
+    } else if (membershipWithPlan?.billing_anniversary_day) {
+      // First payment — use billing anniversary day of current month
+      const todayDate = parseDateInOrgTimezone(today, orgTimezone);
+      const anniversaryDay = membershipWithPlan.billing_anniversary_day;
+      const lastDayOfMonth = new Date(
+        todayDate.getFullYear(),
+        todayDate.getMonth() + 1,
+        0
+      ).getDate();
+      const day = Math.min(anniversaryDay, lastDayOfMonth);
+      billingAnchor = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    } else {
+      billingAnchor = today;
+    }
 
     // Generate invoice metadata for proper tracking
     // For enrollment fees, we don't credit months so use a simple label

@@ -17,6 +17,7 @@ import {
 import {
   generateAdHocInvoiceMetadata,
   getTodayInOrgTimezone,
+  parseDateInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
 import { settlePayment } from "@/lib/billing/engine";
 import type { PaymentType } from "@/lib/types";
@@ -132,10 +133,25 @@ export async function POST(req: Request) {
         monthsCredited: 0,
       };
     } else {
-      const billingAnchor =
-        membership.nextPaymentDue && /^\d{4}-\d{2}-\d{2}$/.test(membership.nextPaymentDue)
-          ? membership.nextPaymentDue
-          : today;
+      let billingAnchor: string;
+      if (
+        membership.nextPaymentDue &&
+        /^\d{4}-\d{2}-\d{2}$/.test(membership.nextPaymentDue)
+      ) {
+        billingAnchor = membership.nextPaymentDue;
+      } else if (membership.billingAnniversaryDay) {
+        const todayDate = parseDateInOrgTimezone(today, orgTimezone);
+        const anniversaryDay = membership.billingAnniversaryDay;
+        const lastDayOfMonth = new Date(
+          todayDate.getFullYear(),
+          todayDate.getMonth() + 1,
+          0
+        ).getDate();
+        const day = Math.min(anniversaryDay, lastDayOfMonth);
+        billingAnchor = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      } else {
+        billingAnchor = today;
+      }
 
       invoiceMetadata = await generateAdHocInvoiceMetadata(
         organizationId,

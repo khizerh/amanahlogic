@@ -115,49 +115,8 @@ export function calculateNextBillingDate(
   frequency: "monthly" | "biannual" | "annual",
   _timezone?: string
 ): Date {
-  let monthsToAdd: number;
-
-  switch (frequency) {
-    case "monthly":
-      monthsToAdd = 1;
-      break;
-    case "biannual":
-      monthsToAdd = 6;
-      break;
-    case "annual":
-      monthsToAdd = 12;
-      break;
-    default:
-      // Unknown frequency - return same date (no change)
-      return new Date(current);
-  }
-
-  const currentYear = current.getFullYear();
-  const currentMonth = current.getMonth();
-  const currentDay = current.getDate();
-
-  // Check if current date is the last day of its month
-  const lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const isCurrentOnLastDay = currentDay === lastDayOfCurrentMonth;
-
-  // Calculate target year and month
-  const totalMonths = currentMonth + monthsToAdd;
-  const nextYear = currentYear + Math.floor(totalMonths / 12);
-  const nextMonth = totalMonths % 12;
-
-  // Get last day of next month
-  const lastDayOfNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
-
-  let nextDay: number;
-  if (isCurrentOnLastDay) {
-    // Current is last day of month → next should be last day of target month
-    nextDay = lastDayOfNextMonth;
-  } else {
-    // Preserve day number, or use last day if it doesn't exist
-    nextDay = Math.min(currentDay, lastDayOfNextMonth);
-  }
-
-  return new Date(nextYear, nextMonth, nextDay);
+  const monthsToAdd = getMonthsForFrequency(frequency);
+  return addMonthsSafe(current, monthsToAdd);
 }
 
 /**
@@ -198,10 +157,9 @@ export function formatPeriodLabel(
     case "monthly":
       return `${month} ${year}`;
     case "biannual": {
-      const endMonth = new Date(start);
-      endMonth.setMonth(endMonth.getMonth() + 6);
-      const endMonthName = monthNames[endMonth.getMonth()].substring(0, 3);
-      const endYear = endMonth.getFullYear();
+      const endDate = addMonthsSafe(start, 6);
+      const endMonthName = monthNames[endDate.getMonth()].substring(0, 3);
+      const endYear = endDate.getFullYear();
       return `${month.substring(0, 3)} ${year} - ${endMonthName} ${endYear}`;
     }
     case "annual": {
@@ -251,6 +209,26 @@ export function parseDateInOrgTimezone(dateString: string, _timezone: string): D
 }
 
 // -----------------------------------------------------------------------------
+// Safe Month Arithmetic
+// -----------------------------------------------------------------------------
+
+/**
+ * Safely add months to a date without JS Date overflow.
+ *
+ * JS `setMonth` overflows: new Date(2026,0,31).setMonth(1) → Mar 3 (Feb 31 → overflow).
+ * This function clamps to the last day of the target month instead.
+ */
+function addMonthsSafe(date: Date, monthsToAdd: number): Date {
+  const dayToUse = date.getDate();
+  const totalMonths = date.getMonth() + monthsToAdd;
+  const targetYear = date.getFullYear() + Math.floor(totalMonths / 12);
+  const targetMonth = ((totalMonths % 12) + 12) % 12;
+  const lastDayTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const targetDay = Math.min(dayToUse, lastDayTargetMonth);
+  return new Date(targetYear, targetMonth, targetDay);
+}
+
+// -----------------------------------------------------------------------------
 // Invoice Metadata Bundle
 // -----------------------------------------------------------------------------
 
@@ -286,20 +264,10 @@ export function calculatePeriodEnd(
   periodStart: Date,
   frequency: "monthly" | "biannual" | "annual"
 ): Date {
-  const periodEnd = new Date(periodStart);
-  switch (frequency) {
-    case "monthly":
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
-      break;
-    case "biannual":
-      periodEnd.setMonth(periodEnd.getMonth() + 6);
-      break;
-    case "annual":
-      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-      break;
-  }
-  periodEnd.setDate(periodEnd.getDate() - 1); // End is day before next period starts
-  return periodEnd;
+  const monthsToAdd = getMonthsForFrequency(frequency);
+  const nextPeriodStart = addMonthsSafe(periodStart, monthsToAdd);
+  nextPeriodStart.setDate(nextPeriodStart.getDate() - 1); // End is day before next period starts
+  return nextPeriodStart;
 }
 
 /**
@@ -372,8 +340,8 @@ export async function generateAdHocInvoiceMetadata(
   const invoiceNumber = await generateInvoiceNumber(organizationId, periodStart, supabase);
 
   // Calculate period end based on months credited
-  const periodEnd = new Date(periodStart);
-  periodEnd.setMonth(periodEnd.getMonth() + monthsCredited);
+  const nextPeriodStart = addMonthsSafe(periodStart, monthsCredited);
+  const periodEnd = new Date(nextPeriodStart);
   periodEnd.setDate(periodEnd.getDate() - 1);
 
   // Generate period label

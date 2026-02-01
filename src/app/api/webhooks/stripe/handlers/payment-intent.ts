@@ -4,6 +4,7 @@ import { settlePayment } from "@/lib/billing/engine";
 import {
   generateInvoiceMetadata,
   getTodayInOrgTimezone,
+  parseDateInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
 import { logger } from "@/lib/logger";
 import type { BillingFrequency } from "@/lib/types";
@@ -182,7 +183,7 @@ export async function handlePaymentIntentSucceeded(
   // Get membership details
   const { data: membership } = await supabase
     .from("memberships")
-    .select("member_id, billing_frequency, next_payment_due")
+    .select("member_id, billing_frequency, billing_anniversary_day, next_payment_due")
     .eq("id", membershipId)
     .single();
 
@@ -204,10 +205,28 @@ export async function handlePaymentIntentSucceeded(
   const orgTimezone = org?.timezone || "America/Los_Angeles";
   const today = getTodayInOrgTimezone(orgTimezone);
   const billingFrequency = (membership.billing_frequency || "monthly") as BillingFrequency;
-  const billingAnchor =
-    membership.next_payment_due && /^\d{4}-\d{2}-\d{2}$/.test(membership.next_payment_due)
-      ? membership.next_payment_due
-      : today;
+
+  // Determine billing anchor for period calculation
+  let billingAnchor: string;
+  if (
+    membership.next_payment_due &&
+    /^\d{4}-\d{2}-\d{2}$/.test(membership.next_payment_due)
+  ) {
+    billingAnchor = membership.next_payment_due;
+  } else if (membership.billing_anniversary_day) {
+    // First payment — use billing anniversary day of current month
+    const todayDate = parseDateInOrgTimezone(today, orgTimezone);
+    const anniversaryDay = membership.billing_anniversary_day;
+    const lastDayOfMonth = new Date(
+      todayDate.getFullYear(),
+      todayDate.getMonth() + 1,
+      0
+    ).getDate();
+    const day = Math.min(anniversaryDay, lastDayOfMonth);
+    billingAnchor = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  } else {
+    billingAnchor = today;
+  }
 
   // Generate invoice metadata
   const invoiceMetadata = await generateInvoiceMetadata(
