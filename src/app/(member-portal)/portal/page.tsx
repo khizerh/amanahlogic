@@ -14,6 +14,7 @@ import { formatPhoneNumber } from "@/lib/utils";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 import { stripe, calculateFees } from "@/lib/stripe";
+import { StripePortalButton } from "./profile/StripePortalButton";
 
 function formatDate(dateString: string | null, timeZone?: string): string {
   if (!dateString) return "N/A";
@@ -328,28 +329,45 @@ export default async function MemberDashboardPage() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <a
-              href="/portal/payments"
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-            >
-              View Payment History
-            </a>
-            <a
-              href="/portal/profile"
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-            >
-              Update Profile
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Payment Method */}
+      {membership && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5" />
+              Payment Method
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {membership.autoPayEnabled && membership.paymentMethod ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="capitalize">
+                        {membership.paymentMethod.brand || membership.paymentMethod.type}
+                      </Badge>
+                      <span className="text-sm font-medium">
+                        ending in {membership.paymentMethod.last4}
+                      </span>
+                    </div>
+                    {membership.paymentMethod.expiryMonth && membership.paymentMethod.expiryYear && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <StripePortalButton />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No automatic payment method on file. Contact {organization.name} to set up automatic payments.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contact Info */}
       <Card>
