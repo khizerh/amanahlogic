@@ -756,7 +756,7 @@ export function MemberDetailClient({
                       </div>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Portal</p>
+                      <p className="text-sm text-muted-foreground">Member Portal</p>
                       <div className="flex items-center gap-2">
                         {memberData.userId ? (
                           <>
