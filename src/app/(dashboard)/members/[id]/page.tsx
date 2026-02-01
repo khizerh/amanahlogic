@@ -75,7 +75,7 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   if (agreement && !agreement.signedAt) {
     const signingLink = await AgreementSigningLinksService.getActiveByAgreementId(agreement.id);
     if (signingLink) {
-      agreementSignUrl = `${process.env.NEXT_PUBLIC_APP_URL || ""}/agreements/sign?token=${signingLink.token}`;
+      agreementSignUrl = `${process.env.NEXT_PUBLIC_APP_URL || ""}/sign/${signingLink.token}`;
     }
   }
 
