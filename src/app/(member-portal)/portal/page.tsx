@@ -7,10 +7,13 @@ export const metadata: Metadata = {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, FileText, Lock } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
+import { stripe } from "@/lib/stripe";
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "N/A";
@@ -84,6 +87,54 @@ export default async function MemberDashboardPage() {
   const { member, membership, plan, organization, stats } = dashboardData;
   const progressPercent = Math.min(100, (stats.paidMonths / stats.eligibilityMonths) * 100);
 
+  // Fetch pending action data if membership is pending
+  let signingLink: string | null = null;
+  let paymentLink: string | null = null;
+  const agreementSigned = membership?.agreementSignedAt !== null && membership?.agreementSignedAt !== undefined;
+  const paymentDone = membership?.enrollmentFeePaid === true;
+
+  if (membership?.status === "pending") {
+    const serviceClient = createServiceRoleClient();
+
+    // Fetch signing link if agreement not signed
+    if (!agreementSigned && membership.agreementId) {
+      try {
+        const activeLink = await AgreementSigningLinksService.getActiveByAgreementId(
+          membership.agreementId,
+          serviceClient
+        );
+        if (activeLink) {
+          signingLink = `/sign/${activeLink.token}`;
+        }
+      } catch {
+        // Signing link not available — member will see fallback text
+      }
+    }
+
+    // Fetch payment link if payment not done
+    if (!paymentDone) {
+      try {
+        const { data: invite } = await serviceClient
+          .from("onboarding_invites")
+          .select("stripe_setup_intent_id")
+          .eq("member_id", member.id)
+          .eq("status", "pending")
+          .order("sent_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (invite?.stripe_setup_intent_id && stripe) {
+          const setupIntent = await stripe.setupIntents.retrieve(invite.stripe_setup_intent_id);
+          if (setupIntent.client_secret && setupIntent.status !== "succeeded" && setupIntent.status !== "canceled") {
+            paymentLink = `/payment/setup?setup_intent=${setupIntent.id}&setup_intent_client_secret=${setupIntent.client_secret}`;
+          }
+        }
+      } catch {
+        // Payment link not available — member will see fallback text
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
@@ -95,6 +146,78 @@ export default async function MemberDashboardPage() {
           {organization.name} Member Portal
         </p>
       </div>
+
+      {/* Pending Actions Banner */}
+      {membership?.status === "pending" && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2 text-blue-900">
+              <FileText className="w-5 h-5" />
+              Complete Your Membership Setup
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Step 1: Sign Agreement */}
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold">
+                1
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">Sign Your Agreement</p>
+                {agreementSigned ? (
+                  <p className="text-sm text-green-700 flex items-center gap-1 mt-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Completed
+                  </p>
+                ) : signingLink ? (
+                  <a
+                    href={signingLink}
+                    className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
+                  >
+                    Sign Agreement &rarr;
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Check your email for the signing link.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Step 2: Complete Payment */}
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold">
+                2
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">Complete Payment</p>
+                {paymentDone ? (
+                  <p className="text-sm text-green-700 flex items-center gap-1 mt-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Completed
+                  </p>
+                ) : !agreementSigned ? (
+                  <p className="text-sm text-gray-400 flex items-center gap-1 mt-1">
+                    <Lock className="w-4 h-4" />
+                    Complete Step 1 first
+                  </p>
+                ) : paymentLink ? (
+                  <a
+                    href={paymentLink}
+                    className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
+                  >
+                    Complete Payment &rarr;
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Check your email for the payment link.
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Eligibility Status Card */}
       <Card className={stats.isEligible ? "border-green-200 bg-green-50" : ""}>
