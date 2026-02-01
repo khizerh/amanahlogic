@@ -26,13 +26,7 @@ export default async function SignPage({ params }: SignPageProps) {
             <div className="text-5xl">✅</div>
             <h1 className="text-2xl font-semibold">Agreement Already Signed</h1>
             <p className="text-slate-300">
-              This agreement was already signed on{" "}
-              {new Date(usedLink.usedAt).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-              . No further action is needed.
+              This agreement has already been signed. No further action is needed.
             </p>
           </div>
         </div>
