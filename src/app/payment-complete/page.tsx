@@ -23,17 +23,17 @@ function PaymentCompleteContent() {
                   <CheckCircle2 className="w-10 h-10 text-green-600" />
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Payment Setup Complete!
+                  Payment Complete!
                 </h1>
                 <p className="text-gray-600">
-                  Thank you for completing your payment setup. Your card has been saved
-                  and your subscription is being activated.
+                  Thank you! Your payment has been processed and your membership
+                  is now active.
                 </p>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
                   <p className="font-medium">What happens next:</p>
                   <ul className="mt-2 space-y-1 text-left">
-                    <li>• You&apos;ll receive a confirmation email shortly</li>
-                    <li>• Future payments will be processed automatically</li>
+                    <li>• Your card has been saved for automatic future payments</li>
+                    <li>• Future dues will be charged automatically on your billing date</li>
                     <li>• You can manage your payment method anytime via email link</li>
                   </ul>
                 </div>

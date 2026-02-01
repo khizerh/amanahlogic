@@ -879,9 +879,10 @@ async function handleSetupIntentSucceeded(
   }
 
   // Set as customer default payment method
-  await stripe.customers.update(customerId, {
+  const customer = await stripe.customers.update(customerId, {
     invoice_settings: { default_payment_method: paymentMethodId },
   });
+  const customerEmail = !customer.deleted ? customer.email : null;
 
   // Get payment method details for display
   const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
@@ -993,6 +994,7 @@ async function handleSetupIntentSucceeded(
         off_session: true,
         confirm: true,
         description: `${planName || "Membership"} Enrollment Fee`,
+        ...(customerEmail && { receipt_email: customerEmail }),
         metadata: {
           membership_id: membershipId,
           member_id: memberId,

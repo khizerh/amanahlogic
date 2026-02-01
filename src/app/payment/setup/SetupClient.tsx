@@ -98,12 +98,12 @@ function SetupForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="text-center space-y-1">
         <h1 className="text-2xl font-bold text-gray-900">{organizationName}</h1>
-        <p className="text-gray-500">Complete Your Payment Setup</p>
+        <p className="text-gray-500">Complete Your Membership Payment</p>
       </div>
 
       {/* Billing Summary */}
       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-        <h3 className="font-semibold text-gray-900">Payment Summary</h3>
+        <h3 className="font-semibold text-gray-900">You will be charged</h3>
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Plan</span>
           <span className="font-medium">{planName}</span>
@@ -115,8 +115,14 @@ function SetupForm({
           </div>
         )}
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Recurring Dues ({billingFrequency})</span>
+          <span className="text-gray-600">First Dues Payment ({billingFrequency})</span>
           <span className="font-medium">{formatCurrency(duesAmount)}</span>
+        </div>
+        <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+          <span className="text-gray-900 font-semibold">Total Due Today</span>
+          <span className="font-semibold text-gray-900">
+            {formatCurrency(duesAmount + (enrollmentFee || 0))}
+          </span>
         </div>
       </div>
 
@@ -140,14 +146,15 @@ function SetupForm({
             Processing...
           </>
         ) : (
-          "Save Payment Method"
+          "Pay & Start Membership"
         )}
       </Button>
 
       <p className="text-xs text-gray-500 text-center">
-        Your card will be saved securely for automatic future payments.
-        {enrollmentFee !== undefined && enrollmentFee > 0 &&
-          " Your enrollment fee will be charged after setup is confirmed."}
+        {enrollmentFee !== undefined && enrollmentFee > 0
+          ? `Your enrollment fee of ${formatCurrency(enrollmentFee)} and first dues of ${formatCurrency(duesAmount)} will be charged today.`
+          : `Your first dues of ${formatCurrency(duesAmount)} will be charged today.`}
+        {" "}Your card will be saved for automatic future payments.
       </p>
     </form>
   );
