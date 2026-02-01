@@ -91,20 +91,32 @@ export default async function MemberDashboardPage() {
   let signingLink: string | null = null;
   let paymentLink: string | null = null;
   const agreementSigned = membership?.agreementSignedAt !== null && membership?.agreementSignedAt !== undefined;
-  const paymentDone = membership?.enrollmentFeePaid === true;
+  const paymentDone = membership ? membership.paidMonths > 0 : false;
 
   if (membership?.status === "pending") {
     const serviceClient = createServiceRoleClient();
 
     // Fetch signing link if agreement not signed
-    if (!agreementSigned && membership.agreementId) {
+    if (!agreementSigned) {
       try {
-        const activeLink = await AgreementSigningLinksService.getActiveByAgreementId(
-          membership.agreementId,
-          serviceClient
-        );
-        if (activeLink) {
-          signingLink = `/sign/${activeLink.token}`;
+        // Look up agreement by member_id (membership.agreementId may not be set)
+        const { data: agreement } = await serviceClient
+          .from("agreements")
+          .select("id")
+          .eq("member_id", member.id)
+          .is("signed_at", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (agreement) {
+          const activeLink = await AgreementSigningLinksService.getActiveByAgreementId(
+            agreement.id,
+            serviceClient
+          );
+          if (activeLink) {
+            signingLink = `/sign/${activeLink.token}`;
+          }
         }
       } catch {
         // Signing link not available — member will see fallback text

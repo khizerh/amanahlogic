@@ -7,8 +7,10 @@ export const metadata: Metadata = {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, FileText, Download, CheckCircle2, Clock } from "lucide-react";
+import { AlertTriangle, FileText, Download, CheckCircle2, Clock, ExternalLink } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "N/A";
@@ -48,6 +50,23 @@ export default async function MemberAgreementPage() {
   ]);
 
   const organizationName = portalData?.organization.name || "Organization";
+
+  // Fetch signing link if agreement exists but not signed
+  let signingLink: string | null = null;
+  if (agreement && !agreement.signedAt) {
+    try {
+      const serviceClient = createServiceRoleClient();
+      const activeLink = await AgreementSigningLinksService.getActiveByAgreementId(
+        agreement.id,
+        serviceClient
+      );
+      if (activeLink) {
+        signingLink = `/sign/${activeLink.token}`;
+      }
+    } catch {
+      // Link not available
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -130,17 +149,30 @@ export default async function MemberAgreementPage() {
               </>
             ) : (
               /* Pending Signature */
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-yellow-800">Signature Required</p>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      Your agreement is awaiting your signature. Please check your email for a signing link,
-                      or contact {organizationName} for assistance.
-                    </p>
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-yellow-800">Signature Required</p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Your agreement is awaiting your signature. Please review and sign to complete your membership setup.
+                      </p>
+                    </div>
                   </div>
                 </div>
+                {signingLink ? (
+                  <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                    <a href={signingLink}>
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Sign Agreement
+                    </a>
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Check your email for the signing link, or contact {organizationName} for assistance.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
