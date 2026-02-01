@@ -11,6 +11,7 @@ import {
   createSetupIntent,
   calculateFees,
 } from "@/lib/stripe";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 
 interface SetupAutopayBody {
   membershipId: string;
@@ -129,6 +130,16 @@ export async function POST(req: Request) {
       id: membershipId,
       stripeCustomerId: customerId,
     });
+
+    // Cancel any pending onboarding invite (e.g. manual payment invite being replaced by Stripe)
+    try {
+      const pendingInvite = await OnboardingInvitesService.getPendingForMembership(membershipId);
+      if (pendingInvite) {
+        await OnboardingInvitesService.markCanceled(pendingInvite.id);
+      }
+    } catch {
+      // Non-critical — don't block autopay setup if invite cleanup fails
+    }
 
     // Calculate enrollment fee for response
     let enrollmentFeeAmount: number | undefined;
