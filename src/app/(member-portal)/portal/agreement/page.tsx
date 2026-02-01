@@ -11,7 +11,7 @@ import { AlertTriangle, FileText, Download, CheckCircle2, Clock, ExternalLink } 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 
-function formatDate(dateString: string | null): string {
+function formatDate(dateString: string | null, timeZone?: string): string {
   if (!dateString) return "N/A";
   return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
@@ -19,6 +19,7 @@ function formatDate(dateString: string | null): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: timeZone || "America/Los_Angeles",
   });
 }
 
@@ -57,7 +58,7 @@ export default async function MemberAgreementPage() {
       .maybeSingle(),
     serviceClient
       .from("organizations")
-      .select("name, email")
+      .select("name, email, timezone")
       .eq("id", organizationId)
       .single(),
   ]);
@@ -74,6 +75,7 @@ export default async function MemberAgreementPage() {
 
   const organizationName = orgResult.data?.name || "Organization";
   const organizationEmail = orgResult.data?.email || "";
+  const orgTimezone = orgResult.data?.timezone || "America/Los_Angeles";
 
   // Fetch signing link if agreement exists but not signed
   let signingLink: string | null = null;
@@ -132,7 +134,7 @@ export default async function MemberAgreementPage() {
                     <div>
                       <p className="font-medium text-green-800">Agreement Signed</p>
                       <p className="text-sm text-green-700 mt-1">
-                        Signed by <strong>{agreement.signedName}</strong> on {formatDate(agreement.signedAt)}
+                        Signed by <strong>{agreement.signedName}</strong> on {formatDate(agreement.signedAt, orgTimezone)}
                       </p>
                     </div>
                   </div>
@@ -146,7 +148,7 @@ export default async function MemberAgreementPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Date Signed</p>
-                    <p className="font-medium">{formatDate(agreement.signedAt)}</p>
+                    <p className="font-medium">{formatDate(agreement.signedAt, orgTimezone)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Agreement Version</p>

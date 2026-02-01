@@ -15,12 +15,13 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 import { stripe } from "@/lib/stripe";
 
-function formatDate(dateString: string | null): string {
+function formatDate(dateString: string | null, timeZone?: string): string {
   if (!dateString) return "N/A";
   return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: timeZone || "America/Los_Angeles",
   });
 }
 
@@ -289,7 +290,7 @@ export default async function MemberDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-semibold">{formatDate(stats.memberSince)}</p>
+            <p className="text-xl font-semibold">{formatDate(stats.memberSince, organization.timezone)}</p>
           </CardContent>
         </Card>
 
@@ -302,7 +303,7 @@ export default async function MemberDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-semibold">{formatDate(stats.nextPaymentDue)}</p>
+            <p className="text-xl font-semibold">{formatDate(stats.nextPaymentDue, organization.timezone)}</p>
             {plan && membership && (
               <p className="text-sm text-muted-foreground">
                 {formatCurrency(

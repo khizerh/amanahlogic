@@ -30,6 +30,7 @@ export interface MemberDashboardData {
     name: string;
     phone: string;
     email: string;
+    timezone: string;
   };
   stats: {
     paidMonths: number;
@@ -163,6 +164,7 @@ export class MemberPortalService {
         name: organization.name,
         phone: organization.phone,
         email: organization.email,
+        timezone: organization.timezone || "America/Los_Angeles",
       },
       stats: {
         paidMonths,
