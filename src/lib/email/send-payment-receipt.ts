@@ -2,7 +2,7 @@ import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./rese
 import { getPaymentReceiptEmail } from "./templates/payment-receipt";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
-import { OrganizationsService } from "@/lib/database/organizations";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 interface SendPaymentReceiptEmailParams {
   to: string;
@@ -43,8 +43,13 @@ export async function sendPaymentReceiptEmail(
     language,
   } = params;
 
-  // Fetch org (needed for DB template + email config)
-  const org = await OrganizationsService.getById(organizationId);
+  // Fetch org using service role (this may be called from webhooks with no auth context)
+  const supabase = createServiceRoleClient();
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("name, slug, email")
+    .eq("id", organizationId)
+    .single();
   const orgName = org?.name ?? "Our Organization";
 
   // Try DB template first

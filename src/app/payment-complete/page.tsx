@@ -34,7 +34,7 @@ function PaymentCompleteContent() {
                   <ul className="mt-2 space-y-1 text-left">
                     <li>• Your card has been saved for automatic future payments</li>
                     <li>• Future dues will be charged automatically on your billing date</li>
-                    <li>• You can manage your payment method anytime via email link</li>
+                    <li>• You can manage your account anytime through the member portal</li>
                   </ul>
                 </div>
               </>
@@ -60,13 +60,7 @@ function PaymentCompleteContent() {
 
             <div className="pt-4">
               <p className="text-sm text-gray-500">
-                Questions? Contact us at{" "}
-                <a
-                  href="mailto:info@masjidmuhajireen.org"
-                  className="text-blue-600 hover:underline"
-                >
-                  info@masjidmuhajireen.org
-                </a>
+                Questions? Contact your organization administrator.
               </p>
             </div>
           </div>

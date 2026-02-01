@@ -112,9 +112,22 @@ function substituteVariables(
   template: string,
   variables: Record<string, string>
 ): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
+  // Handle {{#if var}}...{{/if}} conditional blocks
+  let result = template.replace(
+    /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+    (_match, key, content) => {
+      const value = variables[key];
+      // Show content only if variable is truthy (non-empty)
+      return value ? content : "";
+    }
+  );
+
+  // Handle simple {{var}} placeholders
+  result = result.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
     return variables[key] ?? "";
   });
+
+  return result;
 }
 
 function escapeHtml(str: string): string {

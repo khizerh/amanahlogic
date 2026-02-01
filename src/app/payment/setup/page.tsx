@@ -85,16 +85,12 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
   const duesFees = calculateFees(duesAmountCents, org.platform_fee || 0, passFeesToMember);
   const displayDues = duesFees.chargeAmountCents / 100;
 
-  // Enrollment fee
+  // Enrollment fee (always run through calculateFees to include platform fee)
   const enrollmentFeeAmountCents = parseInt(metadata.enrollment_fee_amount_cents || "0", 10);
   let displayEnrollmentFee: number | undefined;
   if (enrollmentFeeAmountCents > 0) {
-    if (passFeesToMember) {
-      const enrollmentFees = calculateFees(enrollmentFeeAmountCents, org.platform_fee || 0, true);
-      displayEnrollmentFee = enrollmentFees.chargeAmountCents / 100;
-    } else {
-      displayEnrollmentFee = enrollmentFeeAmountCents / 100;
-    }
+    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, org.platform_fee || 0, passFeesToMember);
+    displayEnrollmentFee = enrollmentFees.chargeAmountCents / 100;
   }
 
   const frequencyText =

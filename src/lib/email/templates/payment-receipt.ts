@@ -50,6 +50,8 @@ export function getPaymentReceiptEmailEN(props: PaymentReceiptEmailProps) {
 
   <p>Your membership is in good standing. Thank you for your continued support of ${organizationName}.</p>
 
+  <p style="color: #666; font-size: 13px;">You can view your payment history and manage your account through the member portal.</p>
+
   <p>JazakAllah Khair,<br>${organizationName}</p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -72,6 +74,8 @@ Payment Details:
 - Method: ${paymentMethod}
 ${invoiceNumber ? `- Invoice #: ${invoiceNumber}\n` : ""}${periodLabel ? `- Period: ${periodLabel}\n` : ""}
 Your membership is in good standing. Thank you for your continued support of ${organizationName}.
+
+You can view your payment history and manage your account through the member portal.
 
 JazakAllah Khair,
 ${organizationName}
@@ -115,6 +119,8 @@ export function getPaymentReceiptEmailFA(props: PaymentReceiptEmailProps) {
 
   <p>عضویت شما در وضعیت خوبی قرار دارد. از حمایت مستمر شما از ${organizationName} متشکریم.</p>
 
+  <p style="color: #666; font-size: 13px;">شما می‌توانید سابقه پرداخت‌ها و حساب خود را از طریق پورتال اعضا مشاهده و مدیریت کنید.</p>
+
   <p>جزاک الله خیر،<br>${organizationName}</p>
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
@@ -137,6 +143,8 @@ export function getPaymentReceiptEmailFA(props: PaymentReceiptEmailProps) {
 - روش: ${paymentMethod}
 ${invoiceNumber ? `- شماره فاکتور: ${invoiceNumber}\n` : ""}${periodLabel ? `- دوره: ${periodLabel}\n` : ""}
 عضویت شما در وضعیت خوبی قرار دارد. از حمایت مستمر شما از ${organizationName} متشکریم.
+
+شما می‌توانید سابقه پرداخت‌ها و حساب خود را از طریق پورتال اعضا مشاهده و مدیریت کنید.
 
 جزاک الله خیر،
 ${organizationName}

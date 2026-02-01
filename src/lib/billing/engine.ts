@@ -1143,7 +1143,7 @@ export async function settlePayment(
         // Fetch member details for the email
         const { data: member } = await supabase
           .from("members")
-          .select("email, first_name, preferred_language")
+          .select("email, first_name, last_name, preferred_language")
           .eq("id", payment.member_id)
           .single();
 
@@ -1163,17 +1163,21 @@ export async function settlePayment(
             options.method === "cash" ? "Cash" :
             options.method || "Other";
 
+          const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
+          const receiptDate = new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            timeZone: orgTimezone,
+          }).format(new Date(fullPayment.paid_at || paidAt));
+
           await sendPaymentReceiptEmail({
             to: member.email,
-            memberName: member.first_name,
+            memberName: fullName,
             memberId: payment.member_id,
             organizationId: payment.organization_id,
             amount: `$${Number(displayAmount).toFixed(2)}`,
-            paymentDate: new Date(fullPayment.paid_at || paidAt).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            }),
+            paymentDate: receiptDate,
             paymentMethod: methodLabel,
             invoiceNumber: fullPayment.invoice_number || undefined,
             periodLabel: fullPayment.period_label || undefined,
