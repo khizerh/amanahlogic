@@ -52,6 +52,7 @@ import {
   parseDateInOrgTimezone,
 } from "./invoice-generator";
 import { loadBillingConfig } from "./config";
+import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BillingFrequency,
@@ -1128,6 +1129,65 @@ export async function settlePayment(
       status: newStatus,
       became_eligible: becameEligible,
     });
+
+    // 7. Send payment receipt email (best-effort)
+    try {
+      // Check if org has receipt emails enabled
+      const { data: orgSettings } = await supabase
+        .from("organizations")
+        .select("send_receipt_email")
+        .eq("id", payment.organization_id)
+        .single();
+
+      if (orgSettings?.send_receipt_email !== false) {
+        // Fetch member details for the email
+        const { data: member } = await supabase
+          .from("members")
+          .select("email, first_name, preferred_language")
+          .eq("id", payment.member_id)
+          .single();
+
+        // Fetch full payment record for invoice details
+        const { data: fullPayment } = await supabase
+          .from("payments")
+          .select("amount, total_charged, invoice_number, period_label, method, paid_at")
+          .eq("id", options.paymentId)
+          .single();
+
+        if (member?.email && fullPayment) {
+          const displayAmount = fullPayment.total_charged ?? fullPayment.amount;
+          const methodLabel =
+            options.method === "stripe" ? "Credit Card" :
+            options.method === "zelle" ? "Zelle" :
+            options.method === "check" ? "Check" :
+            options.method === "cash" ? "Cash" :
+            options.method || "Other";
+
+          await sendPaymentReceiptEmail({
+            to: member.email,
+            memberName: member.first_name,
+            memberId: payment.member_id,
+            organizationId: payment.organization_id,
+            amount: `$${Number(displayAmount).toFixed(2)}`,
+            paymentDate: new Date(fullPayment.paid_at || paidAt).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+            paymentMethod: methodLabel,
+            invoiceNumber: fullPayment.invoice_number || undefined,
+            periodLabel: fullPayment.period_label || undefined,
+            language: (member.preferred_language as "en" | "fa") || "en",
+          });
+        }
+      }
+    } catch (emailErr) {
+      // Never fail settlement because of email
+      logger.error("receipt_email_failed", {
+        payment_id: options.paymentId,
+        error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+      });
+    }
 
     return {
       success: true,
