@@ -74,124 +74,174 @@ Your portal invitation expires on {{invite_expires_at}}. If you have any questio
   // ── Agreement Sent ───────────────────────────────────────────────────
   {
     type: "agreement_sent",
-    name: "Agreement Signing Request",
+    name: "Agreement Sent",
     description:
-      "Sent when a membership agreement needs to be signed by the member.",
+      "Sent when a membership agreement is ready for signature.",
     subject: {
-      en: "Action Required: Sign Your {{organization_name}} Membership Agreement",
-      fa: "اقدام لازم: امضای قرارداد عضویت {{organization_name}}",
+      en: "Your Membership Agreement is Ready to Sign",
+      fa: "قرارداد عضویت شما آماده امضا است",
     },
     body: {
       en: `Assalamu Alaikum {{member_name}},
 
-Welcome to {{organization_name}}! To complete your membership enrollment, please review and sign your membership agreement.
+Welcome to {{organization_name}}! We are pleased to have you join our community.
 
-Sign your agreement here: {{sign_url}}
+Your membership agreement is ready for your review and signature. Please click the link below to read and sign the agreement:
 
-This link will expire on {{expires_at}}. If you have any questions, please contact us.`,
-      fa: `السلام علیکم {{member_name}} عزیز،
+{{agreement_url}}
 
-به {{organization_name}} خوش آمدید! برای تکمیل ثبت نام عضویت خود، لطفاً قرارداد عضویت خود را بررسی و امضا کنید.
+Once you have signed the agreement, you will receive a separate email with payment instructions for your enrollment fee and first dues payment.
 
-قرارداد خود را اینجا امضا کنید: {{sign_url}}
+If you have any questions, please don't hesitate to contact us.
 
-این لینک در تاریخ {{expires_at}} منقضی می‌شود. اگر سوالی دارید، لطفاً با ما تماس بگیرید.`,
+JazakAllah Khair,
+{{organization_name}}`,
+      fa: `السلام علیکم {{member_name}}،
+
+به {{organization_name}} خوش آمدید! ما خوشحالیم که شما به جامعه ما می‌پیوندید.
+
+قرارداد عضویت شما آماده بررسی و امضا است. لطفاً روی لینک زیر کلیک کنید تا قرارداد را بخوانید و امضا کنید:
+
+{{agreement_url}}
+
+پس از امضای قرارداد، ایمیل جداگانه‌ای با دستورالعمل پرداخت برای هزینه ثبت‌نام و اولین پرداخت حق عضویت دریافت خواهید کرد.
+
+اگر سوالی دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
     },
     variables: [
       "member_name",
       "organization_name",
-      "sign_url",
-      "expires_at",
+      "agreement_url",
     ],
   },
 
-  // ── Payment Reminder ─────────────────────────────────────────────────
+  // ── Payment Setup (Stripe) ────────────────────────────────────────────
   {
-    type: "payment_reminder",
-    name: "Payment Reminder",
+    type: "payment_setup_stripe",
+    name: "Payment Setup (Stripe)",
     description:
-      "Sent when a member has an overdue payment. Urgency increases with each reminder.",
+      "Sent after agreement is signed - contains Stripe payment link.",
     subject: {
-      en: "Payment Reminder: ${{amount}} Due - Invoice #{{invoice_number}} - {{organization_name}}",
-      fa: "یادآوری پرداخت: ${{amount}} - فاکتور #{{invoice_number}} - {{organization_name}}",
+      en: "Complete Your Membership Payment",
+      fa: "پرداخت عضویت خود را تکمیل کنید",
     },
     body: {
       en: `Assalamu Alaikum {{member_name}},
 
-Your payment of \${{amount}} was due on {{due_date}} and is now {{days_overdue}} days overdue. Please make your payment to keep your membership in good standing.
+Thank you for signing your membership agreement with {{organization_name}}.
 
-Invoice: #{{invoice_number}}
-Amount Due: \${{amount}}
-Due Date: {{due_date}}
-Days Overdue: {{days_overdue}} days
+To complete your enrollment, please make your payment using the secure link below:
 
-Make your payment here: {{portal_url}}
+{{checkout_url}}
 
-If you have already made this payment, please disregard this email. For questions, please contact us.`,
-      fa: `السلام علیکم {{member_name}} عزیز،
+Payment Summary:
+{{#if enrollment_fee}}• Enrollment Fee: {{enrollment_fee}}
+{{/if}}• {{billing_frequency}} Dues: {{dues_amount}}
+• Total: {{total_amount}}
 
-پرداخت شما به مبلغ \${{amount}} در تاریخ {{due_date}} سررسید بود و اکنون {{days_overdue}} روز عقب افتاده است. لطفاً پرداخت خود را انجام دهید تا عضویت شما در وضعیت خوب باقی بماند.
+If you have any issues, please contact us.
 
-فاکتور: #{{invoice_number}}
-مبلغ بدهی: \${{amount}}
-تاریخ سررسید: {{due_date}}
-روزهای عقب‌افتاده: {{days_overdue}} روز
+JazakAllah Khair,
+{{organization_name}}`,
+      fa: `السلام علیکم {{member_name}}،
 
-پرداخت خود را اینجا انجام دهید: {{portal_url}}
+از امضای قرارداد عضویت با {{organization_name}} متشکریم.
 
-اگر قبلاً این پرداخت را انجام داده‌اید، لطفاً این ایمیل را نادیده بگیرید. برای سوالات، لطفاً با ما تماس بگیرید.`,
+برای تکمیل ثبت‌نام، لطفاً با استفاده از لینک امن زیر پرداخت کنید:
+
+{{checkout_url}}
+
+خلاصه پرداخت:
+{{#if enrollment_fee}}• هزینه ثبت‌نام: {{enrollment_fee}}
+{{/if}}• حق عضویت {{billing_frequency}}: {{dues_amount}}
+• مجموع: {{total_amount}}
+
+اگر مشکلی دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
     },
     variables: [
       "member_name",
       "organization_name",
-      "amount",
-      "due_date",
-      "days_overdue",
-      "invoice_number",
-      "portal_url",
+      "checkout_url",
+      "enrollment_fee",
+      "dues_amount",
+      "billing_frequency",
+      "total_amount",
     ],
   },
 
-  // ── Payment Failed ───────────────────────────────────────────────────
+  // ── Payment Setup (Manual) ────────────────────────────────────────────
   {
-    type: "payment_failed",
-    name: "Payment Failed Notification",
+    type: "payment_setup_manual",
+    name: "Payment Setup (Manual)",
     description:
-      "Sent when an automatic payment fails. Asks the member to update their payment method.",
+      "Sent after agreement is signed - manual payment instructions.",
     subject: {
-      en: "Payment Failed - Action Required - {{organization_name}}",
-      fa: "پرداخت ناموفق - اقدام لازم - {{organization_name}}",
+      en: "Payment Instructions for Your Membership",
+      fa: "دستورالعمل پرداخت برای عضویت شما",
     },
     body: {
       en: `Assalamu Alaikum {{member_name}},
 
-We were unable to process your payment of \${{amount}}. Please update your payment method to keep your membership in good standing.
+Thank you for signing your membership agreement with {{organization_name}}.
 
-Reason: {{failure_reason}}
+To complete your enrollment, please make your payment using one of the following methods:
 
-Update your payment method here: {{portal_url}}
+Payment Summary:
+{{#if enrollment_fee}}• Enrollment Fee: {{enrollment_fee}}{{/if}}
+• {{billing_frequency}} Dues: {{dues_amount}}
+• Total Due: {{total_amount}}
 
-If you believe this is an error or need assistance, please contact us.`,
-      fa: `السلام علیکم {{member_name}} عزیز،
+Payment Methods:
+• Cash - Pay in person at our office
+• Check - Make payable to "{{organization_name}}"
+• Zelle - Contact us for Zelle details
 
-متأسفانه پردازش پرداخت شما به مبلغ \${{amount}} ممکن نشد. لطفاً روش پرداخت خود را بروزرسانی کنید تا عضویت شما در وضعیت خوب باقی بماند.
+Please include your name with any payment so we can properly credit your account.
 
-دلیل: {{failure_reason}}
+If you have any questions, please contact us.
 
-روش پرداخت خود را اینجا بروزرسانی کنید: {{portal_url}}
+JazakAllah Khair,
+{{organization_name}}`,
+      fa: `السلام علیکم {{member_name}}،
 
-اگر فکر می‌کنید این یک خطا است یا به کمک نیاز دارید، لطفاً با ما تماس بگیرید.`,
+از امضای قرارداد عضویت با {{organization_name}} متشکریم.
+
+برای تکمیل ثبت‌نام، لطفاً با یکی از روش‌های زیر پرداخت کنید:
+
+خلاصه پرداخت:
+{{#if enrollment_fee}}• هزینه ثبت‌نام: {{enrollment_fee}}{{/if}}
+• حق عضویت {{billing_frequency}}: {{dues_amount}}
+• مجموع قابل پرداخت: {{total_amount}}
+
+روش‌های پرداخت:
+• نقدی - حضوری در دفتر ما پرداخت کنید
+• چک - به نام "{{organization_name}}" صادر کنید
+• Zelle - برای جزئیات Zelle با ما تماس بگیرید
+
+لطفاً نام خود را همراه با هر پرداختی ذکر کنید تا بتوانیم حساب شما را به درستی اعتبار دهیم.
+
+اگر سوالی دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
     },
     variables: [
       "member_name",
       "organization_name",
-      "amount",
-      "failure_reason",
-      "portal_url",
+      "enrollment_fee",
+      "dues_amount",
+      "billing_frequency",
+      "total_amount",
     ],
   },
 
-  // ── Payment Setup ────────────────────────────────────────────────────
+  // ── Payment Setup (Generic) ───────────────────────────────────────────
   {
     type: "payment_setup",
     name: "Payment Setup",
@@ -235,6 +285,155 @@ If you have any questions, please contact us.`,
       "enrollment_fee",
       "dues_amount",
       "billing_frequency",
+    ],
+  },
+
+  // ── Payment Receipt ───────────────────────────────────────────────────
+  {
+    type: "payment_receipt",
+    name: "Payment Receipt",
+    description:
+      "Sent after a payment is received.",
+    subject: {
+      en: "Payment Receipt - {{organization_name}}",
+      fa: "رسید پرداخت - {{organization_name}}",
+    },
+    body: {
+      en: `Assalamu Alaikum {{member_name}},
+
+Thank you for your payment! This email confirms that we have received your payment.
+
+Payment Details:
+• Amount: {{amount}}
+• Date: {{payment_date}}
+• Method: {{payment_method}}
+{{#if invoice_number}}• Invoice #: {{invoice_number}}
+{{/if}}{{#if period_label}}• Period: {{period_label}}
+{{/if}}
+Your membership is in good standing. Thank you for your continued support of {{organization_name}}.
+
+You can view your payment history and manage your account through the member portal.
+
+JazakAllah Khair,
+{{organization_name}}`,
+      fa: `السلام علیکم {{member_name}}،
+
+از پرداخت شما متشکریم! این ایمیل تأیید می‌کند که پرداخت شما را دریافت کرده‌ایم.
+
+جزئیات پرداخت:
+• مبلغ: {{amount}}
+• تاریخ: {{payment_date}}
+• روش پرداخت: {{payment_method}}
+{{#if invoice_number}}• شماره فاکتور: {{invoice_number}}
+{{/if}}{{#if period_label}}• دوره: {{period_label}}
+{{/if}}
+عضویت شما فعال است. از حمایت مداوم شما از {{organization_name}} متشکریم.
+
+شما می‌توانید سابقه پرداخت‌ها و حساب خود را از طریق پورتال اعضا مشاهده و مدیریت کنید.
+
+جزاک الله خیر،
+{{organization_name}}`,
+    },
+    variables: [
+      "member_name",
+      "organization_name",
+      "amount",
+      "payment_date",
+      "payment_method",
+      "invoice_number",
+      "period_label",
+    ],
+  },
+
+  // ── Payment Reminder ─────────────────────────────────────────────────
+  {
+    type: "payment_reminder",
+    name: "Payment Reminder",
+    description:
+      "Sent when a payment is overdue.",
+    subject: {
+      en: "Reminder: Membership Payment Due",
+      fa: "یادآوری: پرداخت حق عضویت",
+    },
+    body: {
+      en: `Assalamu Alaikum {{member_name}},
+
+This is a friendly reminder that your membership dues payment is due.
+
+Amount Due: {{amount_due}}
+Due Date: {{due_date}}
+Days Overdue: {{days_overdue}}
+
+Please make your payment at your earliest convenience to keep your membership in good standing.
+
+If you have already made this payment, please disregard this notice.
+
+If you have any questions or need to discuss payment arrangements, please contact us.
+
+JazakAllah Khair,
+{{organization_name}}`,
+      fa: `السلام علیکم {{member_name}}،
+
+این یک یادآوری دوستانه است که پرداخت حق عضویت شما سررسید شده است.
+
+مبلغ قابل پرداخت: {{amount_due}}
+تاریخ سررسید: {{due_date}}
+روزهای تأخیر: {{days_overdue}}
+
+لطفاً در اسرع وقت پرداخت خود را انجام دهید تا عضویت شما فعال بماند.
+
+اگر قبلاً این پرداخت را انجام داده‌اید، لطفاً این اطلاعیه را نادیده بگیرید.
+
+اگر سوالی دارید یا نیاز به بحث در مورد ترتیبات پرداخت دارید، لطفاً با ما تماس بگیرید.
+
+جزاک الله خیر،
+{{organization_name}}`,
+    },
+    variables: [
+      "member_name",
+      "organization_name",
+      "amount_due",
+      "due_date",
+      "days_overdue",
+    ],
+  },
+
+  // ── Payment Failed ───────────────────────────────────────────────────
+  {
+    type: "payment_failed",
+    name: "Payment Failed Notification",
+    description:
+      "Sent when an automatic payment fails. Asks the member to update their payment method.",
+    subject: {
+      en: "Payment Failed - Action Required - {{organization_name}}",
+      fa: "پرداخت ناموفق - اقدام لازم - {{organization_name}}",
+    },
+    body: {
+      en: `Assalamu Alaikum {{member_name}},
+
+We were unable to process your payment of \${{amount}}. Please update your payment method to keep your membership in good standing.
+
+Reason: {{failure_reason}}
+
+Update your payment method here: {{portal_url}}
+
+If you believe this is an error or need assistance, please contact us.`,
+      fa: `السلام علیکم {{member_name}} عزیز،
+
+متأسفانه پردازش پرداخت شما به مبلغ \${{amount}} ممکن نشد. لطفاً روش پرداخت خود را بروزرسانی کنید تا عضویت شما در وضعیت خوب باقی بماند.
+
+دلیل: {{failure_reason}}
+
+روش پرداخت خود را اینجا بروزرسانی کنید: {{portal_url}}
+
+اگر فکر می‌کنید این یک خطا است یا به کمک نیاز دارید، لطفاً با ما تماس بگیرید.`,
+    },
+    variables: [
+      "member_name",
+      "organization_name",
+      "amount",
+      "failure_reason",
+      "portal_url",
     ],
   },
 
