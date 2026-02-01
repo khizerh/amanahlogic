@@ -15,6 +15,7 @@ interface SetupClientProps {
   duesAmount: number;
   enrollmentFee?: number;
   billingFrequency: string;
+  nextPaymentDue?: string;
 }
 
 export function SetupClient(props: SetupClientProps) {
@@ -55,6 +56,7 @@ interface SetupFormProps {
   duesAmount: number;
   enrollmentFee?: number;
   billingFrequency: string;
+  nextPaymentDue?: string;
 }
 
 function SetupForm({
@@ -63,11 +65,19 @@ function SetupForm({
   duesAmount,
   enrollmentFee,
   billingFrequency,
+  nextPaymentDue,
 }: SetupFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const isCurrent = duesAmount === 0 && !!nextPaymentDue;
+
+  const formatNextPaymentDate = (dateStr: string) => {
+    const date = new Date(dateStr + "T00:00:00");
+    return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,32 +108,50 @@ function SetupForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="text-center space-y-1">
         <h1 className="text-2xl font-bold text-gray-900">{organizationName}</h1>
-        <p className="text-gray-500">Complete Your Membership Payment</p>
+        <p className="text-gray-500">
+          {isCurrent ? "Set Up Automatic Payments" : "Complete Your Membership Payment"}
+        </p>
       </div>
 
       {/* Billing Summary */}
       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-        <h3 className="font-semibold text-gray-900">You will be charged</h3>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Plan</span>
-          <span className="font-medium">{planName}</span>
-        </div>
-        {enrollmentFee !== undefined && enrollmentFee > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Enrollment Fee (one-time)</span>
-            <span className="font-medium">{formatCurrency(enrollmentFee)}</span>
-          </div>
+        {isCurrent ? (
+          <>
+            <h3 className="font-semibold text-gray-900">Save your payment method</h3>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Plan</span>
+              <span className="font-medium">{planName}</span>
+            </div>
+            <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+              <span className="text-gray-900 font-semibold">Total Due Today</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(0)}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="font-semibold text-gray-900">You will be charged</h3>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Plan</span>
+              <span className="font-medium">{planName}</span>
+            </div>
+            {enrollmentFee !== undefined && enrollmentFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Enrollment Fee (one-time)</span>
+                <span className="font-medium">{formatCurrency(enrollmentFee)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">First Dues Payment ({billingFrequency})</span>
+              <span className="font-medium">{formatCurrency(duesAmount)}</span>
+            </div>
+            <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
+              <span className="text-gray-900 font-semibold">Total Due Today</span>
+              <span className="font-semibold text-gray-900">
+                {formatCurrency(duesAmount + (enrollmentFee || 0))}
+              </span>
+            </div>
+          </>
         )}
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">First Dues Payment ({billingFrequency})</span>
-          <span className="font-medium">{formatCurrency(duesAmount)}</span>
-        </div>
-        <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
-          <span className="text-gray-900 font-semibold">Total Due Today</span>
-          <span className="font-semibold text-gray-900">
-            {formatCurrency(duesAmount + (enrollmentFee || 0))}
-          </span>
-        </div>
       </div>
 
       {/* Stripe Payment Element */}
@@ -145,16 +173,19 @@ function SetupForm({
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Processing...
           </>
+        ) : isCurrent ? (
+          "Save Card"
         ) : (
           "Pay & Start Membership"
         )}
       </Button>
 
       <p className="text-xs text-gray-500 text-center">
-        {enrollmentFee !== undefined && enrollmentFee > 0
-          ? `Your enrollment fee of ${formatCurrency(enrollmentFee)} and first dues of ${formatCurrency(duesAmount)} will be charged today.`
-          : `Your first dues of ${formatCurrency(duesAmount)} will be charged today.`}
-        {" "}Your card will be saved for automatic future payments.
+        {isCurrent && nextPaymentDue
+          ? `Your card will be saved. Automatic payments begin ${formatNextPaymentDate(nextPaymentDue)}.`
+          : enrollmentFee !== undefined && enrollmentFee > 0
+          ? `Your enrollment fee of ${formatCurrency(enrollmentFee)} and first dues of ${formatCurrency(duesAmount)} will be charged today. Your card will be saved for automatic future payments.`
+          : `Your first dues of ${formatCurrency(duesAmount)} will be charged today. Your card will be saved for automatic future payments.`}
       </p>
     </form>
   );

@@ -127,6 +127,8 @@ export async function createSetupIntent(params: {
   billingFrequency: StripeBillingFrequency;
   passFeesToMember: boolean;
   stripeConnectAccountId?: string;
+  memberIsCurrent?: boolean;
+  nextPaymentDue?: string;
 }): Promise<{ setupIntentId: string; clientSecret: string; url: string }> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
@@ -143,6 +145,8 @@ export async function createSetupIntent(params: {
     billingFrequency,
     passFeesToMember,
     stripeConnectAccountId,
+    memberIsCurrent,
+    nextPaymentDue,
   } = params;
 
   const setupIntent = await stripe.setupIntents.create({
@@ -159,6 +163,8 @@ export async function createSetupIntent(params: {
       billing_frequency: billingFrequency,
       pass_fees_to_member: String(passFeesToMember),
       ...(stripeConnectAccountId && { stripe_connect_account_id: stripeConnectAccountId }),
+      ...(memberIsCurrent && { member_is_current: "true" }),
+      ...(nextPaymentDue && { next_payment_due: nextPaymentDue }),
     },
   });
 

@@ -902,6 +902,10 @@ async function handleSetupIntentSucceeded(
   const passFeesToMember = passFeesToMemberStr === "true";
   const freq = (billingFrequency || "monthly") as BillingFrequency;
 
+  // Check if member is current (already paid through a future date)
+  const memberIsCurrent = metadata.member_is_current === "true";
+  const nextPaymentDueStr = metadata.next_payment_due;
+
   // Get org for fee calculation
   const { data: org } = await supabase
     .from("organizations")
@@ -959,6 +963,19 @@ async function handleSetupIntentSucceeded(
     },
   };
 
+  // If member is current, defer first charge until next_payment_due using trial_end
+  if (memberIsCurrent && nextPaymentDueStr) {
+    const trialEnd = Math.floor(new Date(nextPaymentDueStr + "T00:00:00").getTime() / 1000);
+    // Stripe requires trial_end to be at least 48 hours in the future
+    const minTrialEnd = Math.floor(Date.now() / 1000) + 48 * 3600;
+    if (trialEnd > minTrialEnd) {
+      subscriptionParams.trial_end = trialEnd;
+      console.log(`[Webhook] Member is current - deferring first charge to ${nextPaymentDueStr} (trial_end: ${trialEnd})`);
+    } else {
+      console.log(`[Webhook] Member is current but next_payment_due (${nextPaymentDueStr}) is too soon for trial, charging immediately`);
+    }
+  }
+
   // Add Connect transfer_data if org has a connected account
   if (stripeConnectAccountId || (org?.stripe_connect_id && org.stripe_onboarded)) {
     const connectId = stripeConnectAccountId || org!.stripe_connect_id;
@@ -970,13 +987,14 @@ async function handleSetupIntentSucceeded(
   // Create the subscription
   console.log(`[Webhook] Creating subscription for membership ${membershipId}`);
   const subscription = await stripe.subscriptions.create(subscriptionParams);
-  console.log(`[Webhook] Created subscription ${subscription.id} for membership ${membershipId}`);
+  console.log(`[Webhook] Created subscription ${subscription.id} (status: ${subscription.status}) for membership ${membershipId}`);
 
   // Build membership update
+  const isTrialing = subscription.status === "trialing";
   const membershipUpdate: Record<string, unknown> = {
     stripe_subscription_id: subscription.id,
     auto_pay_enabled: true,
-    subscription_status: "active",
+    subscription_status: isTrialing ? "trialing" : "active",
     payment_method: pmDetails,
     updated_at: new Date().toISOString(),
   };
@@ -1058,11 +1076,14 @@ async function handleSetupIntentSucceeded(
   console.log(`[Webhook] Membership ${membershipId} updated with subscription ${subscription.id}`);
 
   // Handle the first invoice payment.
+  // Skip for trialing subscriptions — there's no invoice to settle during trial.
   // RACE CONDITION: Stripe fires invoice.paid for the first subscription invoice
   // before our setup_intent.succeeded handler writes stripe_subscription_id to the
   // membership. That means handleInvoicePaid can't find the membership by subscription
   // ID and silently skips it. We settle the first invoice here instead.
-  try {
+  if (isTrialing) {
+    console.log(`[Webhook] Subscription is trialing — skipping first invoice settlement for membership ${membershipId}`);
+  } else try {
     const invoices = await stripe.invoices.list({
       subscription: subscription.id,
       limit: 1,

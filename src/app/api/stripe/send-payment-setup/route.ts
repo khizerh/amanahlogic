@@ -70,6 +70,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     }
 
+    // Determine if member is current (paid through a future date)
+    const memberIsCurrent = membership.nextPaymentDue
+      ? new Date(membership.nextPaymentDue) > new Date()
+      : false;
+    const nextPaymentDue = memberIsCurrent ? membership.nextPaymentDue : undefined;
+
     // Get or create Stripe customer
     const customerId = await getOrCreateStripeCustomer({
       memberId: member.id,
@@ -134,6 +140,8 @@ export async function POST(req: Request) {
       billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
       passFeesToMember: org.passFeesToMember || false,
       stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
+      memberIsCurrent,
+      nextPaymentDue: nextPaymentDue || undefined,
     });
 
     // Update membership with customer ID

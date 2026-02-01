@@ -132,7 +132,7 @@ export interface Plan {
 
 export type PaymentMethodType = 'card' | 'us_bank_account';
 
-export type SubscriptionStatus = 'active' | 'paused' | 'canceled' | 'past_due';
+export type SubscriptionStatus = 'active' | 'trialing' | 'paused' | 'canceled' | 'past_due';
 
 export interface PaymentMethodDetails {
   type: PaymentMethodType;

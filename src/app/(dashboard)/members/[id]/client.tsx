@@ -367,13 +367,13 @@ export function MemberDetailClient({
     }
   }, [membership, router]);
 
-  // Set up recurring payment (redirect to Stripe Checkout)
+  // Set up recurring payment (send email to member with payment link)
   const handleSetupAutopay = useCallback(async () => {
     if (!membership) return;
 
     setIsSettingUpAutopay(true);
     try {
-      const response = await fetch("/api/stripe/setup-autopay", {
+      const response = await fetch("/api/stripe/send-payment-setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -388,14 +388,17 @@ export function MemberDetailClient({
         throw new Error(result.error || "Failed to set up autopay");
       }
 
-      // Redirect to payment setup page
-      window.location.href = result.paymentUrl;
+      toast.success("Payment setup link sent!", {
+        description: "The member will receive an email with a link to set up automatic payments.",
+      });
+
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to set up autopay");
+    } finally {
       setIsSettingUpAutopay(false);
     }
-    // Don't setIsSettingUpAutopay(false) on success - we're redirecting
-  }, [membership, memberData.id]);
+  }, [membership, memberData.id, router]);
 
   // Resend Stripe payment link to member via email
   const handleResendPaymentLink = useCallback(async () => {
@@ -1064,6 +1067,12 @@ export function MemberDetailClient({
                           <>
                             <div className="h-2 w-2 rounded-full bg-green-500" />
                             <span className="font-medium text-green-700">Active</span>
+                          </>
+                        )}
+                        {membership.subscriptionStatus === 'trialing' && (
+                          <>
+                            <div className="h-2 w-2 rounded-full bg-blue-500" />
+                            <span className="font-medium text-blue-700">Scheduled</span>
                           </>
                         )}
                         {membership.subscriptionStatus === 'paused' && (
