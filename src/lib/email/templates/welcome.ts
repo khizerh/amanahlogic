@@ -183,7 +183,7 @@ function getWelcomeEmailManualEN(props: WelcomeEmailProps) {
 
   <p>Welcome! Your membership account has been created at ${organizationName}. Please set up your member portal account to view your membership details and track payments.</p>
 
-  <div style="text-align: center; margin: 30px 0;">
+  <div style="margin: 30px 0;">
     <a href="${inviteUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       Create Your Account
     </a>
@@ -410,7 +410,7 @@ function getWelcomeEmailManualFA(props: WelcomeEmailProps) {
 
   <p>\u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F! \u062D\u0633\u0627\u0628 \u0639\u0636\u0648\u06CC\u062A \u0634\u0645\u0627 \u062F\u0631 ${organizationName} \u0627\u06CC\u062C\u0627\u062F \u0634\u062F\u0647 \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062D\u0633\u0627\u0628 \u067E\u0648\u0631\u062A\u0627\u0644 \u0627\u0639\u0636\u0627\u06CC \u062E\u0648\u062F \u0631\u0627 \u0627\u06CC\u062C\u0627\u062F \u06A9\u0646\u06CC\u062F \u062A\u0627 \u062C\u0632\u0626\u06CC\u0627\u062A \u0639\u0636\u0648\u06CC\u062A \u0648 \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u067E\u0631\u062F\u0627\u062E\u062A\u200C\u0647\u0627 \u0631\u0627 \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u06CC\u062F.</p>
 
-  <div style="text-align: center; margin: 30px 0;">
+  <div style="margin: 30px 0;">
     <a href="${inviteUrl}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">
       \u0627\u06CC\u062C\u0627\u062F \u062D\u0633\u0627\u0628 \u06A9\u0627\u0631\u0628\u0631\u06CC
     </a>
