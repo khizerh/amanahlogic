@@ -102,8 +102,14 @@ export default function AcceptInvitePage() {
         }
       }
 
+      // Get the user ID — from signUp response or from current session (if signed in via fallback)
+      let userId = authData?.user?.id;
+      if (!userId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id;
+      }
+
       // Link the member to the auth user
-      const userId = authData?.user?.id;
       if (userId) {
         const response = await fetch("/api/members/link-invite", {
           method: "POST",
