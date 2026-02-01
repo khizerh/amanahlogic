@@ -125,6 +125,25 @@ export class AgreementSigningLinksService {
 
     return data ? transformLink(data) : null;
   }
+
+  /**
+   * Invalidate all active (unused) links for an agreement by marking them as used.
+   * Called before creating a new link on resend so old links no longer work.
+   */
+  static async invalidateByAgreementId(
+    agreementId: string,
+    supabase?: SupabaseClient
+  ): Promise<void> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { error } = await client
+      .from("agreement_signing_links")
+      .update({ used_at: new Date().toISOString() })
+      .eq("agreement_id", agreementId)
+      .is("used_at", null);
+
+    if (error) throw error;
+  }
 }
 
 // -----------------------------------------------------------------------------

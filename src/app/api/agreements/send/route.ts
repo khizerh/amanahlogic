@@ -63,16 +63,21 @@ export async function POST(req: Request) {
       resolvedTemplateVersion = memberLanguage === "fa" ? "v1-fa" : "v1-en";
     }
 
-    // Create agreement record
-    const agreement = await AgreementsService.create({
-      organizationId,
-      membershipId,
-      memberId,
-      templateVersion: resolvedTemplateVersion!,
-      sentAt: now.toISOString(),
-    });
+    // Reuse existing unsigned agreement if one exists, otherwise create new
+    let agreement = await AgreementsService.getUnsignedByMember(memberId, organizationId);
 
-    // Create signing link
+    if (!agreement) {
+      agreement = await AgreementsService.create({
+        organizationId,
+        membershipId,
+        memberId,
+        templateVersion: resolvedTemplateVersion!,
+        sentAt: now.toISOString(),
+      });
+    }
+
+    // Invalidate any existing active links for this agreement, then create a new one
+    await AgreementSigningLinksService.invalidateByAgreementId(agreement.id);
     const token = randomUUID();
     await AgreementSigningLinksService.create({
       agreementId: agreement.id,

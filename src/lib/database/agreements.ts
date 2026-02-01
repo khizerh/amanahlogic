@@ -69,6 +69,34 @@ export class AgreementsService {
   }
 
   /**
+   * Get the most recent unsigned agreement for a member
+   */
+  static async getUnsignedByMember(
+    memberId: string,
+    organizationId: string,
+    client?: SupabaseClient
+  ): Promise<Agreement | null> {
+    const supabase = client ?? (await createClientForContext());
+
+    const { data, error } = await supabase
+      .from("agreements")
+      .select("*")
+      .eq("member_id", memberId)
+      .eq("organization_id", organizationId)
+      .is("signed_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return data ? transformAgreement(data) : null;
+  }
+
+  /**
    * Get agreement by membership ID
    */
   static async getByMembershipId(
