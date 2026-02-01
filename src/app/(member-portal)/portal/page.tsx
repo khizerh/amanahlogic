@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
-import { stripe } from "@/lib/stripe";
+import { stripe, calculateFees } from "@/lib/stripe";
 
 function formatDate(dateString: string | null, timeZone?: string): string {
   if (!dateString) return "N/A";
@@ -309,17 +309,21 @@ export default async function MemberDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xl font-semibold">{formatDate(stats.nextPaymentDue, organization.timezone)}</p>
-            {plan && membership && (
-              <p className="text-sm text-muted-foreground">
-                {formatCurrency(
-                  membership.billingFrequency === "monthly"
-                    ? plan.pricing.monthly
-                    : membership.billingFrequency === "biannual"
-                    ? plan.pricing.biannual
-                    : plan.pricing.annual
-                )}
-              </p>
-            )}
+            {plan && membership && (() => {
+              const basePrice =
+                membership.billingFrequency === "monthly"
+                  ? plan.pricing.monthly
+                  : membership.billingFrequency === "biannual"
+                  ? plan.pricing.biannual
+                  : plan.pricing.annual;
+              const baseCents = Math.round(basePrice * 100);
+              const fees = calculateFees(baseCents, organization.platformFee, organization.passFeesToMember);
+              return (
+                <p className="text-sm text-muted-foreground">
+                  {formatCurrency(fees.chargeAmountCents / 100)}
+                </p>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

@@ -1021,18 +1021,13 @@ export async function settlePayment(
         // Use existing next_payment_due as base
         currentDueDate = parseDateInOrgTimezone(membership.next_payment_due, orgTimezone);
       } else {
-        // First payment: anchor to billing_anniversary_day
-        // This ensures all future payments fall on the same day of month
+        // First payment: anchor to billing_anniversary_day in the current month.
+        // addMonthsPreserveDay will advance by monthsCredited from here.
+        // Example: billing day 28, today Jan 31, 1 month credited → next due Feb 28.
         const todayDate = parseDateInOrgTimezone(today, orgTimezone);
         const billingDay = membership.billing_anniversary_day || todayDate.getDate();
 
-        // Start with billing day in current month
         currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), billingDay);
-
-        // If billing day has already passed this month, use next month
-        if (currentDueDate <= todayDate) {
-          currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, billingDay);
-        }
       }
 
       const billingAnniversaryDay = membership.billing_anniversary_day || currentDueDate.getDate();

@@ -171,7 +171,7 @@ export function PaymentsClient({ paymentHistory, organizationName, isPending, is
                         {getPaymentMethodLabel(payment.method)}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(payment.amount)}
+                        {formatCurrency(payment.totalCharged || payment.amount)}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(payment.status)}

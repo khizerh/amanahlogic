@@ -31,6 +31,8 @@ export interface MemberDashboardData {
     phone: string;
     email: string;
     timezone: string;
+    platformFee: number;
+    passFeesToMember: boolean;
   };
   stats: {
     paidMonths: number;
@@ -165,6 +167,8 @@ export class MemberPortalService {
         phone: organization.phone,
         email: organization.email,
         timezone: organization.timezone || "America/Los_Angeles",
+        platformFee: organization.platformFee || 0,
+        passFeesToMember: organization.passFeesToMember || false,
       },
       stats: {
         paidMonths,
@@ -198,7 +202,7 @@ export class MemberPortalService {
     if (error) throw error;
 
     const payments = transformPayments(data || []);
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalPaid = payments.reduce((sum, p) => sum + (p.totalCharged || p.amount), 0);
     const totalMonthsCredited = payments.reduce((sum, p) => sum + p.monthsCredited, 0);
 
     return {

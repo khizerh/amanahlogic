@@ -107,7 +107,7 @@ export function PaymentDetailsSheet({
           {/* Amount */}
           <div className="bg-muted/50 rounded-lg p-4">
             <div className="text-sm text-muted-foreground mb-1">Amount Paid</div>
-            <div className="text-3xl font-bold">{formatCurrency(payment.amount)}</div>
+            <div className="text-3xl font-bold">{formatCurrency(payment.totalCharged || payment.amount)}</div>
             {payment.monthsCredited > 0 && (
               <div className="text-sm text-muted-foreground mt-1">
                 {payment.monthsCredited} month{payment.monthsCredited > 1 ? "s" : ""} credited
