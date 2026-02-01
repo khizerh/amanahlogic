@@ -95,6 +95,9 @@ export interface Member {
   // Communication preferences
   preferredLanguage: CommunicationLanguage;
 
+  // Portal
+  userId: string | null;
+
   // Metadata
   createdAt: string;
   updatedAt: string;

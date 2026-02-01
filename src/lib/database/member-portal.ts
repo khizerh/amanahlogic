@@ -325,6 +325,7 @@ function transformMember(db: any): Member {
     children: db.children || [],
     emergencyContact: db.emergency_contact,
     preferredLanguage: db.preferred_language,
+    userId: db.user_id || null,
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };

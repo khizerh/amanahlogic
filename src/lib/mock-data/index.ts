@@ -229,6 +229,7 @@ function generateMembers(count: number): Member[] {
         phone: `(713) 555-${String(randomInt(1000, 9999))}`,
       },
       preferredLanguage,
+      userId: null,
       createdAt: randomDate(new Date('2019-01-01'), new Date('2024-06-01')),
       updatedAt: randomDate(new Date('2024-01-01'), new Date('2024-12-01')),
     });

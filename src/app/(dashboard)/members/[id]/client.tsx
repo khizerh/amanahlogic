@@ -1193,24 +1193,26 @@ export function MemberDetailClient({
                     <Calendar className="h-4 w-4 mr-2" />
                     Change Frequency
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSendPortalInvite}
-                    disabled={isSendingPortalInvite}
-                  >
-                    {isSendingPortalInvite ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Invite to Portal
-                      </>
-                    )}
-                  </Button>
+                  {!memberData.userId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSendPortalInvite}
+                      disabled={isSendingPortalInvite}
+                    >
+                      {isSendingPortalInvite ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Invite to Portal
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
