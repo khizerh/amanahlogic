@@ -71,17 +71,15 @@ import type {
  * If the current date is the last day of its month, the result is the last day
  * of the target month. Otherwise, clamp to the last day if the day doesn't exist.
  */
-function addMonthsPreserveDay(date: Date, monthsToAdd: number): Date {
-  const currentDay = date.getDate();
-  const lastDayCurrentMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  const isOnLastDay = currentDay === lastDayCurrentMonth;
+function addMonthsPreserveDay(date: Date, monthsToAdd: number, preferredDay?: number): Date {
+  const dayToUse = preferredDay || date.getDate();
 
   const totalMonths = date.getMonth() + monthsToAdd;
   const targetYear = date.getFullYear() + Math.floor(totalMonths / 12);
   const targetMonth = totalMonths % 12;
 
   const lastDayTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-  const targetDay = isOnLastDay ? lastDayTargetMonth : Math.min(currentDay, lastDayTargetMonth);
+  const targetDay = Math.min(dayToUse, lastDayTargetMonth);
 
   return new Date(targetYear, targetMonth, targetDay);
 }
@@ -1037,7 +1035,8 @@ export async function settlePayment(
         }
       }
 
-      const advancedDate = addMonthsPreserveDay(currentDueDate, monthsCredited);
+      const billingAnniversaryDay = membership.billing_anniversary_day || currentDueDate.getDate();
+      const advancedDate = addMonthsPreserveDay(currentDueDate, monthsCredited, billingAnniversaryDay);
       nextBillingDateStr = advancedDate.toISOString().split("T")[0];
     }
 
