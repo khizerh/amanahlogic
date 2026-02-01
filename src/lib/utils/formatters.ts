@@ -15,11 +15,16 @@ export function formatCurrency(amount: number): string {
 // Date formatting
 export function formatDate(date: string | null | undefined): string {
   if (!date) return "-";
+  // For YYYY-MM-DD date-only strings, parse as local date to avoid UTC timezone shift
+  const dateOnlyMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const parsed = dateOnlyMatch
+    ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+    : new Date(date);
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  }).format(new Date(date));
+  }).format(parsed);
 }
 
 // Membership status labels
