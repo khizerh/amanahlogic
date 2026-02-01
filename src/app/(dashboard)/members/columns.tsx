@@ -89,22 +89,22 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
         const agreementSigned = !!membership.agreementSignedAt;
         const hasPaidMonths = (membership.paidMonths || 0) > 0;
 
-        let pendingReason: { icon: typeof FileSignature; text: string } | null = null;
+        const pendingReasons: { icon: typeof FileSignature; text: string }[] = [];
 
         if (!agreementSigned) {
-          pendingReason = {
+          pendingReasons.push({
             icon: FileSignature,
             text: "Awaiting agreement signature",
-          };
-        } else if (!hasPaidMonths) {
-          pendingReason = {
+          });
+        }
+        if (!hasPaidMonths) {
+          pendingReasons.push({
             icon: CreditCard,
             text: "Awaiting first payment",
-          };
+          });
         }
 
-        if (pendingReason) {
-          const Icon = pendingReason.icon;
+        if (pendingReasons.length > 0) {
           return (
             <TooltipProvider>
               <Tooltip>
@@ -116,9 +116,16 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
                     <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  <span>{pendingReason.text}</span>
+                <TooltipContent side="top" className="space-y-1">
+                  {pendingReasons.map((reason) => {
+                    const Icon = reason.icon;
+                    return (
+                      <div key={reason.text} className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span>{reason.text}</span>
+                      </div>
+                    );
+                  })}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
