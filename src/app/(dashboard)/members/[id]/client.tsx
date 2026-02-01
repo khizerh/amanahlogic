@@ -755,6 +755,39 @@ export function MemberDetailClient({
                         )}
                       </div>
                     </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Portal</p>
+                      <div className="flex items-center gap-2">
+                        {memberData.userId ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-700">Enrolled</span>
+                          </>
+                        ) : (
+                          <div className="space-y-2 w-full">
+                            <span className="text-sm font-medium text-amber-700">Not Enrolled</span>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleSendPortalInvite}
+                                disabled={isSendingPortalInvite}
+                                className="h-7 text-xs"
+                              >
+                                {isSendingPortalInvite ? (
+                                  <>
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  "Send Invite"
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Covered Members */}
@@ -1193,26 +1226,6 @@ export function MemberDetailClient({
                     <Calendar className="h-4 w-4 mr-2" />
                     Change Frequency
                   </Button>
-                  {!memberData.userId && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSendPortalInvite}
-                      disabled={isSendingPortalInvite}
-                    >
-                      {isSendingPortalInvite ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          Invite to Portal
-                        </>
-                      )}
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
