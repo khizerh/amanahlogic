@@ -51,8 +51,8 @@ export class AgreementsService {
   /**
    * Get a single agreement by ID
    */
-  static async getById(agreementId: string): Promise<Agreement | null> {
-    const supabase = await createClientForContext();
+  static async getById(agreementId: string, client?: SupabaseClient): Promise<Agreement | null> {
+    const supabase = client ?? (await createClientForContext());
 
     const { data, error } = await supabase
       .from("agreements")

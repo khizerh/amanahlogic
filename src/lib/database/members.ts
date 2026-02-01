@@ -138,8 +138,8 @@ export class MembersService {
   /**
    * Get a single member by ID
    */
-  static async getById(memberId: string): Promise<Member | null> {
-    const supabase = await createClientForContext();
+  static async getById(memberId: string, client?: SupabaseClient): Promise<Member | null> {
+    const supabase = client ?? (await createClientForContext());
 
     const { data, error } = await supabase
       .from("members")

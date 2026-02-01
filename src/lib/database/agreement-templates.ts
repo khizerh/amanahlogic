@@ -42,9 +42,10 @@ export class AgreementTemplatesService {
 
   static async getByVersion(
     organizationId: string,
-    version: string
+    version: string,
+    client?: SupabaseClient
   ): Promise<AgreementTemplate | null> {
-    const supabase = await createClientForContext();
+    const supabase = client ?? (await createClientForContext());
 
     const { data, error } = await supabase
       .from("agreement_templates")

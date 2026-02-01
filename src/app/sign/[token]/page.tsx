@@ -6,6 +6,7 @@ import {
   AgreementTemplatesService,
   resolveTemplateUrl,
 } from "@/lib/database/agreement-templates";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import SignClient from "./sign-client";
 
 interface SignPageProps {
@@ -14,6 +15,7 @@ interface SignPageProps {
 
 export default async function SignPage({ params }: SignPageProps) {
   const { token } = await params;
+  const serviceClient = createServiceRoleClient();
 
   const link = await AgreementSigningLinksService.getActiveByToken(token);
   if (!link) {
@@ -35,12 +37,12 @@ export default async function SignPage({ params }: SignPageProps) {
     notFound();
   }
 
-  const agreement = await AgreementsService.getById(link.agreementId);
+  const agreement = await AgreementsService.getById(link.agreementId, serviceClient);
   if (!agreement) {
     notFound();
   }
 
-  const member = await MembersService.getById(agreement.memberId);
+  const member = await MembersService.getById(agreement.memberId, serviceClient);
   if (!member) {
     notFound();
   }
@@ -51,7 +53,8 @@ export default async function SignPage({ params }: SignPageProps) {
 
   const template = await AgreementTemplatesService.getByVersion(
     agreement.organizationId,
-    agreement.templateVersion
+    agreement.templateVersion,
+    serviceClient
   );
 
   if (template) {

@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, FileText, Download, CheckCircle2, Clock, ExternalLink } from "lucide-react";
-import { MemberPortalService } from "@/lib/database/member-portal";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 
@@ -44,18 +43,42 @@ export default async function MemberAgreementPage() {
     );
   }
 
-  const [agreement, portalData] = await Promise.all([
-    MemberPortalService.getAgreement(memberId, organizationId),
-    MemberPortalService.getMemberById(memberId, organizationId),
+  const serviceClient = createServiceRoleClient();
+
+  // Fetch agreement, org, and member data using service role to bypass RLS
+  const [agreementResult, orgResult] = await Promise.all([
+    serviceClient
+      .from("agreements")
+      .select("id, signed_at, signed_name, pdf_url, template_version")
+      .eq("member_id", memberId)
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    serviceClient
+      .from("organizations")
+      .select("name, email")
+      .eq("id", organizationId)
+      .single(),
   ]);
 
-  const organizationName = portalData?.organization.name || "Organization";
+  const agreement = agreementResult.data
+    ? {
+        id: agreementResult.data.id as string,
+        signedAt: agreementResult.data.signed_at as string | null,
+        signedName: agreementResult.data.signed_name as string | null,
+        pdfUrl: agreementResult.data.pdf_url as string | null,
+        templateVersion: agreementResult.data.template_version as string,
+      }
+    : null;
+
+  const organizationName = orgResult.data?.name || "Organization";
+  const organizationEmail = orgResult.data?.email || "";
 
   // Fetch signing link if agreement exists but not signed
   let signingLink: string | null = null;
   if (agreement && !agreement.signedAt) {
     try {
-      const serviceClient = createServiceRoleClient();
       const activeLink = await AgreementSigningLinksService.getActiveByAgreementId(
         agreement.id,
         serviceClient
@@ -196,8 +219,8 @@ export default async function MemberAgreementPage() {
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
             Questions about your agreement? Contact {organizationName} at{" "}
-            <a href={`mailto:${portalData?.organization.email}`} className="text-brand-teal hover:underline">
-              {portalData?.organization.email}
+            <a href={`mailto:${organizationEmail}`} className="text-brand-teal hover:underline">
+              {organizationEmail}
             </a>
           </p>
         </CardContent>
