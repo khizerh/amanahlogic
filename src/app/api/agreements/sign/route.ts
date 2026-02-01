@@ -5,6 +5,7 @@ import { AgreementsService } from "@/lib/database/agreements";
 import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { uploadSignedPdf } from "@/lib/signing/storage";
 import { stampAgreementPdf } from "@/lib/signing/stamp-pdf";
 import { validateSignaturePayload } from "@/lib/signing/validation";
@@ -36,19 +37,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
+    // Use service role — this is a public endpoint called by unauthenticated signers
+    const serviceClient = createServiceRoleClient();
+
     // Validate signing link
     const link = await AgreementSigningLinksService.getActiveByToken(payload.token);
     if (!link) {
       return NextResponse.json({ error: "Invalid or expired link" }, { status: 400 });
     }
 
-    const agreement = await AgreementsService.getById(link.agreementId);
+    const agreement = await AgreementsService.getById(link.agreementId, serviceClient);
     if (!agreement) {
       return NextResponse.json({ error: "Agreement not found" }, { status: 404 });
     }
 
     // Get membership for org/membership context
-    const membership = await MembershipsService.getById(agreement.membershipId);
+    const membership = await MembershipsService.getById(agreement.membershipId, serviceClient);
     if (!membership) {
       return NextResponse.json({ error: "Membership not found" }, { status: 404 });
     }
@@ -99,7 +103,7 @@ export async function POST(req: Request) {
       ipAddress: payload.ipAddress,
       userAgent: payload.userAgent,
       consentChecked: payload.consentChecked,
-    });
+    }, serviceClient);
 
     // Update membership: set agreementSignedAt and transition status
     // pending → current (if enrollment fee is also paid, onboarding complete)
@@ -121,19 +125,19 @@ export async function POST(req: Request) {
       updateData.joinDate = new Date().toISOString().split("T")[0];
     }
 
-    await MembershipsService.update(updateData);
+    await MembershipsService.update(updateData, serviceClient);
 
     // Mark link as used
-    await AgreementSigningLinksService.markUsed(link.id);
+    await AgreementSigningLinksService.markUsed(link.id, serviceClient);
 
     // Create onboarding invite so it shows in Onboarding tab
     // Admin can then record payment using "Mark as Paid"
     try {
       // Check if onboarding invite already exists for this membership
-      const existingInvite = await OnboardingInvitesService.getPendingForMembership(membership.id);
+      const existingInvite = await OnboardingInvitesService.getPendingForMembership(membership.id, serviceClient);
 
       if (!existingInvite) {
-        const plan = await PlansService.getById(membership.planId);
+        const plan = await PlansService.getById(membership.planId, serviceClient);
         if (plan) {
           // Get dues amount based on billing frequency
           const pricing = plan.pricing as { monthly?: number; biannual?: number; annual?: number };
@@ -163,7 +167,7 @@ export async function POST(req: Request) {
             duesAmount,
             billingFrequency: membership.billingFrequency,
             sentAt: new Date().toISOString(),
-          });
+          }, serviceClient);
         }
       }
     } catch (inviteError) {

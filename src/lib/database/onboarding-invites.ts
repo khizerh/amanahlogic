@@ -166,9 +166,10 @@ export class OnboardingInvitesService {
    * Get pending invite for a membership
    */
   static async getPendingForMembership(
-    membershipId: string
+    membershipId: string,
+    client?: SupabaseClient
   ): Promise<OnboardingInvite | null> {
-    const supabase = await createClientForContext();
+    const supabase = client ?? (await createClientForContext());
 
     const { data, error } = await supabase
       .from("onboarding_invites")

@@ -63,8 +63,8 @@ export class PlansService {
   /**
    * Get a single plan by ID
    */
-  static async getById(planId: string): Promise<Plan | null> {
-    const supabase = await createClientForContext();
+  static async getById(planId: string, client?: SupabaseClient): Promise<Plan | null> {
+    const supabase = client ?? (await createClientForContext());
 
     const { data, error } = await supabase
       .from("plans")
