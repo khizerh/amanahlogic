@@ -20,6 +20,8 @@ import { PaymentDetailsSheet } from "./PaymentDetailsSheet";
 interface PaymentsClientProps {
   paymentHistory: MemberPaymentHistory;
   organizationName: string;
+  isPending?: boolean;
+  isManualPayment?: boolean;
 }
 
 function formatDate(dateString: string | null): string {
@@ -71,7 +73,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function PaymentsClient({ paymentHistory, organizationName }: PaymentsClientProps) {
+export function PaymentsClient({ paymentHistory, organizationName, isPending, isManualPayment }: PaymentsClientProps) {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -127,7 +129,14 @@ export function PaymentsClient({ paymentHistory, organizationName }: PaymentsCli
           {paymentHistory.payments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No payments found</p>
+              <p>No payments yet</p>
+              {isPending && (
+                <p className="text-sm mt-2">
+                  {isManualPayment
+                    ? `Please contact ${organizationName} to arrange your first payment.`
+                    : "Your payments will appear here once your first payment is processed."}
+                </p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, FileText, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, FileText } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -92,6 +92,7 @@ export default async function MemberDashboardPage() {
   let paymentLink: string | null = null;
   const agreementSigned = membership?.agreementSignedAt !== null && membership?.agreementSignedAt !== undefined;
   const paymentDone = membership ? membership.paidMonths > 0 : false;
+  const isManualPayment = !membership?.stripeCustomerId;
 
   if (membership?.status === "pending") {
     const serviceClient = createServiceRoleClient();
@@ -99,7 +100,6 @@ export default async function MemberDashboardPage() {
     // Fetch signing link if agreement not signed
     if (!agreementSigned) {
       try {
-        // Look up agreement by member_id (membership.agreementId may not be set)
         const { data: agreement } = await serviceClient
           .from("agreements")
           .select("id")
@@ -123,8 +123,8 @@ export default async function MemberDashboardPage() {
       }
     }
 
-    // Fetch payment link if payment not done
-    if (!paymentDone) {
+    // Fetch payment link if payment not done (Stripe members only)
+    if (!paymentDone && !isManualPayment) {
       try {
         const { data: invite } = await serviceClient
           .from("onboarding_invites")
@@ -169,64 +169,60 @@ export default async function MemberDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Step 1: Sign Agreement */}
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold">
-                1
+            {/* Sign Agreement */}
+            {!agreementSigned && (
+              <div className="flex items-start gap-3">
+                <FileText className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">Sign Your Agreement</p>
+                  {signingLink ? (
+                    <a
+                      href={signingLink}
+                      className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
+                    >
+                      Sign Agreement &rarr;
+                    </a>
+                  ) : (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Check your email for the signing link.
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Sign Your Agreement</p>
-                {agreementSigned ? (
-                  <p className="text-sm text-green-700 flex items-center gap-1 mt-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Completed
-                  </p>
-                ) : signingLink ? (
-                  <a
-                    href={signingLink}
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
-                  >
-                    Sign Agreement &rarr;
-                  </a>
-                ) : (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Check your email for the signing link.
-                  </p>
-                )}
-              </div>
-            </div>
+            )}
 
-            {/* Step 2: Complete Payment */}
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold">
-                2
+            {/* Payment */}
+            {!paymentDone && (
+              <div className="flex items-start gap-3">
+                <CreditCard className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  {isManualPayment ? (
+                    <>
+                      <p className="font-medium text-gray-900">Arrange Payment</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Please contact {organization.name} to arrange your first payment.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium text-gray-900">Complete Payment</p>
+                      {paymentLink ? (
+                        <a
+                          href={paymentLink}
+                          className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
+                        >
+                          Complete Payment &rarr;
+                        </a>
+                      ) : (
+                        <p className="text-sm text-gray-600 mt-1">
+                          Check your email for the payment link.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Complete Payment</p>
-                {paymentDone ? (
-                  <p className="text-sm text-green-700 flex items-center gap-1 mt-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Completed
-                  </p>
-                ) : !agreementSigned ? (
-                  <p className="text-sm text-gray-400 flex items-center gap-1 mt-1">
-                    <Lock className="w-4 h-4" />
-                    Complete Step 1 first
-                  </p>
-                ) : paymentLink ? (
-                  <a
-                    href={paymentLink}
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-9 px-4 mt-2 transition-colors"
-                  >
-                    Complete Payment &rarr;
-                  </a>
-                ) : (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Check your email for the payment link.
-                  </p>
-                )}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       )}

@@ -36,11 +36,15 @@ export default async function MemberPaymentsPage() {
   ]);
 
   const organizationName = portalData?.organization.name || "Organization";
+  const isPending = portalData?.membership?.status === "pending";
+  const isManualPayment = !portalData?.membership?.stripeCustomerId;
 
   return (
     <PaymentsClient
       paymentHistory={paymentHistory}
       organizationName={organizationName}
+      isPending={isPending}
+      isManualPayment={isManualPayment}
     />
   );
 }
