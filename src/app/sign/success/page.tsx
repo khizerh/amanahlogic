@@ -12,7 +12,7 @@ export default function SignSuccessPage() {
         </p>
         <div className="pt-4">
           <Button asChild>
-            <Link href="/">Return to dashboard</Link>
+            <Link href="/portal">Return to portal</Link>
           </Button>
         </div>
       </div>
