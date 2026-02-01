@@ -13,6 +13,11 @@ import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 
 function formatDate(dateString: string | null, timeZone?: string): string {
   if (!dateString) return "N/A";
+  const dateOnlyMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    return new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+      .toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  }
   return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",

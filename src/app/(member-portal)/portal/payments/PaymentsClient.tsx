@@ -26,7 +26,11 @@ interface PaymentsClientProps {
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleDateString("en-US", {
+  const dateOnlyMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date = dateOnlyMatch
+    ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+    : new Date(dateString);
+  return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
