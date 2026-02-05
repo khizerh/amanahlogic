@@ -177,8 +177,6 @@ export function MemberDetailClient({
     preferredLanguage: CommunicationLanguage;
     emergencyName: string;
     emergencyPhone: string;
-    spouseName: string;
-    children: Child[];
   }>({
     email: memberData.email,
     phone: memberData.phone,
@@ -189,6 +187,15 @@ export function MemberDetailClient({
     preferredLanguage: memberData.preferredLanguage,
     emergencyName: memberData.emergencyContact.name,
     emergencyPhone: memberData.emergencyContact.phone,
+  });
+
+  // State for household/covered members dialog
+  const [householdDialogOpen, setHouseholdDialogOpen] = useState(false);
+  const [isSavingHousehold, setIsSavingHousehold] = useState(false);
+  const [householdForm, setHouseholdForm] = useState<{
+    spouseName: string;
+    children: Child[];
+  }>({
     spouseName: memberData.spouseName || "",
     children: memberData.children || [],
   });
@@ -487,8 +494,6 @@ export function MemberDetailClient({
       preferredLanguage: memberData.preferredLanguage,
       emergencyName: memberData.emergencyContact.name,
       emergencyPhone: formatPhoneNumber(memberData.emergencyContact.phone),
-      spouseName: memberData.spouseName || "",
-      children: memberData.children ? memberData.children.map(c => ({ ...c })) : [],
     });
     setIsEditing(true);
   };
@@ -517,8 +522,6 @@ export function MemberDetailClient({
             name: editForm.emergencyName,
             phone: editForm.emergencyPhone,
           },
-          spouseName: editForm.spouseName || null,
-          children: editForm.children.filter(c => c.name.trim() !== ""),
         }),
       });
 
@@ -527,7 +530,7 @@ export function MemberDetailClient({
         throw new Error(result.error || "Failed to update");
       }
 
-      toast.success("Member information updated");
+      toast.success("Contact information updated");
       setIsEditing(false);
       router.refresh();
     } catch (err) {
@@ -537,30 +540,57 @@ export function MemberDetailClient({
     }
   };
 
-  const addEditChild = () => {
-    setEditForm({
-      ...editForm,
+  const addHouseholdChild = () => {
+    setHouseholdForm({
+      ...householdForm,
       children: [
-        ...editForm.children,
+        ...householdForm.children,
         { id: crypto.randomUUID(), name: "", dateOfBirth: "" },
       ],
     });
   };
 
-  const updateEditChild = (childId: string, field: "name" | "dateOfBirth", value: string) => {
-    setEditForm({
-      ...editForm,
-      children: editForm.children.map(c =>
+  const updateHouseholdChild = (childId: string, field: "name" | "dateOfBirth", value: string) => {
+    setHouseholdForm({
+      ...householdForm,
+      children: householdForm.children.map(c =>
         c.id === childId ? { ...c, [field]: value } : c
       ),
     });
   };
 
-  const removeEditChild = (childId: string) => {
-    setEditForm({
-      ...editForm,
-      children: editForm.children.filter(c => c.id !== childId),
+  const removeHouseholdChild = (childId: string) => {
+    setHouseholdForm({
+      ...householdForm,
+      children: householdForm.children.filter(c => c.id !== childId),
     });
+  };
+
+  const handleSaveHousehold = async () => {
+    setIsSavingHousehold(true);
+    try {
+      const response = await fetch(`/api/members/${memberData.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spouseName: householdForm.spouseName || null,
+          children: householdForm.children.filter(c => c.name.trim() !== ""),
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Failed to update");
+      }
+
+      toast.success("Covered members updated");
+      setHouseholdDialogOpen(false);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update covered members");
+    } finally {
+      setIsSavingHousehold(false);
+    }
   };
 
   // Transform to PaymentWithDetails for the sheet
@@ -873,9 +903,21 @@ export function MemberDetailClient({
                   </div>
 
                   {/* Covered Members */}
-                  {(memberData.spouseName || memberData.children.length > 0) && (
-                    <div className="mt-4 pt-4 border-t">
-                      <p className="text-sm text-muted-foreground mb-2">Covered Members</p>
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-muted-foreground">Covered Members</p>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
+                        setHouseholdForm({
+                          spouseName: memberData.spouseName || "",
+                          children: memberData.children ? memberData.children.map(c => ({ ...c })) : [],
+                        });
+                        setHouseholdDialogOpen(true);
+                      }}>
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                    </div>
+                    {memberData.spouseName || memberData.children.length > 0 ? (
                       <div className="space-y-1">
                         {memberData.spouseName && (
                           <div className="flex items-center justify-between text-sm">
@@ -895,8 +937,10 @@ export function MemberDetailClient({
                           );
                         })}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No covered members</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -966,7 +1010,6 @@ export function MemberDetailClient({
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-0">
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -1052,66 +1095,6 @@ export function MemberDetailClient({
                         />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Household Information */}
-                  <div className="border-t pt-4 mt-4 space-y-4">
-                    <Label className="text-base font-medium">Household Information</Label>
-                    <div className="space-y-2">
-                      <Label htmlFor="spouseName">Spouse Name</Label>
-                      <Input
-                        id="spouseName"
-                        value={editForm.spouseName}
-                        onChange={(e) => setEditForm({ ...editForm, spouseName: e.target.value })}
-                        placeholder="Enter spouse name if applicable"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label>Children</Label>
-                        <Button type="button" variant="outline" size="sm" onClick={addEditChild}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Child
-                        </Button>
-                      </div>
-                      {editForm.children.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-3 border rounded-lg border-dashed">
-                          No children added.
-                        </p>
-                      ) : (
-                        <div className="space-y-3">
-                          {editForm.children.map((child) => (
-                            <div key={child.id} className="flex gap-3 items-end">
-                              <div className="flex-1 space-y-1">
-                                <Label className="text-xs">Name</Label>
-                                <Input
-                                  value={child.name}
-                                  onChange={(e) => updateEditChild(child.id, "name", e.target.value)}
-                                  placeholder="Child name"
-                                />
-                              </div>
-                              <div className="flex-1 space-y-1">
-                                <Label className="text-xs">Date of Birth</Label>
-                                <Input
-                                  type="date"
-                                  value={child.dateOfBirth}
-                                  onChange={(e) => updateEditChild(child.id, "dateOfBirth", e.target.value)}
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeEditChild(child.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
                   </div>
                 )}
               </CardContent>
@@ -1691,6 +1674,92 @@ export function MemberDetailClient({
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Covered Members Dialog */}
+      <Dialog open={householdDialogOpen} onOpenChange={setHouseholdDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Covered Members</DialogTitle>
+            <DialogDescription>
+              Update spouse and children covered under this membership.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="householdSpouseName">Spouse Name</Label>
+              <Input
+                id="householdSpouseName"
+                value={householdForm.spouseName}
+                onChange={(e) => setHouseholdForm({ ...householdForm, spouseName: e.target.value })}
+                placeholder="Enter spouse name if applicable"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Children</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addHouseholdChild}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Child
+                </Button>
+              </div>
+              {householdForm.children.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-3 border rounded-lg border-dashed">
+                  No children added.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {householdForm.children.map((child) => (
+                    <div key={child.id} className="flex gap-3 items-end">
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-xs">Name</Label>
+                        <Input
+                          value={child.name}
+                          onChange={(e) => updateHouseholdChild(child.id, "name", e.target.value)}
+                          placeholder="Child name"
+                        />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-xs">Date of Birth</Label>
+                        <Input
+                          type="date"
+                          value={child.dateOfBirth}
+                          onChange={(e) => updateHouseholdChild(child.id, "dateOfBirth", e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeHouseholdChild(child.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setHouseholdDialogOpen(false)} disabled={isSavingHousehold}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveHousehold} disabled={isSavingHousehold}>
+              {isSavingHousehold ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Agreement Dialog */}
       <Dialog open={agreementDialogOpen} onOpenChange={setAgreementDialogOpen}>
