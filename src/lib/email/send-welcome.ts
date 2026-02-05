@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getWelcomeEmail } from "./templates/welcome";
+import { renderWelcome } from "@emails/templates/Welcome";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
@@ -104,7 +104,7 @@ export async function sendWelcomeEmail(
   }
 
   // Fall back to hardcoded template (always used for manual payments)
-  const { subject, html, text } = dbResult ?? getWelcomeEmail({
+  const { subject, html, text } = dbResult ?? await renderWelcome({
     memberName,
     organizationName: orgName,
     inviteUrl,

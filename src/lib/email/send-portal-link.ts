@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getPortalLinkEmail } from "./templates/portal-link";
+import { renderPortalLink } from "@emails/templates/PortalLink";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
@@ -46,7 +46,7 @@ export async function sendPortalLinkEmail(
   );
 
   // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? getPortalLinkEmail({
+  const { subject, html, text } = dbResult ?? await renderPortalLink({
     memberName,
     portalUrl,
     organizationName: orgName,

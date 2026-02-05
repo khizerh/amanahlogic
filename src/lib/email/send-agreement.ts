@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getAgreementSentEmail } from "./templates/agreement-sent";
+import { renderAgreementSent } from "@emails/templates/AgreementSent";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
@@ -56,7 +56,7 @@ export async function sendAgreementEmail(
   }
 
   // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? getAgreementSentEmail({
+  const { subject, html, text } = dbResult ?? await renderAgreementSent({
     memberName,
     signUrl,
     expiresAt,

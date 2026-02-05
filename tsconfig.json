@@ -26,6 +26,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@emails/*": [
+        "./emails/*"
       ]
     }
   },
@@ -41,7 +44,6 @@
     "**/__tests__/**",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "**/_disabled/**",
-    "emails/**"
+    "**/_disabled/**"
   ]
 }

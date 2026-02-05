@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getMemberInviteEmail } from "./templates/member-invite";
+import { renderMemberInvite } from "@emails/templates/MemberInvite";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
@@ -48,7 +48,7 @@ export async function sendMemberInviteEmail(
   );
 
   // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? getMemberInviteEmail({
+  const { subject, html, text } = dbResult ?? await renderMemberInvite({
     memberName,
     inviteUrl,
     expiresAt,

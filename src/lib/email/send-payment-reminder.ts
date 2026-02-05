@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getPaymentReminderEmail } from "./templates/payment-reminder";
+import { renderPaymentReminder } from "@emails/templates/PaymentReminder";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
@@ -67,7 +67,7 @@ export async function sendPaymentReminderEmail(
   );
 
   // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? getPaymentReminderEmail({
+  const { subject, html, text } = dbResult ?? await renderPaymentReminder({
     memberName,
     amount,
     dueDate,

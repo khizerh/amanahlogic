@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getPaymentFailedEmail } from "./templates/payment-failed";
+import { renderPaymentFailed } from "@emails/templates/PaymentFailed";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
@@ -51,7 +51,7 @@ export async function sendPaymentFailedEmail(
   );
 
   // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? getPaymentFailedEmail({
+  const { subject, html, text } = dbResult ?? await renderPaymentFailed({
     memberName,
     amount,
     failureReason,

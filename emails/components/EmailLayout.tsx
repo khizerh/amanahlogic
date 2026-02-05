@@ -22,6 +22,9 @@ export interface EmailLayoutProps {
     label: string;
     url: string;
   } | null;
+  ctaColor?: string;
+  subtitle?: string;
+  language?: "en" | "fa";
   afterCta?: React.ReactNode;
   footer?: {
     organization_name?: string | null;
@@ -31,9 +34,10 @@ export interface EmailLayoutProps {
 }
 
 export function EmailLayout(props: EmailLayoutProps) {
-  const { title, previewText, greeting, children, cta, afterCta, footer } = props;
+  const { title, previewText, greeting, children, cta, ctaColor, subtitle, language, afterCta, footer } = props;
+  const isRtl = language === "fa";
   return (
-    <Html>
+    <Html dir={isRtl ? "rtl" : undefined} lang={isRtl ? "fa" : undefined}>
       <Head>
         <title>{title}</title>
         {/* Force light mode in email clients */}
@@ -100,10 +104,11 @@ export function EmailLayout(props: EmailLayoutProps) {
             <Heading style={styles.heading} className="email-heading">
               {title}
             </Heading>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
             {greeting ? <Text style={styles.greeting}>{greeting}</Text> : null}
             {children}
             {cta ? (
-              <Button href={cta.url} style={styles.ctaButton} className="email-cta-button">
+              <Button href={cta.url} style={ctaColor ? { ...styles.ctaButton, backgroundColor: ctaColor } : styles.ctaButton} className="email-cta-button">
                 {cta.label}
               </Button>
             ) : null}
@@ -149,6 +154,13 @@ const styles = {
     fontSize: "24px",
     fontWeight: 700,
     color: "#0f172a",
+  },
+  subtitle: {
+    margin: 0,
+    marginTop: "4px",
+    fontSize: "14px",
+    fontWeight: 400,
+    color: "#475569",
   },
   greeting: {
     marginTop: "20px",

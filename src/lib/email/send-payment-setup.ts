@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getPaymentSetupEmail } from "./templates/payment-setup";
+import { renderPaymentSetup } from "@emails/templates/PaymentSetup";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
@@ -72,7 +72,7 @@ export async function sendPaymentSetupEmail(
   );
 
   // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? getPaymentSetupEmail({
+  const { subject, html, text } = dbResult ?? await renderPaymentSetup({
     memberName,
     checkoutUrl,
     organizationName: orgName,

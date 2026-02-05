@@ -1,70 +1,75 @@
+import * as React from "react";
+import { Text, Link } from "@react-email/components";
+import { render } from "@react-email/render";
+import { EmailLayout } from "@emails/components/EmailLayout";
 import { EmailTemplatesService } from "@/lib/database/email-templates";
 import type { EmailTemplateType } from "@/lib/types";
 
 /**
- * Wrap plain-text email body in a branded HTML email layout.
+ * Wrap plain-text email body in a branded HTML email layout
+ * using the shared EmailLayout React Email component.
  *
  * - Double newlines → paragraph breaks
  * - Single newlines → <br>
- * - URLs → styled link buttons
- * - RTL + dir="rtl" for Farsi
+ * - URLs → styled CTA buttons with fallback link
  */
-export function wrapInEmailHtml(
+export async function wrapInEmailHtml(
   bodyText: string,
   orgName: string,
   language: "en" | "fa"
-): { html: string; text: string } {
+): Promise<{ html: string; text: string }> {
   const isRtl = language === "fa";
-  const dir = isRtl ? ' dir="rtl" lang="fa"' : "";
-  const lineHeight = isRtl ? "1.8" : "1.6";
-  const direction = isRtl ? " direction: rtl;" : "";
-
-  // Build plain text version (returned as-is, with URLs intact)
   const text = bodyText;
 
-  // Build HTML version
+  // Parse body into paragraphs, extracting URLs for CTA buttons
   const paragraphs = bodyText.split(/\n{2,}/);
-  const htmlParagraphs = paragraphs
-    .map((para) => {
-      // Convert single newlines to <br>
-      let html = para
-        .split("\n")
-        .map((line) => escapeHtml(line))
-        .join("<br>");
+  const childElements: React.ReactNode[] = [];
+  let foundUrl: string | undefined;
 
-      // Detect URLs and turn them into styled buttons/links
-      html = html.replace(
-        /(https?:\/\/[^\s<]+)/g,
-        (_match, url) =>
-          `</p><div style="text-align: center; margin: 20px 0;"><a href="${url}" style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">${isRtl ? "برای ادامه کلیک کنید" : "Click Here"}</a></div><p style="color: #666; font-size: 12px;">If the button doesn't work: <a href="${url}" style="color: #2563eb; word-break: break-all;">${url}</a></p><p>`
-      );
+  for (let i = 0; i < paragraphs.length; i++) {
+    const para = paragraphs[i];
+    // Check for URLs in this paragraph
+    const urlMatch = para.match(/(https?:\/\/[^\s]+)/);
+    if (urlMatch && !foundUrl) {
+      foundUrl = urlMatch[1];
+    }
 
-      return `<p>${html}</p>`;
-    })
-    .join("\n\n");
+    // Convert single newlines to <br> by splitting
+    const lines = para.split("\n");
+    const content: React.ReactNode[] = [];
+    lines.forEach((line, j) => {
+      if (j > 0) content.push(React.createElement("br", { key: `br-${i}-${j}` }));
+      // Replace URLs in line with Link components
+      const parts = line.split(/(https?:\/\/[^\s]+)/g);
+      parts.forEach((part, k) => {
+        if (/^https?:\/\//.test(part)) {
+          content.push(
+            React.createElement(Link, { key: `link-${i}-${j}-${k}`, href: part, style: { color: "#2563eb", wordBreak: "break-all" as const } }, part)
+          );
+        } else if (part) {
+          content.push(part);
+        }
+      });
+    });
 
-  const html = `
-<!DOCTYPE html>
-<html${dir}>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: ${lineHeight}; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;${direction}">
-  <div style="margin-bottom: 30px;">
-    <h1 style="color: #1a1a1a; margin: 0;">${escapeHtml(orgName)}</h1>
-  </div>
+    childElements.push(
+      React.createElement(Text, { key: `p-${i}`, style: { fontSize: "16px", lineHeight: 1.6, color: "#1f2937" } }, ...content)
+    );
+  }
 
-  ${htmlParagraphs}
+  // Build the React element tree
+  const element = React.createElement(
+    EmailLayout,
+    {
+      title: orgName,
+      language,
+      cta: foundUrl ? { label: isRtl ? "برای ادامه کلیک کنید" : "Click Here", url: foundUrl } : undefined,
+      footer: { organization_name: orgName },
+      children: React.createElement(React.Fragment, null, ...childElements),
+    },
+  );
 
-  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-
-  <p style="color: #999; font-size: 12px; margin-top: 30px;">
-    ${escapeHtml(orgName)}
-  </p>
-</body>
-</html>`.trim();
-
+  const html = await render(element);
   return { html, text };
 }
 
@@ -97,7 +102,7 @@ export async function resolveEmailTemplate(
     const bodyText = substituteVariables(rawBody, variables);
 
     // Wrap plain text body in branded HTML
-    const { html, text } = wrapInEmailHtml(bodyText, orgName, language);
+    const { html, text } = await wrapInEmailHtml(bodyText, orgName, language);
 
     return { subject, html, text };
   } catch (err) {
@@ -128,12 +133,4 @@ function substituteVariables(
   });
 
   return result;
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }

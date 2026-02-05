@@ -1,5 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
-import { getPaymentReceiptEmail } from "./templates/payment-receipt";
+import { renderPaymentReceipt } from "@emails/templates/PaymentReceipt";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -70,7 +70,7 @@ export async function sendPaymentReceiptEmail(
   );
 
   // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? getPaymentReceiptEmail({
+  const { subject, html, text } = dbResult ?? await renderPaymentReceipt({
     memberName,
     organizationName: orgName,
     amount,
