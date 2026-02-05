@@ -12,14 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,7 +27,6 @@ import {
   Trash2,
   Mail,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { getEmailTemplateTypeLabel } from "@/lib/mock-data";
 import { Organization, EmailTemplate, AgreementTemplate } from "@/lib/types";
 import { toast } from "sonner";
@@ -74,7 +65,6 @@ export function SettingsPageClient({
 
   // Agreement templates state
   const [allTemplates, setAllTemplates] = useState<AgreementTemplate[]>(agreementTemplates);
-  const [allEmailTemplates, setAllEmailTemplates] = useState<EmailTemplate[]>(emailTemplates);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const [templateUpload, setTemplateUpload] = useState<{
     file: File | null;
@@ -88,15 +78,6 @@ export function SettingsPageClient({
     notes: "",
   });
 
-  // Email template state
-  const [editTemplateDialogOpen, setEditTemplateDialogOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
-  const [templateFormData, setTemplateFormData] = useState({
-    subjectEn: "",
-    subjectFa: "",
-    bodyEn: "",
-    bodyFa: "",
-  });
 
   // View/delete template loading state
   const [viewingTemplateId, setViewingTemplateId] = useState<string | null>(null);
@@ -203,70 +184,6 @@ export function SettingsPageClient({
     });
   };
 
-  // Email template handlers
-  const handleEditTemplate = (template: EmailTemplate) => {
-    setSelectedTemplate(template);
-    setTemplateFormData({
-      subjectEn: template.subject.en,
-      subjectFa: template.subject.fa,
-      bodyEn: template.body.en,
-      bodyFa: template.body.fa,
-    });
-    setEditTemplateDialogOpen(true);
-  };
-
-  const handleSaveTemplate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTemplate) return;
-    try {
-      const res = await fetch("/api/email-templates/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: selectedTemplate.id,
-          subject: { en: templateFormData.subjectEn, fa: templateFormData.subjectFa },
-          body: { en: templateFormData.bodyEn, fa: templateFormData.bodyFa },
-          isActive: selectedTemplate.isActive,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Failed to update template");
-      }
-      const updated = json.template as EmailTemplate;
-      setAllEmailTemplates((prev) =>
-        prev.map((t) => (t.id === updated.id ? updated : t))
-      );
-      toast.success("Email template updated");
-      setEditTemplateDialogOpen(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update template");
-    }
-  };
-
-  const handleToggleTemplateActive = async (template: EmailTemplate) => {
-    try {
-      const res = await fetch("/api/email-templates/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: template.id,
-          isActive: !template.isActive,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Failed to update template");
-      }
-      const updated = json.template as EmailTemplate;
-      setAllEmailTemplates((prev) =>
-        prev.map((t) => (t.id === updated.id ? updated : t))
-      );
-      toast.success(`Template ${updated.isActive ? "activated" : "deactivated"}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update template");
-    }
-  };
 
   // Fee settings toggle handler
   const handleTogglePassFees = async () => {
@@ -926,56 +843,40 @@ export function SettingsPageClient({
                 <div>
                   <h3 className="text-lg font-semibold">Email Templates</h3>
                   <p className="text-sm text-muted-foreground">
-                    Configure automated email templates in English and Farsi
+                    Automated emails sent to members at key moments
                   </p>
                 </div>
 
                 <div className="grid gap-4">
-                  {allEmailTemplates.map((template) => (
-                    <Card
-                      key={template.id}
-                      className={`cursor-pointer transition-colors hover:border-brand-teal/40 ${template.isActive ? "" : "opacity-60"}`}
-                      onClick={() => handleEditTemplate(template)}
-                    >
+                  {emailTemplates.map((template) => (
+                    <Card key={template.id}>
                       <CardContent className="pt-6">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-3">
-                            <div className="flex items-center gap-3">
-                              <h4 className="font-semibold">{template.name}</h4>
-                              <Badge variant="outline">
-                                {getEmailTemplateTypeLabel(template.type)}
-                              </Badge>
-                              {!template.isActive && (
-                                <Badge variant="inactive">Inactive</Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{template.description}</p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                  <Languages className="h-3 w-3" />
-                                  English
-                                </div>
-                                <p className="text-sm font-medium">{template.subject.en}</p>
-                                <p className="text-xs text-muted-foreground line-clamp-2">{template.body.en.substring(0, 100)}...</p>
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                  <Languages className="h-3 w-3" />
-                                  فارسی (Farsi)
-                                </div>
-                                <p className="text-sm font-medium" dir="rtl">{template.subject.fa}</p>
-                                <p className="text-xs text-muted-foreground line-clamp-2" dir="rtl">{template.body.fa.substring(0, 100)}...</p>
-                              </div>
-                            </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <h4 className="font-semibold">{template.name}</h4>
+                            <Badge variant="outline">
+                              {getEmailTemplateTypeLabel(template.type)}
+                            </Badge>
                           </div>
+                          <p className="text-sm text-muted-foreground">{template.description}</p>
 
-                          <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                            <Switch
-                              checked={template.isActive}
-                              onCheckedChange={() => handleToggleTemplateActive(template)}
-                            />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                                <Languages className="h-3 w-3" />
+                                English
+                              </div>
+                              <p className="text-sm font-medium">{template.subject.en}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line">{template.body.en.substring(0, 150)}...</p>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                                <Languages className="h-3 w-3" />
+                                فارسی (Farsi)
+                              </div>
+                              <p className="text-sm font-medium" dir="rtl">{template.subject.fa}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line" dir="rtl">{template.body.fa.substring(0, 150)}...</p>
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -989,96 +890,6 @@ export function SettingsPageClient({
         </div>
       </div>
 
-      {/* Edit Email Template Dialog */}
-      <Dialog open={editTemplateDialogOpen} onOpenChange={setEditTemplateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Email Template</DialogTitle>
-            <DialogDescription>
-              {selectedTemplate?.name} - {selectedTemplate?.description}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSaveTemplate}>
-            <div className="space-y-6 py-4">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Languages className="h-4 w-4" />
-                  <h4 className="font-semibold">English</h4>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subject-en">Subject</Label>
-                  <Input
-                    id="subject-en"
-                    value={templateFormData.subjectEn}
-                    onChange={(e) => setTemplateFormData({ ...templateFormData, subjectEn: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="body-en">Body</Label>
-                  <Textarea
-                    id="body-en"
-                    value={templateFormData.bodyEn}
-                    onChange={(e) => setTemplateFormData({ ...templateFormData, bodyEn: e.target.value })}
-                    className="min-h-[150px]"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Languages className="h-4 w-4" />
-                  <h4 className="font-semibold">فارسی (Farsi)</h4>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subject-fa">Subject</Label>
-                  <Input
-                    id="subject-fa"
-                    value={templateFormData.subjectFa}
-                    onChange={(e) => setTemplateFormData({ ...templateFormData, subjectFa: e.target.value })}
-                    dir="rtl"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="body-fa">Body</Label>
-                  <Textarea
-                    id="body-fa"
-                    value={templateFormData.bodyFa}
-                    onChange={(e) => setTemplateFormData({ ...templateFormData, bodyFa: e.target.value })}
-                    className="min-h-[150px]"
-                    dir="rtl"
-                    required
-                  />
-                </div>
-              </div>
-
-              {selectedTemplate?.variables && selectedTemplate.variables.length > 0 && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm font-medium mb-2">Available Variables:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedTemplate.variables.map((v) => (
-                      <Badge key={v} variant="secondary" className="font-mono">
-                        {`{{${v}}}`}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Use these placeholders in your template - they will be replaced with actual values when sending
-                  </p>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditTemplateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">Save Template</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
