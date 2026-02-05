@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Text, Link } from "@react-email/components";
+import { Text, Button } from "@react-email/components";
 import { EmailLayout } from "../components/EmailLayout";
 import { renderEmail } from "../../src/lib/email/render-email";
 
@@ -45,11 +45,13 @@ export function PasswordResetEmail(props: PasswordResetProps) {
       title={organizationName}
       previewText={l.subject(organizationName)}
       greeting={l.greeting}
-      cta={{ label: l.cta, url: resetUrl }}
       language={language}
       footer={{ organization_name: organizationName }}
     >
       <Text style={styles.text}>{l.body}</Text>
+      <Button href={resetUrl} style={styles.ctaButton} className="email-cta-button">
+        {l.cta}
+      </Button>
       <Text style={styles.muted}>{l.ignore}</Text>
       <Text style={styles.muted}>{l.fallback}</Text>
       <Text style={styles.link}>{resetUrl}</Text>
@@ -81,6 +83,17 @@ const styles = {
     fontSize: "16px",
     lineHeight: 1.6 as const,
     color: "#1f2937",
+  },
+  ctaButton: {
+    display: "inline-block" as const,
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    padding: "12px 20px",
+    borderRadius: "8px",
+    marginTop: "16px",
+    marginBottom: "16px",
+    textDecoration: "none" as const,
+    fontWeight: 500 as const,
   },
   muted: {
     fontSize: "14px",

@@ -41,30 +41,39 @@ export async function requestPasswordReset(
       return { success: true };
     }
 
-    // Admin resets come from platform support; portal resets come from the org
+    // Resolve the user's organization for branding
     let fromAddress = `"Amanah Logic" <${FROM_EMAIL}>`;
     let replyTo: string | undefined;
     let orgName = "Amanah Logic";
 
-    if (variant === "portal") {
-      const orgId = data.user?.app_metadata?.organization_id;
-      if (orgId) {
-        const { data: org } = await supabase
-          .from("organizations")
-          .select("name, slug, email")
-          .eq("id", orgId)
-          .single();
+    // Try app_metadata first, then fall back to members table lookup
+    let orgId = data.user?.app_metadata?.organization_id;
+    if (!orgId) {
+      const { data: member } = await supabase
+        .from("members")
+        .select("organization_id")
+        .eq("email", email)
+        .limit(1)
+        .maybeSingle();
+      orgId = member?.organization_id;
+    }
 
-        if (org) {
-          const emailConfig = getOrgEmailConfig({
-            name: org.name,
-            slug: org.slug,
-            email: org.email,
-          });
-          fromAddress = emailConfig.from;
-          replyTo = emailConfig.replyTo;
-          orgName = org.name;
-        }
+    if (orgId) {
+      const { data: org } = await supabase
+        .from("organizations")
+        .select("name, slug, email")
+        .eq("id", orgId)
+        .single();
+
+      if (org) {
+        const emailConfig = getOrgEmailConfig({
+          name: org.name,
+          slug: org.slug,
+          email: org.email,
+        });
+        fromAddress = emailConfig.from;
+        replyTo = emailConfig.replyTo;
+        orgName = org.name;
       }
     }
 
