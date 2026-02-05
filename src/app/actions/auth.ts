@@ -3,6 +3,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { resend, isEmailConfigured, getOrgEmailConfig, FROM_EMAIL } from "@/lib/email/resend";
 import { renderPasswordReset } from "@emails/templates/PasswordReset";
+import { EmailLogsService } from "@/lib/database/email-logs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.amanahlogic.com";
 
@@ -48,14 +49,21 @@ export async function requestPasswordReset(
 
     // Try app_metadata first, then fall back to members table lookup
     let orgId = data.user?.app_metadata?.organization_id;
-    if (!orgId) {
+    let memberId: string | null = null;
+    let memberName = email;
+
+    {
       const { data: member } = await supabase
         .from("members")
-        .select("organization_id")
+        .select("id, organization_id, first_name, last_name")
         .eq("email", email)
         .limit(1)
         .maybeSingle();
-      orgId = member?.organization_id;
+      if (member) {
+        if (!orgId) orgId = member.organization_id;
+        memberId = member.id;
+        memberName = [member.first_name, member.last_name].filter(Boolean).join(" ") || email;
+      }
     }
 
     if (orgId) {
@@ -82,13 +90,43 @@ export async function requestPasswordReset(
       organizationName: orgName,
     });
 
-    await resend!.emails.send({
+    // Create email log entry
+    let emailLogId: string | undefined;
+    if (orgId && memberId) {
+      try {
+        const log = await EmailLogsService.create({
+          organizationId: orgId,
+          memberId,
+          memberName,
+          memberEmail: email,
+          templateType: "password_reset",
+          to: email,
+          subject: rendered.subject,
+          bodyPreview: "Password reset link requested",
+          language: "en",
+          status: "queued",
+        });
+        emailLogId = log.id;
+      } catch (logErr) {
+        console.error("Failed to create email log for password reset:", logErr);
+      }
+    }
+
+    const { data: sendResult, error: sendError } = await resend!.emails.send({
       from: fromAddress,
       ...(replyTo ? { replyTo } : {}),
       to: email,
       subject: rendered.subject,
       html: rendered.html,
     });
+
+    if (emailLogId) {
+      if (sendError) {
+        await EmailLogsService.markFailed(emailLogId, sendError.message).catch(() => {});
+      } else {
+        await EmailLogsService.markSent(emailLogId, sendResult?.id || "").catch(() => {});
+      }
+    }
 
     return { success: true };
   } catch (err) {

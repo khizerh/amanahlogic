@@ -158,11 +158,11 @@ export function MemberDetailClient({
   // Pagination
   const PAGE_SIZE = 5;
   const [paymentsPage, setPaymentsPage] = useState(0);
-  const [emailsPage, setEmailsPage] = useState(0);
   const paymentsTotal = initialPayments.length;
   const emailsTotal = memberEmails.length;
   const paginatedPayments = initialPayments.slice(paymentsPage * PAGE_SIZE, (paymentsPage + 1) * PAGE_SIZE);
-  const paginatedEmails = memberEmails.slice(emailsPage * PAGE_SIZE, (emailsPage + 1) * PAGE_SIZE);
+  const recentEmails = memberEmails.slice(0, 3);
+  const [emailsDialogOpen, setEmailsDialogOpen] = useState(false);
 
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
@@ -1459,87 +1459,44 @@ export function MemberDetailClient({
 
           {/* Email History */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Email History</CardTitle>
+              {emailsTotal > 3 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEmailsDialogOpen(true)}
+                >
+                  View all ({emailsTotal})
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {emailsTotal === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No emails sent yet</p>
               ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Subject</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Language</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paginatedEmails.map((email) => (
-                          <TableRow
-                            key={email.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => handleViewEmail(email)}
-                          >
-                            <TableCell className="whitespace-nowrap">
-                              {formatDate(email.sentAt || email.createdAt)}
-                            </TableCell>
-                            <TableCell className="max-w-[250px] truncate">
-                              {email.subject}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {getEmailTemplateTypeLabel(email.templateType)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={email.language === "fa" ? "info" : "inactive"}>
-                                {email.language === "fa" ? "FA" : "EN"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {getEmailStatusIcon(email.status)}
-                                <Badge variant={getEmailStatusVariant(email.status)}>
-                                  {email.status}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  {emailsTotal > PAGE_SIZE && (
-                    <div className="flex items-center justify-between pt-4">
-                      <p className="text-sm text-muted-foreground">
-                        {emailsPage * PAGE_SIZE + 1}-{Math.min((emailsPage + 1) * PAGE_SIZE, emailsTotal)} of {emailsTotal}
-                      </p>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEmailsPage(p => p - 1)}
-                          disabled={emailsPage === 0}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEmailsPage(p => p + 1)}
-                          disabled={(emailsPage + 1) * PAGE_SIZE >= emailsTotal}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+                <div className="space-y-3">
+                  {recentEmails.map((email) => (
+                    <div
+                      key={email.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleViewEmail(email)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {getEmailStatusIcon(email.status)}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{email.subject}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {getEmailTemplateTypeLabel(email.templateType)} &middot; {formatDate(email.sentAt || email.createdAt)}
+                          </p>
+                        </div>
                       </div>
+                      <Badge variant={getEmailStatusVariant(email.status)} className="shrink-0">
+                        {email.status}
+                      </Badge>
                     </div>
-                  )}
-                </>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1675,6 +1632,43 @@ export function MemberDetailClient({
           )}
         </SheetContent>
       </Sheet>
+
+      {/* All Emails Dialog */}
+      <Dialog open={emailsDialogOpen} onOpenChange={setEmailsDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>All Emails ({emailsTotal})</DialogTitle>
+            <DialogDescription>
+              Complete email history for this member.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
+            {memberEmails.map((email) => (
+              <div
+                key={email.id}
+                className="flex items-center justify-between gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  setEmailsDialogOpen(false);
+                  handleViewEmail(email);
+                }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {getEmailStatusIcon(email.status)}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{email.subject}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {getEmailTemplateTypeLabel(email.templateType)} &middot; {formatDate(email.sentAt || email.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant={getEmailStatusVariant(email.status)} className="shrink-0">
+                  {email.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Covered Members Dialog */}
       <Dialog open={householdDialogOpen} onOpenChange={setHouseholdDialogOpen}>
