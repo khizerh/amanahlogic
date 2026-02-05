@@ -89,6 +89,20 @@ export class EmailTemplatesService {
     if (fetchError) throw fetchError;
 
     const existingTypes = new Set((existing || []).map((t: { type: string }) => t.type));
+    const validTypes = new Set<string>(DEFAULT_EMAIL_TEMPLATES.map((t) => t.type));
+
+    // Prune orphaned templates whose type no longer exists in defaults
+    const orphaned = (existing || [])
+      .filter((t: { type: string }) => !validTypes.has(t.type))
+      .map((t: { type: string }) => t.type);
+
+    if (orphaned.length > 0) {
+      await supabase
+        .from("email_templates")
+        .delete()
+        .eq("organization_id", organizationId)
+        .in("type", orphaned);
+    }
 
     // Only insert templates whose type doesn't already exist
     const missing = DEFAULT_EMAIL_TEMPLATES.filter((t) => !existingTypes.has(t.type));
