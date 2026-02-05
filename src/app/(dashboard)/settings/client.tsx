@@ -845,46 +845,19 @@ export function SettingsPageClient({
             <TabsContent value="emails">
               <div className="space-y-6">
                 {/* Email Sender Configuration */}
-                <Card className="bg-gradient-to-br from-blue-50 to-indigo-50/50 border-blue-200">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Mail className="h-5 w-5 text-blue-600" />
-                      Email Sender Configuration
-                    </CardTitle>
-                    <CardDescription>
-                      How your organization&apos;s emails appear to members
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-xs uppercase tracking-wide">From</Label>
-                          <div className="p-3 bg-muted rounded-lg font-mono text-sm">
-                            &quot;{organization.name}&quot; &lt;{organization.slug}@amanahlogic.com&gt;
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            This is what members see as the sender
-                          </p>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-xs uppercase tracking-wide">Reply-To</Label>
-                          <div className="p-3 bg-muted rounded-lg font-mono text-sm">
-                            {organization.email || <span className="text-muted-foreground italic">Not set - update in Organization tab</span>}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            When members reply, it goes to your contact email
-                          </p>
-                        </div>
-                      </div>
-                      {!organization.email && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                          Set your contact email in the Organization tab so members can reply to your emails.
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">From:</span>
+                    <span className="font-medium">&quot;{organization.name}&quot; &lt;{organization.slug}@amanahlogic.com&gt;</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Reply-To:</span>
+                    <span className="font-medium">
+                      {organization.email || <span className="text-muted-foreground italic">Not set</span>}
+                    </span>
+                  </div>
+                </div>
 
                 <div>
                   <h3 className="text-lg font-semibold">Email Templates</h3>
