@@ -134,10 +134,10 @@ function calculateNextPaymentDue(
 function calculateNewStatus(
   currentStatus: MembershipStatus,
   _newPaidMonths: number,
-  enrollmentFeePaid: boolean
+  enrollmentFeeSettled: boolean
 ): MembershipStatus {
   // Can't progress without enrollment fee
-  if (!enrollmentFeePaid) {
+  if (!enrollmentFeeSettled) {
     return currentStatus;
   }
 
@@ -242,19 +242,19 @@ export function recordPayment(input: RecordPaymentInput): RecordPaymentResult {
   // Calculate membership updates
   const previousStatus = membership.status;
   let newPaidMonths = membership.paidMonths;
-  let enrollmentFeePaid = membership.enrollmentFeePaid;
+  let enrollmentFeeStatus = membership.enrollmentFeeStatus;
   let eligibleDate = membership.eligibleDate;
 
   if (type === 'enrollment_fee') {
     // Enrollment fee payment
-    enrollmentFeePaid = true;
+    enrollmentFeeStatus = "paid";
   } else {
     // Dues payment - credit months
     newPaidMonths = membership.paidMonths + monthsCredited;
   }
 
   // Determine new status
-  const newStatus = calculateNewStatus(previousStatus, newPaidMonths, enrollmentFeePaid);
+  const newStatus = calculateNewStatus(previousStatus, newPaidMonths, enrollmentFeeStatus !== "unpaid");
   const statusChanged = newStatus !== previousStatus;
 
   // Set eligible date if just became eligible
@@ -273,7 +273,7 @@ export function recordPayment(input: RecordPaymentInput): RecordPaymentResult {
   const updatedMembership: Membership = {
     ...membership,
     paidMonths: newPaidMonths,
-    enrollmentFeePaid,
+    enrollmentFeeStatus,
     lastPaymentDate: nowStr,
     nextPaymentDue,
     eligibleDate,
@@ -310,10 +310,10 @@ export function previewPayment(
 
   const now = new Date();
   let newPaidMonths = membership.paidMonths;
-  let enrollmentFeePaid = membership.enrollmentFeePaid;
+  let enrollmentFeeStatus = membership.enrollmentFeeStatus;
 
   if (type === 'enrollment_fee') {
-    enrollmentFeePaid = true;
+    enrollmentFeeStatus = "paid";
   } else {
     newPaidMonths = membership.paidMonths + monthsCredited;
   }
@@ -321,7 +321,7 @@ export function previewPayment(
   const newStatus = calculateNewStatus(
     membership.status,
     newPaidMonths,
-    enrollmentFeePaid
+    enrollmentFeeStatus !== "unpaid"
   );
   const statusChanged = newStatus !== membership.status;
 

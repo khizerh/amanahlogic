@@ -41,7 +41,7 @@ export function SendPaymentLinkDialog({
   // Calculate what they'll be charged
   const billingFrequency = membership.billingFrequency || "monthly";
   const duesAmount = plan.pricing[billingFrequency];
-  const enrollmentFeeDue = !membership.enrollmentFeePaid;
+  const enrollmentFeeDue = membership.enrollmentFeeStatus === "unpaid";
   const enrollmentFeeAmount = plan.enrollmentFee;
   const totalAmount = enrollmentFeeDue ? duesAmount + enrollmentFeeAmount : duesAmount;
 

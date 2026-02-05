@@ -131,11 +131,11 @@ export async function POST(request: NextRequest) {
           results.enrollmentFeeRecorded = true;
           results.enrollmentPaymentId = enrollmentPayment.id;
 
-          // Update membership enrollment_fee_paid flag
+          // Update membership enrollment_fee_status
           await supabase
             .from("memberships")
             .update({
-              enrollment_fee_paid: true,
+              enrollment_fee_status: "paid",
               updated_at: new Date().toISOString(),
             })
             .eq("id", membershipId);

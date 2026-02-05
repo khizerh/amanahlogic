@@ -53,7 +53,7 @@ export function ChargeCardSheet({
   // Reset form when opening
   useEffect(() => {
     if (open && member?.membership) {
-      if (!member.membership.enrollmentFeePaid) {
+      if (member.membership.enrollmentFeeStatus === "unpaid") {
         setPaymentType("enrollment_fee");
       } else {
         setPaymentType("dues");
@@ -102,7 +102,7 @@ export function ChargeCardSheet({
     );
   }
 
-  const enrollmentFeePaid = membership?.enrollmentFeePaid ?? false;
+  const enrollmentFeeSettled = membership?.enrollmentFeeStatus !== "unpaid";
   const enrollmentFeeAmount = plan.enrollmentFee;
 
   // Calculate amounts
@@ -223,7 +223,7 @@ export function ChargeCardSheet({
           </div>
 
           {/* Enrollment Fee Alert */}
-          {!enrollmentFeePaid && paymentType !== "enrollment_fee" && (
+          {!enrollmentFeeSettled && paymentType !== "enrollment_fee" && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
@@ -241,7 +241,7 @@ export function ChargeCardSheet({
               value={paymentType}
               onValueChange={(value) => setPaymentType(value as PaymentType)}
             >
-              {!enrollmentFeePaid && (
+              {!enrollmentFeeSettled && (
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="enrollment_fee" id="cf_enrollment" />
                   <Label htmlFor="cf_enrollment" className="font-normal cursor-pointer">

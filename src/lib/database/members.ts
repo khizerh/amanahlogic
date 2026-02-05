@@ -401,7 +401,7 @@ function transformMemberWithMembership(dbMember: any): MemberWithMembership {
           billingFrequency: membership.billing_frequency,
           billingAnniversaryDay: membership.billing_anniversary_day,
           paidMonths: membership.paid_months,
-          enrollmentFeePaid: membership.enrollment_fee_paid,
+          enrollmentFeeStatus: membership.enrollment_fee_status || "unpaid",
           joinDate: membership.join_date,
           lastPaymentDate: membership.last_payment_date,
           nextPaymentDue: membership.next_payment_due,

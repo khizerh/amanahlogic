@@ -162,7 +162,7 @@ export interface Membership {
 
   // Tracking
   paidMonths: number;
-  enrollmentFeePaid: boolean;
+  enrollmentFeeStatus: "unpaid" | "paid" | "waived";
 
   // Dates
   joinDate: string | null; // Set when BOTH agreement signed AND first payment completed

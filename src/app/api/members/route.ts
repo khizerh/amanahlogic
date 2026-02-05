@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       billingFrequency,
       preferredLanguage,
       children,
-      enrollmentFeePaid,
+      waiveEnrollmentFee,
       paymentMethod,
     } = body as {
       firstName: string;
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       billingFrequency: BillingFrequency;
       preferredLanguage: CommunicationLanguage;
       children?: { id: string; name: string; dateOfBirth: string }[];
-      enrollmentFeePaid?: boolean;
+      waiveEnrollmentFee?: boolean;
       paymentMethod?: "stripe" | "manual";
     };
 
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
         billingFrequency: billingFrequency || "monthly",
         billingAnniversaryDay,
         paidMonths: 0,
-        enrollmentFeePaid: enrollmentFeePaid || false,
+        enrollmentFeeStatus: waiveEnrollmentFee ? "waived" : "unpaid",
         // joinDate is set when BOTH agreement signed AND first payment completed
         joinDate: null,
       });
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
         membership,
         plan,
         paymentMethod: paymentMethod || "manual",
-        includeEnrollmentFee: !enrollmentFeePaid,
+        includeEnrollmentFee: !waiveEnrollmentFee,
       });
     } catch (err) {
       console.error("Onboarding orchestration failed:", err);

@@ -287,7 +287,7 @@ export async function POST(req: Request) {
       await supabase
         .from("memberships")
         .update({
-          enrollment_fee_paid: true,
+          enrollment_fee_status: "paid",
           updated_at: new Date().toISOString(),
         })
         .eq("id", membershipId);

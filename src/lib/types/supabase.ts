@@ -437,7 +437,7 @@ export type Database = {
           cancelled_date: string | null
           created_at: string | null
           eligible_date: string | null
-          enrollment_fee_paid: boolean | null
+          enrollment_fee_status: string | null
           id: string
           join_date: string | null
           last_payment_date: string | null
@@ -462,7 +462,7 @@ export type Database = {
           cancelled_date?: string | null
           created_at?: string | null
           eligible_date?: string | null
-          enrollment_fee_paid?: boolean | null
+          enrollment_fee_status?: string | null
           id?: string
           join_date?: string | null
           last_payment_date?: string | null
@@ -487,7 +487,7 @@ export type Database = {
           cancelled_date?: string | null
           created_at?: string | null
           eligible_date?: string | null
-          enrollment_fee_paid?: boolean | null
+          enrollment_fee_status?: string | null
           id?: string
           join_date?: string | null
           last_payment_date?: string | null

@@ -345,7 +345,7 @@ function transformMembership(db: any): Membership {
     billingFrequency: db.billing_frequency,
     billingAnniversaryDay: db.billing_anniversary_day,
     paidMonths: db.paid_months,
-    enrollmentFeePaid: db.enrollment_fee_paid,
+    enrollmentFeeStatus: db.enrollment_fee_status || "unpaid",
     joinDate: db.join_date,
     lastPaymentDate: db.last_payment_date,
     nextPaymentDue: db.next_payment_due,

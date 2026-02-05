@@ -6,7 +6,7 @@
  *
  * ## ONBOARDING GATES (Required before billing starts)
  * Members must complete these before they are billed:
- * 1. enrollment_fee_paid = true (enrollment fee collected)
+ * 1. enrollment_fee_status != 'unpaid' (enrollment fee collected or waived)
  * 2. agreement_signed_at IS NOT NULL (agreement signed)
  *
  * Members who haven't completed onboarding:
@@ -115,7 +115,7 @@ interface MembershipToBill {
   billing_frequency: BillingFrequency;
   billing_anniversary_day: number;
   paid_months: number;
-  enrollment_fee_paid: boolean;
+  enrollment_fee_status: string;
   join_date: string;
   last_payment_date: string | null;
   next_payment_due: string | null;
@@ -387,7 +387,7 @@ export async function processRecurringBilling(
   try {
     // Step 4: Query memberships due for billing
     // Only bill members who have completed onboarding:
-    // - enrollment_fee_paid = true
+    // - enrollment_fee_status != 'unpaid'
     // - agreement_signed_at IS NOT NULL
     const { data: memberships, error: membershipsError } = await supabase
       .from("memberships")
@@ -401,7 +401,7 @@ export async function processRecurringBilling(
         billing_frequency,
         billing_anniversary_day,
         paid_months,
-        enrollment_fee_paid,
+        enrollment_fee_status,
         join_date,
         last_payment_date,
         next_payment_due,
@@ -427,7 +427,7 @@ export async function processRecurringBilling(
       )
       .eq("organization_id", organization_id)
       .eq("status", "current")
-      .eq("enrollment_fee_paid", true)
+      .neq("enrollment_fee_status", "unpaid")
       .not("agreement_signed_at", "is", null)
       .lte("next_payment_due", today)
       .not("next_payment_due", "is", null);

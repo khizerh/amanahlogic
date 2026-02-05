@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     const shouldIncludeEnrollmentFee =
       includeEnrollmentFee !== undefined
         ? includeEnrollmentFee
-        : !membership.enrollmentFeePaid;
+        : membership.enrollmentFeeStatus === "unpaid";
 
     // Calculate enrollment fee for email display
     let enrollmentFeeForEmail: number | undefined;

@@ -58,7 +58,7 @@ export interface MembershipToBill {
   billingAnniversaryDay: number;
   paidMonths: number;
   nextPaymentDue: string;
-  enrollmentFeePaid: boolean;
+  enrollmentFeeStatus: "unpaid" | "paid" | "waived";
 
   // Related data for billing
   plan: {

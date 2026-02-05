@@ -809,8 +809,10 @@ export function MemberDetailClient({
                     <div>
                       <p className="text-sm text-muted-foreground">Enrollment Fee</p>
                       <p className="font-medium">
-                        {membership.enrollmentFeePaid ? (
+                        {membership.enrollmentFeeStatus === "paid" ? (
                           <span className="text-green-700">Paid</span>
+                        ) : membership.enrollmentFeeStatus === "waived" ? (
+                          <span className="text-blue-700">Waived</span>
                         ) : (
                           <span className="text-amber-700">Not Paid</span>
                         )}

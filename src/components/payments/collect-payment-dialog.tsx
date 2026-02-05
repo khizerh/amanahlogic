@@ -47,7 +47,7 @@ export function CollectPaymentDialog({
 
   // Calculate what's owed
   const duesAmount = plan.pricing[membership?.billingFrequency || "monthly"];
-  const enrollmentFeeDue = membership && !membership.enrollmentFeePaid;
+  const enrollmentFeeDue = membership && membership.enrollmentFeeStatus === "unpaid";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

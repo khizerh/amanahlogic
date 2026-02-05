@@ -120,7 +120,7 @@ export async function POST(req: Request) {
 
     // If enrollment fee is paid AND paidMonths > 0, member is fully onboarded
     // This is the official "join" moment: both agreement signed AND first payment completed
-    if (membership.enrollmentFeePaid && membership.paidMonths > 0 && membership.status === "pending") {
+    if (membership.enrollmentFeeStatus !== "unpaid" && membership.paidMonths > 0 && membership.status === "pending") {
       updateData.status = "current";
       updateData.joinDate = new Date().toISOString().split("T")[0];
     }
@@ -162,8 +162,8 @@ export async function POST(req: Request) {
             membershipId: membership.id,
             memberId: agreement.memberId,
             paymentMethod: "manual",
-            enrollmentFeeAmount: membership.enrollmentFeePaid ? 0 : (plan.enrollmentFee || 0),
-            includesEnrollmentFee: !membership.enrollmentFeePaid && (plan.enrollmentFee || 0) > 0,
+            enrollmentFeeAmount: membership.enrollmentFeeStatus !== "unpaid" ? 0 : (plan.enrollmentFee || 0),
+            includesEnrollmentFee: membership.enrollmentFeeStatus === "unpaid" && (plan.enrollmentFee || 0) > 0,
             duesAmount,
             billingFrequency: membership.billingFrequency,
             sentAt: new Date().toISOString(),

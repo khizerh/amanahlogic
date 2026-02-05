@@ -380,19 +380,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle enrollment fee special case - update membership.enrollment_fee_paid
+    // Handle enrollment fee special case - update membership.enrollment_fee_status
     if (type === "enrollment_fee") {
       const { error: updateError } = await supabase
         .from("memberships")
         .update({
-          enrollment_fee_paid: true,
+          enrollment_fee_status: "paid",
           updated_at: new Date().toISOString(),
         })
         .eq("id", membershipId);
 
       if (updateError) {
         // Log but don't fail - the payment is recorded
-        console.error("Failed to update enrollment_fee_paid:", updateError);
+        console.error("Failed to update enrollment_fee_status:", updateError);
       }
     }
 

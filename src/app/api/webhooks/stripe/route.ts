@@ -236,7 +236,7 @@ async function handleCheckoutCompleted(
 
     // If enrollment fee was included, mark it as paid
     if (includesEnrollmentFee) {
-      membershipUpdate.enrollment_fee_paid = true;
+      membershipUpdate.enrollment_fee_status = "paid";
       console.log(`[Webhook] Marking enrollment fee as paid for membership ${metadata.membership_id}`);
 
       // Create enrollment fee payment record
@@ -1032,7 +1032,7 @@ async function handleSetupIntentSucceeded(
       console.log(`[Webhook] Created enrollment fee PaymentIntent ${enrollmentPI.id} (${enrollmentPI.status})`);
 
       if (enrollmentPI.status === "succeeded") {
-        membershipUpdate.enrollment_fee_paid = true;
+        membershipUpdate.enrollment_fee_status = "paid";
 
         // Create enrollment fee payment record
         if (memberId) {

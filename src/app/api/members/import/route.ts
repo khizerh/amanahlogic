@@ -141,7 +141,7 @@ export async function POST(request: Request) {
           billingFrequency: member.billingFrequency,
           billingAnniversaryDay,
           paidMonths: 0,
-          enrollmentFeePaid: member.waiveEnrollmentFee, // If waived, mark as paid (nothing to collect)
+          enrollmentFeeStatus: member.waiveEnrollmentFee ? "waived" : "unpaid",
           // joinDate is set when BOTH agreement signed AND first payment completed
           joinDate: null,
         });

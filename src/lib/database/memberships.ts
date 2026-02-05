@@ -23,7 +23,7 @@ export interface CreateMembershipInput {
   billingFrequency?: BillingFrequency;
   billingAnniversaryDay?: number;
   paidMonths?: number;
-  enrollmentFeePaid?: boolean;
+  enrollmentFeeStatus?: "unpaid" | "paid" | "waived";
   joinDate?: string | null;
   nextPaymentDue?: string | null;
 }
@@ -229,7 +229,7 @@ export class MembershipsService {
         billing_frequency: input.billingFrequency || "monthly",
         billing_anniversary_day: input.billingAnniversaryDay,
         paid_months: input.paidMonths || 0,
-        enrollment_fee_paid: input.enrollmentFeePaid || false,
+        enrollment_fee_status: input.enrollmentFeeStatus || "unpaid",
         join_date: input.joinDate || null,
         next_payment_due: input.nextPaymentDue || null,
       })
@@ -262,8 +262,8 @@ export class MembershipsService {
       dbUpdates.billing_anniversary_day = updates.billingAnniversaryDay;
     if (updates.paidMonths !== undefined)
       dbUpdates.paid_months = updates.paidMonths;
-    if (updates.enrollmentFeePaid !== undefined)
-      dbUpdates.enrollment_fee_paid = updates.enrollmentFeePaid;
+    if (updates.enrollmentFeeStatus !== undefined)
+      dbUpdates.enrollment_fee_status = updates.enrollmentFeeStatus;
     if (updates.joinDate !== undefined) dbUpdates.join_date = updates.joinDate;
     if (updates.lastPaymentDate !== undefined)
       dbUpdates.last_payment_date = updates.lastPaymentDate;
@@ -449,7 +449,7 @@ function transformMembership(dbMembership: any): Membership {
     billingFrequency: dbMembership.billing_frequency,
     billingAnniversaryDay: dbMembership.billing_anniversary_day,
     paidMonths: dbMembership.paid_months,
-    enrollmentFeePaid: dbMembership.enrollment_fee_paid,
+    enrollmentFeeStatus: dbMembership.enrollment_fee_status || "unpaid",
     joinDate: dbMembership.join_date,
     lastPaymentDate: dbMembership.last_payment_date,
     nextPaymentDue: dbMembership.next_payment_due,

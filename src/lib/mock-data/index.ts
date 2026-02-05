@@ -263,7 +263,7 @@ function generateMemberships(members: Member[]): Membership[] {
     const billingFrequency: BillingFrequency = randomChoice(['monthly', 'monthly', 'monthly', 'biannual', 'annual']);
 
     let paidMonths = 0;
-    let enrollmentFeePaid = false;
+    let enrollmentFeeStatus: "unpaid" | "paid" | "waived" = "unpaid";
     let agreementSignedAt: string | null = null;
 
     // Set realistic values based on status
@@ -271,24 +271,24 @@ function generateMemberships(members: Member[]): Membership[] {
       case 'pending':
         // Onboarding incomplete - no agreement or payment yet
         paidMonths = 0;
-        enrollmentFeePaid = false;
+        enrollmentFeeStatus = "unpaid";
         break;
       case 'current':
         // Good standing - could be any paid months (eligible or not)
         paidMonths = randomInt(1, 120);
-        enrollmentFeePaid = true;
+        enrollmentFeeStatus = "paid";
         agreementSignedAt = randomDate(new Date('2019-01-01'), new Date('2024-01-01'));
         break;
       case 'lapsed':
         // Behind on payments
         paidMonths = randomInt(20, 80);
-        enrollmentFeePaid = true;
+        enrollmentFeeStatus = "paid";
         agreementSignedAt = randomDate(new Date('2020-01-01'), new Date('2023-01-01'));
         break;
       case 'cancelled':
         // Membership voided
         paidMonths = randomInt(5, 40);
-        enrollmentFeePaid = true;
+        enrollmentFeeStatus = "paid";
         agreementSignedAt = randomDate(new Date('2020-01-01'), new Date('2022-01-01'));
         break;
     }
@@ -338,7 +338,7 @@ function generateMemberships(members: Member[]): Membership[] {
       billingFrequency,
       billingAnniversaryDay: billingDay,
       paidMonths,
-      enrollmentFeePaid,
+      enrollmentFeeStatus,
       joinDate,
       lastPaymentDate: paidMonths > 0 ? randomDate(new Date('2024-06-01'), new Date('2024-11-30')) : null,
       nextPaymentDue: status === 'current'
@@ -372,7 +372,7 @@ function generatePayments(memberships: Membership[], _members: Member[]): Paymen
     const plan = mockPlans.find(p => p.id === membership.planId)!
 
     // Generate enrollment fee payment if paid
-    if (membership.enrollmentFeePaid) {
+    if (membership.enrollmentFeeStatus !== "unpaid") {
       const enrollMethod: PaymentMethod = randomChoice(['stripe', 'stripe', 'stripe', 'stripe', 'check']);
       const enrollIsManual = enrollMethod === 'check';
       payments.push({

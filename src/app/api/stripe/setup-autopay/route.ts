@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 
     // Check if enrollment fee should be included
     // Include if: not paid AND not explicitly skipped
-    const includeEnrollmentFee = !membership.enrollmentFeePaid && !skipEnrollmentFee;
+    const includeEnrollmentFee = membership.enrollmentFeeStatus === "unpaid" && !skipEnrollmentFee;
 
     // Create SetupIntent (no expiration, unlike Checkout Sessions)
     const setupResult = await createSetupIntent({

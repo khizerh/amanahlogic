@@ -173,7 +173,7 @@ export default function NewMemberPage() {
             dateOfBirth: c.dateOfBirth,
           })),
           // Pass if enrollment fee is waived (applies to both payment methods)
-          enrollmentFeePaid: waiveEnrollmentFee,
+          waiveEnrollmentFee,
           paymentMethod,
         }),
       });
