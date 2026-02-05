@@ -368,8 +368,6 @@ export type EmailTemplateType =
   | 'payment_reminder'
   | 'payment_failed'
   | 'payment_setup'
-  | 'payment_setup_stripe'
-  | 'payment_setup_manual'
   | 'overdue_notice'
   | 'eligibility_reached'
   | 'agreement_sent'
