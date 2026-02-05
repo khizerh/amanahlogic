@@ -906,15 +906,14 @@ export function MemberDetailClient({
                   <div className="mt-4 pt-4 border-t">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-muted-foreground">Covered Members</p>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
                         setHouseholdForm({
                           spouseName: memberData.spouseName || "",
                           children: memberData.children ? memberData.children.map(c => ({ ...c })) : [],
                         });
                         setHouseholdDialogOpen(true);
                       }}>
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
+                        <Edit className="h-4 w-4" />
                       </Button>
                     </div>
                     {memberData.spouseName || memberData.children.length > 0 ? (
