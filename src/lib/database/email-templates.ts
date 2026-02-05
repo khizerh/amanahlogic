@@ -116,7 +116,7 @@ export class EmailTemplatesService {
       subject: t.subject,
       body: t.body,
       variables: t.variables,
-      is_active: true,
+      is_active: false,
     }));
 
     const { error } = await supabase.from("email_templates").insert(rows);
