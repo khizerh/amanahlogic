@@ -12,6 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -78,6 +84,46 @@ export function SettingsPageClient({
     notes: "",
   });
 
+
+  // Email template preview state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
+  const [previewLanguage, setPreviewLanguage] = useState<"en" | "fa">("en");
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const handlePreviewTemplate = async (template: EmailTemplate, lang: "en" | "fa" = "en") => {
+    setPreviewTemplate(template);
+    setPreviewLanguage(lang);
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/email-templates/preview?type=${template.type}&language=${lang}`);
+      if (!res.ok) throw new Error("Failed to load preview");
+      const html = await res.text();
+      setPreviewHtml(html);
+    } catch {
+      setPreviewHtml("<p style='padding:20px;color:#666'>Failed to load preview</p>");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handlePreviewLanguageChange = async (lang: "en" | "fa") => {
+    if (!previewTemplate || lang === previewLanguage) return;
+    setPreviewLanguage(lang);
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/email-templates/preview?type=${previewTemplate.type}&language=${lang}`);
+      if (!res.ok) throw new Error("Failed to load preview");
+      const html = await res.text();
+      setPreviewHtml(html);
+    } catch {
+      setPreviewHtml("<p style='padding:20px;color:#666'>Failed to load preview</p>");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   // View/delete template loading state
   const [viewingTemplateId, setViewingTemplateId] = useState<string | null>(null);
@@ -849,34 +895,25 @@ export function SettingsPageClient({
 
                 <div className="grid gap-4">
                   {emailTemplates.map((template) => (
-                    <Card key={template.id}>
+                    <Card
+                      key={template.id}
+                      className="cursor-pointer transition-colors hover:border-brand-teal/40"
+                      onClick={() => handlePreviewTemplate(template)}
+                    >
                       <CardContent className="pt-6">
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3">
-                            <h4 className="font-semibold">{template.name}</h4>
-                            <Badge variant="outline">
-                              {getEmailTemplateTypeLabel(template.type)}
-                            </Badge>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-center gap-3">
+                              <h4 className="font-semibold">{template.name}</h4>
+                              <Badge variant="outline">
+                                {getEmailTemplateTypeLabel(template.type)}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{template.description}</p>
                           </div>
-                          <p className="text-sm text-muted-foreground">{template.description}</p>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                <Languages className="h-3 w-3" />
-                                English
-                              </div>
-                              <p className="text-sm font-medium">{template.subject.en}</p>
-                              <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line">{template.body.en.substring(0, 150)}...</p>
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                                <Languages className="h-3 w-3" />
-                                فارسی (Farsi)
-                              </div>
-                              <p className="text-sm font-medium" dir="rtl">{template.subject.fa}</p>
-                              <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line" dir="rtl">{template.body.fa.substring(0, 150)}...</p>
-                            </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Eye className="h-4 w-4" />
+                            Preview
                           </div>
                         </div>
                       </CardContent>
@@ -890,6 +927,57 @@ export function SettingsPageClient({
         </div>
       </div>
 
+      {/* Email Template Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>{previewTemplate?.name}</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-1">{previewTemplate?.description}</p>
+              </div>
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    previewLanguage === "en"
+                      ? "bg-background shadow-sm font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => handlePreviewLanguageChange("en")}
+                >
+                  English
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    previewLanguage === "fa"
+                      ? "bg-background shadow-sm font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => handlePreviewLanguageChange("fa")}
+                >
+                  فارسی
+                </button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden bg-gray-100 p-4">
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <iframe
+                srcDoc={previewHtml}
+                className="w-full h-[600px] bg-white rounded-lg shadow-sm border-0"
+                title="Email preview"
+                sandbox=""
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
