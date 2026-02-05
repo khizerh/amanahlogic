@@ -394,4 +394,36 @@ This invitation expires on {{expires_at}}. If you have any questions, please con
       "expires_at",
     ],
   },
+
+  // ── Password Reset ────────────────────────────────────────────────────
+  {
+    type: "password_reset",
+    name: "Password Reset",
+    description:
+      "Sent when a member or admin requests a password reset.",
+    subject: {
+      en: "Reset Your Password - {{organization_name}}",
+      fa: "بازنشانی رمز عبور - {{organization_name}}",
+    },
+    body: {
+      en: `Assalamu Alaikum,
+
+We received a request to reset your password. Click the link below to set a new password:
+
+{{reset_url}}
+
+If you didn't request this, you can safely ignore this email. This link will expire in 24 hours.`,
+      fa: `السلام علیکم،
+
+درخواست بازنشانی رمز عبور شما دریافت شد. برای تنظیم رمز عبور جدید روی لینک زیر کلیک کنید:
+
+{{reset_url}}
+
+اگر این درخواست را نداده‌اید، می‌توانید این ایمیل را نادیده بگیرید. این لینک ۲۴ ساعت اعتبار دارد.`,
+    },
+    variables: [
+      "organization_name",
+      "reset_url",
+    ],
+  },
 ];

@@ -110,6 +110,7 @@ export function getEmailTemplateTypeLabel(type: EmailTemplateType | "custom"): s
     membership_cancelled: "Membership Cancelled",
     portal_link: "Portal Link",
     member_invite: "Member Invite",
+    password_reset: "Password Reset",
     custom: "Custom",
   };
   return labels[type];

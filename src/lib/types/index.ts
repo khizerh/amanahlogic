@@ -374,7 +374,8 @@ export type EmailTemplateType =
   | 'agreement_signed'
   | 'membership_cancelled'
   | 'portal_link'
-  | 'member_invite';
+  | 'member_invite'
+  | 'password_reset';
 
 export type EmailStatus = 'queued' | 'sent' | 'delivered' | 'failed' | 'bounced';
 

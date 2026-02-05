@@ -9,6 +9,7 @@ import { renderPaymentReceipt } from "@emails/templates/PaymentReceipt";
 import { renderPaymentSetup } from "@emails/templates/PaymentSetup";
 import { renderPaymentReminder } from "@emails/templates/PaymentReminder";
 import { renderWelcome } from "@emails/templates/Welcome";
+import { renderPasswordReset } from "@emails/templates/PasswordReset";
 
 export async function GET(req: NextRequest) {
   try {
@@ -124,6 +125,13 @@ async function renderPreview(type: string, language: "en" | "fa", orgName: strin
         memberName: "Ahmad Khan",
         inviteUrl: "https://example.com/portal/accept-invite?token=abc123",
         expiresAt: "2025-03-01",
+        organizationName: orgName,
+        language,
+      });
+
+    case "password_reset":
+      return renderPasswordReset({
+        resetUrl: "https://example.com/reset-password?token=abc123",
         organizationName: orgName,
         language,
       });

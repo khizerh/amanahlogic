@@ -2,6 +2,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { resend, isEmailConfigured, getOrgEmailConfig, FROM_EMAIL } from "@/lib/email/resend";
+import { renderPasswordReset } from "@emails/templates/PasswordReset";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.amanahlogic.com";
 
@@ -67,35 +68,17 @@ export async function requestPasswordReset(
       }
     }
 
+    const rendered = await renderPasswordReset({
+      resetUrl: actionLink,
+      organizationName: orgName,
+    });
+
     await resend!.emails.send({
       from: fromAddress,
       ...(replyTo ? { replyTo } : {}),
       to: email,
-      subject: "Reset Your Password",
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-          <div style="text-align: center; margin-bottom: 32px;">
-            <h2 style="color: #111827; margin: 0;">${orgName}</h2>
-          </div>
-          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-            We received a request to reset your password. Click the button below to set a new password:
-          </p>
-          <div style="text-align: center; margin: 32px 0;">
-            <a href="${actionLink}" style="display: inline-block; background-color: #0d9488; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 500; font-size: 16px;">
-              Reset Password
-            </a>
-          </div>
-          <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-            If you didn't request this, you can safely ignore this email. This link will expire in 24 hours.
-          </p>
-          <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-            If the button doesn't work, copy and paste this link into your browser:
-          </p>
-          <p style="color: #6b7280; font-size: 12px; word-break: break-all;">
-            ${actionLink}
-          </p>
-        </div>
-      `,
+      subject: rendered.subject,
+      html: rendered.html,
     });
 
     return { success: true };
