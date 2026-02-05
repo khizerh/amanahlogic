@@ -83,6 +83,17 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
     }
   };
 
+  const calculateAge = (dateOfBirth: string): number => {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   const EditButton = ({ field }: { field: EditingField }) => (
     <Button
       variant="ghost"
@@ -256,10 +267,20 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
               <Separator />
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Children</p>
-                <div className="space-y-1">
-                  {member.children.map((child) => (
-                    <p key={child.id} className="font-medium">{child.name}</p>
-                  ))}
+                <div className="space-y-2">
+                  {member.children.map((child) => {
+                    const age = child.dateOfBirth ? calculateAge(child.dateOfBirth) : null;
+                    return (
+                      <div key={child.id} className="flex items-center justify-between">
+                        <p className="font-medium">{child.name}</p>
+                        {age !== null && (
+                          <p className="text-sm text-muted-foreground">
+                            {age} {age === 1 ? "yr" : "yrs"}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>

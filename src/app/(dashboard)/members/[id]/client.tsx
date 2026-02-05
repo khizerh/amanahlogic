@@ -62,7 +62,7 @@ import {
   getEmailStatusVariant,
 } from "@/lib/mock-data";
 import { formatPhoneNumber } from "@/lib/utils";
-import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage, Agreement } from "@/lib/types";
+import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage, Agreement, Child } from "@/lib/types";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import {
@@ -86,6 +86,8 @@ import {
   Copy,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -164,6 +166,7 @@ export function MemberDetailClient({
 
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState<{
     email: string;
     phone: string;
@@ -174,6 +177,8 @@ export function MemberDetailClient({
     preferredLanguage: CommunicationLanguage;
     emergencyName: string;
     emergencyPhone: string;
+    spouseName: string;
+    children: Child[];
   }>({
     email: memberData.email,
     phone: memberData.phone,
@@ -184,6 +189,8 @@ export function MemberDetailClient({
     preferredLanguage: memberData.preferredLanguage,
     emergencyName: memberData.emergencyContact.name,
     emergencyPhone: memberData.emergencyContact.phone,
+    spouseName: memberData.spouseName || "",
+    children: memberData.children || [],
   });
 
   // Callback to refresh data after payment is recorded
@@ -480,6 +487,8 @@ export function MemberDetailClient({
       preferredLanguage: memberData.preferredLanguage,
       emergencyName: memberData.emergencyContact.name,
       emergencyPhone: formatPhoneNumber(memberData.emergencyContact.phone),
+      spouseName: memberData.spouseName || "",
+      children: memberData.children ? memberData.children.map(c => ({ ...c })) : [],
     });
     setIsEditing(true);
   };
@@ -488,10 +497,70 @@ export function MemberDetailClient({
     setIsEditing(false);
   };
 
-  const handleSaveEdit = () => {
-    // In real app, this would call an API
-    toast.success("Contact information updated");
-    setIsEditing(false);
+  const handleSaveEdit = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/members/${memberData.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: editForm.email,
+          phone: editForm.phone,
+          address: {
+            street: editForm.street,
+            city: editForm.city,
+            state: editForm.state,
+            zip: editForm.zip,
+          },
+          preferredLanguage: editForm.preferredLanguage,
+          emergencyContact: {
+            name: editForm.emergencyName,
+            phone: editForm.emergencyPhone,
+          },
+          spouseName: editForm.spouseName || null,
+          children: editForm.children.filter(c => c.name.trim() !== ""),
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Failed to update");
+      }
+
+      toast.success("Member information updated");
+      setIsEditing(false);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update member");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const addEditChild = () => {
+    setEditForm({
+      ...editForm,
+      children: [
+        ...editForm.children,
+        { id: crypto.randomUUID(), name: "", dateOfBirth: "" },
+      ],
+    });
+  };
+
+  const updateEditChild = (childId: string, field: "name" | "dateOfBirth", value: string) => {
+    setEditForm({
+      ...editForm,
+      children: editForm.children.map(c =>
+        c.id === childId ? { ...c, [field]: value } : c
+      ),
+    });
+  };
+
+  const removeEditChild = (childId: string) => {
+    setEditForm({
+      ...editForm,
+      children: editForm.children.filter(c => c.id !== childId),
+    });
   };
 
   // Transform to PaymentWithDetails for the sheet
@@ -842,12 +911,19 @@ export function MemberDetailClient({
                   </Button>
                 ) : (
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                    <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isSaving}>
                       <X className="h-4 w-4 mr-2" />
                       Cancel
                     </Button>
-                    <Button size="sm" onClick={handleSaveEdit}>
-                      Save
+                    <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                      {isSaving ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save"
+                      )}
                     </Button>
                   </div>
                 )}
@@ -890,6 +966,7 @@ export function MemberDetailClient({
                     </div>
                   </div>
                 ) : (
+                  <div className="space-y-0">
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-4">
                       <div className="space-y-2">
@@ -975,6 +1052,66 @@ export function MemberDetailClient({
                         />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Household Information */}
+                  <div className="border-t pt-4 mt-4 space-y-4">
+                    <Label className="text-base font-medium">Household Information</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="spouseName">Spouse Name</Label>
+                      <Input
+                        id="spouseName"
+                        value={editForm.spouseName}
+                        onChange={(e) => setEditForm({ ...editForm, spouseName: e.target.value })}
+                        placeholder="Enter spouse name if applicable"
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Children</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addEditChild}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Child
+                        </Button>
+                      </div>
+                      {editForm.children.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-3 border rounded-lg border-dashed">
+                          No children added.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {editForm.children.map((child) => (
+                            <div key={child.id} className="flex gap-3 items-end">
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-xs">Name</Label>
+                                <Input
+                                  value={child.name}
+                                  onChange={(e) => updateEditChild(child.id, "name", e.target.value)}
+                                  placeholder="Child name"
+                                />
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-xs">Date of Birth</Label>
+                                <Input
+                                  type="date"
+                                  value={child.dateOfBirth}
+                                  onChange={(e) => updateEditChild(child.id, "dateOfBirth", e.target.value)}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeEditChild(child.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   </div>
                 )}
               </CardContent>

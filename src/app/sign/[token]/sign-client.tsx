@@ -30,7 +30,6 @@ export default function SignClient({
   const sigPadRef = useRef<SignaturePad | null>(null);
   const [signedName, setSignedName] = useState(memberName);
   const [consentChecked, setConsentChecked] = useState(false);
-  const [hasReadAgreement, setHasReadAgreement] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPdfEmbed, setShowPdfEmbed] = useState(true);
@@ -74,20 +73,15 @@ export default function SignClient({
   const handleSubmit = async () => {
     setError(null);
 
-    if (!hasReadAgreement) {
-      setError(language === "fa"
-        ? "لطفاً تأیید کنید که قرارداد را خوانده‌اید."
-        : "Please confirm that you have read the agreement.");
-      return;
-    }
-
     if (!sigPadRef.current || sigPadRef.current.isEmpty()) {
       setError(language === "fa" ? "لطفاً امضا کنید." : "Please provide a signature.");
       return;
     }
 
     if (!consentChecked) {
-      setError(language === "fa" ? "لطفاً رضایت خود را تأیید کنید." : "Please confirm your consent.");
+      setError(language === "fa"
+        ? "لطفاً تأیید کنید که قرارداد را خوانده‌اید و با شرایط موافقت می‌کنید."
+        : "Please confirm that you have read the agreement and agree to the terms.");
       return;
     }
 
@@ -191,20 +185,6 @@ export default function SignClient({
             </div>
           )}
 
-          {/* Read Confirmation */}
-          <div className="p-4 border-t border-slate-800 bg-slate-800/30">
-            <label className="flex items-center gap-3 text-sm cursor-pointer">
-              <Checkbox
-                checked={hasReadAgreement}
-                onCheckedChange={(v) => setHasReadAgreement(!!v)}
-              />
-              <span className={isRtl ? "text-right" : ""}>
-                {language === "fa"
-                  ? "من قرارداد فوق را به طور کامل خوانده و درک کرده‌ام."
-                  : "I have read and understand the agreement above."}
-              </span>
-            </label>
-          </div>
         </motion.div>
 
         {/* Signature Section */}
@@ -269,8 +249,8 @@ export default function SignClient({
             />
             <span className={isRtl ? "text-right" : ""}>
               {language === "fa"
-                ? "من با شرایط قرارداد عضویت موافقم. موافقت می‌کنم که امضای الکترونیکی من از نظر قانونی الزام‌آور است."
-                : "I agree to the terms of the Membership Agreement. I consent to use of my electronic signature and understand it is legally binding."}
+                ? "من قرارداد فوق را به طور کامل خوانده و درک کرده‌ام. با شرایط قرارداد عضویت موافقم و موافقت می‌کنم که امضای الکترونیکی من از نظر قانونی الزام‌آور است."
+                : "I have read and understand the agreement above. I agree to the terms of the Membership Agreement and consent to use of my electronic signature, which is legally binding."}
             </span>
           </label>
 

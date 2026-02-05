@@ -84,7 +84,7 @@ export default function NewMemberPage() {
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>("monthly");
   const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
+  const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("stripe");
   const [waiveEnrollmentFee, setWaiveEnrollmentFee] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emergencyPhoneError, setEmergencyPhoneError] = useState<string | null>(null);
@@ -557,17 +557,6 @@ export default function NewMemberPage() {
                         onValueChange={(value) => setPaymentMethod(value as "manual" | "stripe")}
                       >
                         <div className="flex items-start space-x-2">
-                          <RadioGroupItem value="manual" id="manual" className="mt-1" />
-                          <div>
-                            <Label htmlFor="manual" className="font-normal cursor-pointer">
-                              Manual Payments
-                            </Label>
-                            <p className="text-xs text-muted-foreground">
-                              Collect payments via cash, check, or Zelle
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-2">
                           <RadioGroupItem value="stripe" id="stripe" className="mt-1" />
                           <div>
                             <Label htmlFor="stripe" className="font-normal cursor-pointer">
@@ -575,6 +564,17 @@ export default function NewMemberPage() {
                             </Label>
                             <p className="text-xs text-muted-foreground">
                               Set up automatic card payments via email link
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <RadioGroupItem value="manual" id="manual" className="mt-1" />
+                          <div>
+                            <Label htmlFor="manual" className="font-normal cursor-pointer">
+                              Manual Payments
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Collect payments via cash, check, or Zelle
                             </p>
                           </div>
                         </div>

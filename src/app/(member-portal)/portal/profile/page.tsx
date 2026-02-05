@@ -12,6 +12,17 @@ import { StripePortalButton } from "./StripePortalButton";
 import { EditableProfile } from "./EditableProfile";
 import { formatPhoneNumber } from "@/lib/utils";
 
+function calculateAge(dateOfBirth: string): number {
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 export default async function MemberProfilePage() {
   const headersList = await headers();
   const memberId = headersList.get("x-member-id");
@@ -103,6 +114,32 @@ export default async function MemberProfilePage() {
               <p className="font-medium">{membership?.paidMonths || 0} months</p>
             </div>
           </div>
+
+          {/* Covered Members */}
+          {(member.spouseName || (member.children && member.children.length > 0)) && (
+            <div className="border-t pt-4 mt-4">
+              <p className="text-sm text-muted-foreground mb-3">Covered Members</p>
+              <div className="space-y-2">
+                {member.spouseName && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{member.spouseName}</span>
+                    <span className="text-muted-foreground">Spouse</span>
+                  </div>
+                )}
+                {member.children?.map((child) => {
+                  const age = child.dateOfBirth ? calculateAge(child.dateOfBirth) : null;
+                  return (
+                    <div key={child.id} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{child.name}</span>
+                      <span className="text-muted-foreground">
+                        {age !== null ? `${age} ${age === 1 ? "yr" : "yrs"}` : "Child"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
