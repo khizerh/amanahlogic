@@ -83,6 +83,18 @@ export async function renderMemberInvite(props: MemberInviteProps) {
   );
 }
 
+export default function MemberInvitePreview() {
+  return (
+    <MemberInviteEmail
+      memberName="Ahmad Khan"
+      inviteUrl="https://example.com/portal/accept-invite?token=abc123"
+      expiresAt="2025-02-15"
+      organizationName="Masjid Muhajireen"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",

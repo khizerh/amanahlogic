@@ -151,6 +151,21 @@ export async function renderPaymentSetup(props: PaymentSetupProps) {
   );
 }
 
+export default function PaymentSetupPreview() {
+  return (
+    <PaymentSetupEmail
+      memberName="Ahmad Khan"
+      checkoutUrl="https://checkout.stripe.com/pay/cs_test_abc123"
+      organizationName="Masjid Muhajireen"
+      planName="Family Plan"
+      enrollmentFee={100}
+      duesAmount={50}
+      billingFrequency="monthly"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",

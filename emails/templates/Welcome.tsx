@@ -235,6 +235,24 @@ export async function renderWelcome(props: WelcomeProps) {
   return renderEmail(<WelcomeEmail {...props} />, subject);
 }
 
+export default function WelcomePreview() {
+  return (
+    <WelcomeEmail
+      memberName="Ahmad Khan"
+      organizationName="Masjid Muhajireen"
+      inviteUrl="https://example.com/portal/accept-invite?token=abc123"
+      inviteExpiresAt="2025-02-15"
+      paymentMethod="stripe"
+      checkoutUrl="https://checkout.stripe.com/pay/cs_test_abc123"
+      planName="Family Plan"
+      enrollmentFee={100}
+      duesAmount={50}
+      billingFrequency="monthly"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",

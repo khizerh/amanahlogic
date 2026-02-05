@@ -32,13 +32,19 @@ Create your account here: {{invite_url}}
 
 Step 2: Complete Payment Setup
 
+Payment Summary:
 Plan: {{plan_name}}
-Enrollment Fee: {{enrollment_fee}}
+Enrollment Fee (one-time): {{enrollment_fee}}
 Recurring Dues ({{billing_frequency}}): {{dues_amount}}
 
 Complete your payment setup here: {{checkout_url}}
 
-Your portal invitation expires on {{invite_expires_at}}. If you have any questions, please contact us.`,
+What happens next:
+• Your enrollment fee will be charged immediately
+• Your card will be saved for automatic future payments
+• You'll also receive a separate email to sign your membership agreement
+
+If you have any questions, please contact us.`,
       fa: `السلام علیکم {{member_name}} عزیز،
 
 خوش آمدید! حساب عضویت شما در {{organization_name}} ایجاد شده است. برای شروع، لطفاً حساب پورتال اعضای خود را ایجاد کنید و تنظیمات پرداخت خود را تکمیل کنید.
@@ -50,19 +56,24 @@ Your portal invitation expires on {{invite_expires_at}}. If you have any questio
 
 مرحله ۲: تکمیل تنظیمات پرداخت
 
+خلاصه پرداخت:
 طرح: {{plan_name}}
-هزینه ثبت‌نام: {{enrollment_fee}}
+هزینه ثبت‌نام (یکبار): {{enrollment_fee}}
 حق عضویت ({{billing_frequency}}): {{dues_amount}}
 
 تنظیمات پرداخت خود را اینجا تکمیل کنید: {{checkout_url}}
 
-دعوتنامه پورتال در تاریخ {{invite_expires_at}} منقضی می‌شود. اگر سوالی دارید، لطفاً با ما تماس بگیرید.`,
+مراحل بعدی:
+• هزینه ثبت‌نام شما فوراً کسر می‌شود
+• کارت شما برای پرداخت‌های خودکار آینده ذخیره می‌شود
+• همچنین یک ایمیل جداگانه برای امضای قرارداد عضویت دریافت خواهید کرد
+
+اگر سوالی دارید، لطفاً با ما تماس بگیرید.`,
     },
     variables: [
       "member_name",
       "organization_name",
       "invite_url",
-      "invite_expires_at",
       "checkout_url",
       "plan_name",
       "enrollment_fee",
@@ -78,38 +89,24 @@ Your portal invitation expires on {{invite_expires_at}}. If you have any questio
     description:
       "Sent when a membership agreement is ready for signature.",
     subject: {
-      en: "Your Membership Agreement is Ready to Sign",
-      fa: "قرارداد عضویت شما آماده امضا است",
+      en: "Action Required: Sign Your {{organization_name}} Membership Agreement",
+      fa: "اقدام لازم: امضای قرارداد عضویت {{organization_name}}",
     },
     body: {
       en: `Assalamu Alaikum {{member_name}},
 
-Welcome to {{organization_name}}! We are pleased to have you join our community.
+Welcome to {{organization_name}}! To complete your membership enrollment, please review and sign your membership agreement.
 
-Your membership agreement is ready for your review and signature. Please click the link below to read and sign the agreement:
+Sign your agreement here: {{agreement_url}}
 
-{{agreement_url}}
+If you have any questions, please contact us.`,
+      fa: `السلام علیکم {{member_name}} عزیز،
 
-Once you have signed the agreement, you will receive a separate email with payment instructions for your enrollment fee and first dues payment.
+به {{organization_name}} خوش آمدید! برای تکمیل ثبت نام عضویت خود، لطفاً قرارداد عضویت خود را بررسی و امضا کنید.
 
-If you have any questions, please don't hesitate to contact us.
+قرارداد خود را اینجا امضا کنید: {{agreement_url}}
 
-JazakAllah Khair,
-{{organization_name}}`,
-      fa: `السلام علیکم {{member_name}}،
-
-به {{organization_name}} خوش آمدید! ما خوشحالیم که شما به جامعه ما می‌پیوندید.
-
-قرارداد عضویت شما آماده بررسی و امضا است. لطفاً روی لینک زیر کلیک کنید تا قرارداد را بخوانید و امضا کنید:
-
-{{agreement_url}}
-
-پس از امضای قرارداد، ایمیل جداگانه‌ای با دستورالعمل پرداخت برای هزینه ثبت‌نام و اولین پرداخت حق عضویت دریافت خواهید کرد.
-
-اگر سوالی دارید، لطفاً با ما تماس بگیرید.
-
-جزاک الله خیر،
-{{organization_name}}`,
+اگر سوالی دارید، لطفاً با ما تماس بگیرید.`,
     },
     variables: [
       "member_name",
@@ -133,24 +130,34 @@ JazakAllah Khair,
 
 Welcome! Your membership account has been created. Please complete your payment setup using the secure link below.
 
-Payment Summary
+Payment Summary:
 Plan: {{plan_name}}
-Enrollment Fee: {{enrollment_fee}}
+Enrollment Fee (one-time): {{enrollment_fee}}
 Recurring Dues ({{billing_frequency}}): {{dues_amount}}
 
 Complete your payment setup here: {{checkout_url}}
+
+What happens next:
+• Your enrollment fee will be charged immediately
+• Your card will be saved for automatic future payments
+• You'll receive a confirmation once setup is complete
 
 If you have any questions, please contact us.`,
       fa: `السلام علیکم {{member_name}} عزیز،
 
 خوش آمدید! حساب عضویت شما ایجاد شده است. لطفاً تنظیمات پرداخت خود را با استفاده از لینک امن زیر تکمیل کنید.
 
-خلاصه پرداخت
+خلاصه پرداخت:
 طرح: {{plan_name}}
-هزینه ثبت‌نام: {{enrollment_fee}}
+هزینه ثبت‌نام (یکبار): {{enrollment_fee}}
 حق عضویت ({{billing_frequency}}): {{dues_amount}}
 
 تنظیمات پرداخت خود را اینجا تکمیل کنید: {{checkout_url}}
+
+مراحل بعدی:
+• هزینه ثبت‌نام شما فوراً کسر می‌شود
+• کارت شما برای پرداخت‌های خودکار آینده ذخیره می‌شود
+• پس از تکمیل تنظیمات، تأییدیه دریافت خواهید کرد
 
 اگر سوالی دارید، لطفاً با ما تماس بگیرید.`,
     },
@@ -172,8 +179,8 @@ If you have any questions, please contact us.`,
     description:
       "Sent after a payment is received.",
     subject: {
-      en: "Payment Receipt - {{organization_name}}",
-      fa: "رسید پرداخت - {{organization_name}}",
+      en: "Payment Receipt - {{amount}}",
+      fa: "رسید پرداخت - {{amount}}",
     },
     body: {
       en: `Assalamu Alaikum {{member_name}},
@@ -181,30 +188,30 @@ If you have any questions, please contact us.`,
 Thank you for your payment! This email confirms that we have received your payment.
 
 Payment Details:
-• Amount: {{amount}}
-• Date: {{payment_date}}
-• Method: {{payment_method}}
-{{#if invoice_number}}• Invoice #: {{invoice_number}}
-{{/if}}{{#if period_label}}• Period: {{period_label}}
-{{/if}}
+Amount: {{amount}}
+Date: {{payment_date}}
+Method: {{payment_method}}
+Invoice #: {{invoice_number}}
+Period: {{period_label}}
+
 Your membership is in good standing. Thank you for your continued support of {{organization_name}}.
 
 You can view your payment history and manage your account through the member portal.
 
 JazakAllah Khair,
 {{organization_name}}`,
-      fa: `السلام علیکم {{member_name}}،
+      fa: `السلام علیکم {{member_name}} عزیز،
 
-از پرداخت شما متشکریم! این ایمیل تأیید می‌کند که پرداخت شما را دریافت کرده‌ایم.
+از پرداخت شما متشکریم! این ایمیل تأیید می‌کند که پرداخت شما دریافت شده است.
 
 جزئیات پرداخت:
-• مبلغ: {{amount}}
-• تاریخ: {{payment_date}}
-• روش پرداخت: {{payment_method}}
-{{#if invoice_number}}• شماره فاکتور: {{invoice_number}}
-{{/if}}{{#if period_label}}• دوره: {{period_label}}
-{{/if}}
-عضویت شما فعال است. از حمایت مداوم شما از {{organization_name}} متشکریم.
+مبلغ: {{amount}}
+تاریخ: {{payment_date}}
+روش: {{payment_method}}
+شماره فاکتور: {{invoice_number}}
+دوره: {{period_label}}
+
+عضویت شما در وضعیت خوبی قرار دارد. از حمایت مستمر شما از {{organization_name}} متشکریم.
 
 شما می‌توانید سابقه پرداخت‌ها و حساب خود را از طریق پورتال اعضا مشاهده و مدیریت کنید.
 
@@ -229,49 +236,38 @@ JazakAllah Khair,
     description:
       "Sent when a payment is overdue.",
     subject: {
-      en: "Reminder: Membership Payment Due",
-      fa: "یادآوری: پرداخت حق عضویت",
+      en: "Payment Reminder: ${{amount}} Due - Invoice #{{invoice_number}} - {{organization_name}}",
+      fa: "یادآوری پرداخت: ${{amount}} - فاکتور #{{invoice_number}} - {{organization_name}}",
     },
     body: {
       en: `Assalamu Alaikum {{member_name}},
 
-This is a friendly reminder that your membership dues payment is due.
+Your payment of \${{amount}} was due on {{due_date}} and is now {{days_overdue}} days overdue. Please make your payment to keep your membership in good standing.
 
-Amount Due: {{amount_due}}
+Invoice: #{{invoice_number}}
+Amount Due: \${{amount}}
 Due Date: {{due_date}}
-Days Overdue: {{days_overdue}}
+Days Overdue: {{days_overdue}} days
 
-Please make your payment at your earliest convenience to keep your membership in good standing.
+If you have already made this payment, please disregard this email. For questions, contact us.`,
+      fa: `السلام علیکم {{member_name}} عزیز،
 
-If you have already made this payment, please disregard this notice.
+پرداخت شما به مبلغ \${{amount}} در تاریخ {{due_date}} سررسید بود و اکنون {{days_overdue}} روز عقب افتاده است. لطفاً پرداخت خود را انجام دهید تا عضویت شما در وضعیت خوب باقی بماند.
 
-If you have any questions or need to discuss payment arrangements, please contact us.
-
-JazakAllah Khair,
-{{organization_name}}`,
-      fa: `السلام علیکم {{member_name}}،
-
-این یک یادآوری دوستانه است که پرداخت حق عضویت شما سررسید شده است.
-
-مبلغ قابل پرداخت: {{amount_due}}
+فاکتور: #{{invoice_number}}
+مبلغ بدهی: \${{amount}}
 تاریخ سررسید: {{due_date}}
-روزهای تأخیر: {{days_overdue}}
+روزهای عقب‌افتاده: {{days_overdue}} روز
 
-لطفاً در اسرع وقت پرداخت خود را انجام دهید تا عضویت شما فعال بماند.
-
-اگر قبلاً این پرداخت را انجام داده‌اید، لطفاً این اطلاعیه را نادیده بگیرید.
-
-اگر سوالی دارید یا نیاز به بحث در مورد ترتیبات پرداخت دارید، لطفاً با ما تماس بگیرید.
-
-جزاک الله خیر،
-{{organization_name}}`,
+اگر قبلاً این پرداخت را انجام داده‌اید، لطفاً این ایمیل را نادیده بگیرید. برای سوالات، با ما تماس بگیرید.`,
     },
     variables: [
       "member_name",
       "organization_name",
-      "amount_due",
+      "amount",
       "due_date",
       "days_overdue",
+      "invoice_number",
     ],
   },
 
@@ -332,9 +328,9 @@ Use the link below to manage your payment method, view your billing history, or 
 Manage your payment method here: {{portal_url}}
 
 You can:
-- Update your credit card or bank account
-- View past payments and invoices
-- Download receipts
+• Update your credit card or bank account
+• View past payments and invoices
+• Download receipts
 
 If you have any questions, please contact us.`,
       fa: `السلام علیکم {{member_name}} عزیز،
@@ -344,9 +340,9 @@ If you have any questions, please contact us.`,
 روش پرداخت خود را اینجا مدیریت کنید: {{portal_url}}
 
 شما می‌توانید:
-- کارت اعتباری یا حساب بانکی خود را بروزرسانی کنید
-- پرداخت‌ها و صورتحساب‌های گذشته را مشاهده کنید
-- رسیدها را دانلود کنید
+• کارت اعتباری یا حساب بانکی خود را بروزرسانی کنید
+• پرداخت‌ها و صورتحساب‌های گذشته را مشاهده کنید
+• رسیدها را دانلود کنید
 
 اگر سوالی دارید، لطفاً با ما تماس بگیرید.`,
     },
@@ -371,10 +367,10 @@ You have been invited to join the {{organization_name}} member portal. Create yo
 Create your account here: {{invite_url}}
 
 With your portal account you can:
-- View your membership status and eligibility
-- Track your payment history
-- Update your profile and contact information
-- View and sign your membership agreement
+• View your membership status and eligibility
+• Track your payment history
+• Update your profile and contact information
+• View and sign your membership agreement
 
 This invitation expires on {{expires_at}}. If you have any questions, please contact us.`,
       fa: `السلام علیکم {{member_name}} عزیز،
@@ -384,10 +380,10 @@ This invitation expires on {{expires_at}}. If you have any questions, please con
 حساب خود را اینجا ایجاد کنید: {{invite_url}}
 
 با حساب پورتال خود می‌توانید:
-- وضعیت عضویت و واجد شرایط بودن خود را مشاهده کنید
-- تاریخچه پرداخت خود را پیگیری کنید
-- پروفایل و اطلاعات تماس خود را بروزرسانی کنید
-- قرارداد عضویت خود را مشاهده و امضا کنید
+• وضعیت عضویت و واجد شرایط بودن خود را مشاهده کنید
+• تاریخچه پرداخت خود را پیگیری کنید
+• پروفایل و اطلاعات تماس خود را بروزرسانی کنید
+• قرارداد عضویت خود را مشاهده و امضا کنید
 
 این دعوتنامه در تاریخ {{expires_at}} منقضی می‌شود. اگر سوالی دارید، لطفاً با ما تماس بگیرید.`,
     },

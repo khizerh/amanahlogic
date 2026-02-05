@@ -78,6 +78,19 @@ export async function renderPaymentFailed(props: PaymentFailedProps) {
   );
 }
 
+export default function PaymentFailedPreview() {
+  return (
+    <PaymentFailedEmail
+      memberName="Ahmad Khan"
+      amount="50.00"
+      failureReason="Your card was declined. Please try a different payment method."
+      portalUrl="https://example.com/portal/payments"
+      organizationName="Masjid Muhajireen"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",

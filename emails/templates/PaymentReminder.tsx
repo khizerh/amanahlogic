@@ -196,6 +196,22 @@ export async function renderPaymentReminder(props: PaymentReminderProps) {
   );
 }
 
+export default function PaymentReminderPreview() {
+  return (
+    <PaymentReminderEmail
+      memberName="Ahmad Khan"
+      amount="50.00"
+      dueDate="2025-01-01"
+      daysOverdue={15}
+      reminderNumber={2}
+      invoiceNumber="INV-2025-001"
+      portalUrl="https://example.com/portal/payments"
+      organizationName="Masjid Muhajireen"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",

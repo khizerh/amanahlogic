@@ -78,6 +78,17 @@ export async function renderPortalLink(props: PortalLinkProps) {
   );
 }
 
+export default function PortalLinkPreview() {
+  return (
+    <PortalLinkEmail
+      memberName="Ahmad Khan"
+      portalUrl="https://example.com/portal"
+      organizationName="Masjid Muhajireen"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",

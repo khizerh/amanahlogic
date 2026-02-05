@@ -62,6 +62,18 @@ export async function renderAgreementSent(props: AgreementSentProps) {
   );
 }
 
+export default function AgreementSentPreview() {
+  return (
+    <AgreementSentEmail
+      memberName="Ahmad Khan"
+      signUrl="https://example.com/sign/abc123"
+      expiresAt="2025-02-15"
+      organizationName="Masjid Muhajireen"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",

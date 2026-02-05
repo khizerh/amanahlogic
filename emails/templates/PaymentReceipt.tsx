@@ -123,6 +123,21 @@ export async function renderPaymentReceipt(props: PaymentReceiptProps) {
   );
 }
 
+export default function PaymentReceiptPreview() {
+  return (
+    <PaymentReceiptEmail
+      memberName="Ahmad Khan"
+      organizationName="Masjid Muhajireen"
+      amount="$50.00"
+      paymentDate="January 15, 2025"
+      paymentMethod="Visa ending in 4242"
+      invoiceNumber="INV-2025-001"
+      periodLabel="January 2025"
+      language="en"
+    />
+  );
+}
+
 const styles = {
   text: {
     fontSize: "16px",
