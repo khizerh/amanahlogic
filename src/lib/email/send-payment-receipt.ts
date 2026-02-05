@@ -95,7 +95,7 @@ export async function sendPaymentReceiptEmail(
       bodyPreview: text.substring(0, 200),
       language,
       status: "queued",
-    });
+    }, supabase);
   } catch (err) {
     console.error("Failed to create email log:", err);
   }
@@ -106,7 +106,8 @@ export async function sendPaymentReceiptEmail(
     if (emailLog) {
       await EmailLogsService.markFailed(
         emailLog.id,
-        "Email not configured - RESEND_API_KEY not set"
+        "Email not configured - RESEND_API_KEY not set",
+        supabase
       );
     }
 
@@ -133,20 +134,20 @@ export async function sendPaymentReceiptEmail(
 
     if (error) {
       if (emailLog) {
-        await EmailLogsService.markFailed(emailLog.id, error.message);
+        await EmailLogsService.markFailed(emailLog.id, error.message, supabase);
       }
       return { success: false, emailLogId: emailLog?.id, error: error.message };
     }
 
     if (emailLog && data?.id) {
-      await EmailLogsService.markSent(emailLog.id, data.id);
+      await EmailLogsService.markSent(emailLog.id, data.id, supabase);
     }
 
     return { success: true, emailLogId: emailLog?.id, resendId: data?.id };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error sending email";
     if (emailLog) {
-      await EmailLogsService.markFailed(emailLog.id, errorMessage);
+      await EmailLogsService.markFailed(emailLog.id, errorMessage, supabase);
     }
     return { success: false, emailLogId: emailLog?.id, error: errorMessage };
   }

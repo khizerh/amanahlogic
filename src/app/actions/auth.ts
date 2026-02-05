@@ -105,7 +105,7 @@ export async function requestPasswordReset(
           bodyPreview: "Password reset link requested",
           language: "en",
           status: "queued",
-        });
+        }, supabase);
         emailLogId = log.id;
       } catch (logErr) {
         console.error("Failed to create email log for password reset:", logErr);
@@ -122,9 +122,9 @@ export async function requestPasswordReset(
 
     if (emailLogId) {
       if (sendError) {
-        await EmailLogsService.markFailed(emailLogId, sendError.message).catch(() => {});
+        await EmailLogsService.markFailed(emailLogId, sendError.message, supabase).catch(() => {});
       } else {
-        await EmailLogsService.markSent(emailLogId, sendResult?.id || "").catch(() => {});
+        await EmailLogsService.markSent(emailLogId, sendResult?.id || "", supabase).catch(() => {});
       }
     }
 

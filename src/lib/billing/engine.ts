@@ -1126,12 +1126,12 @@ export async function settlePayment(
 
     // 7. Send payment receipt email (best-effort)
     try {
-      // Check if org has receipt emails enabled
+      // Check if org has receipt emails enabled (setting is in organization_settings)
       const { data: orgSettings } = await supabase
-        .from("organizations")
+        .from("organization_settings")
         .select("send_receipt_email")
-        .eq("id", payment.organization_id)
-        .single();
+        .eq("organization_id", payment.organization_id)
+        .maybeSingle();
 
       if (orgSettings?.send_receipt_email !== false) {
         // Fetch member details for the email

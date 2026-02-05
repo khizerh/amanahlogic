@@ -3,6 +3,7 @@ import { renderPaymentSetup } from "@emails/templates/PaymentSetup";
 import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 interface SendPaymentSetupEmailParams {
   to: string;
@@ -42,6 +43,7 @@ export async function sendPaymentSetupEmail(
     billingFrequency,
     language,
   } = params;
+  const serviceClient = createServiceRoleClient();
 
   // Fetch org early (needed for DB template + email config)
   const org = await OrganizationsService.getById(organizationId);
@@ -97,7 +99,7 @@ export async function sendPaymentSetupEmail(
       bodyPreview: text.substring(0, 200),
       language,
       status: "queued",
-    });
+    }, serviceClient);
   } catch (err) {
     console.error("Failed to create email log:", err);
   }
@@ -109,7 +111,8 @@ export async function sendPaymentSetupEmail(
     if (emailLog) {
       await EmailLogsService.markFailed(
         emailLog.id,
-        "Email not configured - RESEND_API_KEY not set"
+        "Email not configured - RESEND_API_KEY not set",
+        serviceClient
       );
     }
 
@@ -144,7 +147,7 @@ export async function sendPaymentSetupEmail(
 
     if (error) {
       if (emailLog) {
-        await EmailLogsService.markFailed(emailLog.id, error.message);
+        await EmailLogsService.markFailed(emailLog.id, error.message, serviceClient);
       }
 
       return {
@@ -155,7 +158,7 @@ export async function sendPaymentSetupEmail(
     }
 
     if (emailLog && data?.id) {
-      await EmailLogsService.markSent(emailLog.id, data.id);
+      await EmailLogsService.markSent(emailLog.id, data.id, serviceClient);
     }
 
     return {
@@ -168,7 +171,7 @@ export async function sendPaymentSetupEmail(
       err instanceof Error ? err.message : "Unknown error sending email";
 
     if (emailLog) {
-      await EmailLogsService.markFailed(emailLog.id, errorMessage);
+      await EmailLogsService.markFailed(emailLog.id, errorMessage, serviceClient);
     }
 
     return {
