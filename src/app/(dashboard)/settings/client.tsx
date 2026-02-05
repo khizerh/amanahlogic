@@ -931,12 +931,10 @@ export function SettingsPageClient({
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle>{previewTemplate?.name}</DialogTitle>
-                <p className="text-sm text-muted-foreground mt-1">{previewTemplate?.description}</p>
-              </div>
-              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            <DialogTitle>{previewTemplate?.name}</DialogTitle>
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-sm text-muted-foreground">{previewTemplate?.description}</p>
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1 shrink-0 ml-4">
                 <button
                   type="button"
                   className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
