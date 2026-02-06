@@ -136,12 +136,11 @@ export async function POST(request: Request) {
     });
 
     // Create the membership with status "pending"
-    // Use today's date in the organization's timezone as billing anniversary day
-    // Clamp to 28 max since months like February only have 28 days
+    // Billing anniversary day is set when the first payment settles (not at creation)
+    // so it reflects when the member actually starts paying, not when admin clicks create.
     const org = await OrganizationsService.getById(organizationId);
     const orgTimezone = org?.timezone || "America/Los_Angeles";
     const todayInOrgTz = getTodayInOrgTimezone(orgTimezone); // Returns "YYYY-MM-DD"
-    const billingAnniversaryDay = Math.min(parseInt(todayInOrgTz.split("-")[2], 10), 28);
 
     // If member already has enough paid months, mark eligible immediately
     const isAlreadyEligible = paidMonths >= DEFAULT_BILLING_CONFIG.eligibilityMonths;
@@ -154,7 +153,6 @@ export async function POST(request: Request) {
         planId: plan.id,
         status: "pending",
         billingFrequency: billingFrequency || "monthly",
-        billingAnniversaryDay,
         paidMonths,
         enrollmentFeeStatus: waiveEnrollmentFee ? "waived" : "unpaid",
         // joinDate is set when BOTH agreement signed AND first payment completed

@@ -1012,8 +1012,9 @@ export async function settlePayment(
     const newPaidMonths = (membership.paid_months || 0) + monthsCredited;
 
     // Calculate next billing date from current next_payment_due
-    // If null (first payment), anchor to billing_anniversary_day to keep payments aligned
+    // If null (first payment), anchor to today's date so billing aligns to when the member actually pays
     let nextBillingDateStr: string | null = membership.next_payment_due;
+    let newBillingAnniversaryDay: number | null = null;
     if (monthsCredited > 0) {
       let currentDueDate: Date;
 
@@ -1021,16 +1022,18 @@ export async function settlePayment(
         // Use existing next_payment_due as base
         currentDueDate = parseDateInOrgTimezone(membership.next_payment_due, orgTimezone);
       } else {
-        // First payment: anchor to billing_anniversary_day in the current month.
+        // First payment: anchor to today's date (the day the member actually pays).
+        // This sets the billing cycle to match when they started paying, not when admin created them.
         // addMonthsPreserveDay will advance by monthsCredited from here.
-        // Example: billing day 28, today Jan 31, 1 month credited → next due Feb 28.
         const todayDate = parseDateInOrgTimezone(today, orgTimezone);
-        const billingDay = membership.billing_anniversary_day || todayDate.getDate();
+        const billingDay = Math.min(todayDate.getDate(), 28);
 
         currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), billingDay);
+        // Persist the billing anniversary day so future cycles use this anchor
+        newBillingAnniversaryDay = billingDay;
       }
 
-      const billingAnniversaryDay = membership.billing_anniversary_day || currentDueDate.getDate();
+      const billingAnniversaryDay = newBillingAnniversaryDay || membership.billing_anniversary_day || currentDueDate.getDate();
       const advancedDate = addMonthsPreserveDay(currentDueDate, monthsCredited, billingAnniversaryDay);
       nextBillingDateStr = advancedDate.toISOString().split("T")[0];
     }
@@ -1084,6 +1087,11 @@ export async function settlePayment(
       status: newStatus,
       updated_at: new Date().toISOString(),
     };
+
+    // Set billing_anniversary_day on first payment (anchored to when member actually pays)
+    if (newBillingAnniversaryDay) {
+      membershipUpdate.billing_anniversary_day = newBillingAnniversaryDay;
+    }
 
     // Set join_date if member just completed onboarding (first payment + agreement)
     if (justJoined && !membership.join_date) {

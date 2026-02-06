@@ -1170,7 +1170,7 @@ export function MemberDetailClient({
                   {/* Billing Day */}
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Billing Day</p>
-                    <p className="font-medium">{membership.billingAnniversaryDay}{getOrdinalSuffix(membership.billingAnniversaryDay || 1)} of month</p>
+                    <p className="font-medium">{membership.billingAnniversaryDay ? `${membership.billingAnniversaryDay}${getOrdinalSuffix(membership.billingAnniversaryDay)} of month` : "Set on first payment"}</p>
                   </div>
 
                   {/* Next Payment Due */}
