@@ -98,8 +98,11 @@ export default async function MemberDashboardPage() {
   let signingLink: string | null = null;
   let paymentLink: string | null = null;
   const agreementSigned = membership?.agreementSignedAt !== null && membership?.agreementSignedAt !== undefined;
-  const paymentDone = membership ? membership.paidMonths > 0 : false;
   const isManualPayment = !membership?.stripeCustomerId;
+  // Payment is set up if: auto-pay is active, OR manual member with pre-credited months
+  const paymentSetUp = membership
+    ? membership.autoPayEnabled || (isManualPayment && membership.paidMonths > 0)
+    : false;
 
   if (membership?.status === "pending") {
     const serviceClient = createServiceRoleClient();
@@ -130,8 +133,8 @@ export default async function MemberDashboardPage() {
       }
     }
 
-    // Fetch payment link if payment not done (Stripe members only)
-    if (!paymentDone && !isManualPayment) {
+    // Fetch payment link if payment not set up (Stripe members only)
+    if (!paymentSetUp && !isManualPayment) {
       try {
         const { data: invite } = await serviceClient
           .from("onboarding_invites")
@@ -195,7 +198,7 @@ export default async function MemberDashboardPage() {
             )}
 
             {/* Payment */}
-            {!paymentDone && (
+            {!paymentSetUp && (
               <div>
                 {isManualPayment ? (
                   <>
