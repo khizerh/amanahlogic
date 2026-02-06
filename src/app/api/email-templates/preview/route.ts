@@ -75,6 +75,7 @@ async function renderPreview(type: string, language: "en" | "fa", orgName: strin
         duesAmount: 50,
         billingFrequency: "monthly",
         language,
+        firstChargeDate: language === "fa" ? "۱۵ مارس ۲۰۲۵" : "March 15, 2025",
       });
 
     case "payment_receipt":
