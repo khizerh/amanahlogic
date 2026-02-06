@@ -13,6 +13,7 @@ import {
   AgreementTemplatesService,
   resolveTemplateUrl,
 } from "@/lib/database/agreement-templates";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import Header from "@/components/Header";
 import { Card } from "@/components/ui/card";
@@ -28,11 +29,12 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   const organizationId = await getOrganizationId();
 
   // Fetch all data in parallel - with org scoping for security
-  const [memberData, payments, emailLogs, agreements] = await Promise.all([
+  const [memberData, payments, emailLogs, agreements, onboardingInvite] = await Promise.all([
     MembersService.getByIdWithMembership(id, organizationId),
     PaymentsService.getByMember(id, organizationId),
     EmailLogsService.getByMemberId(id, organizationId),
     AgreementsService.getByMemberId(id),
+    OnboardingInvitesService.getByMemberIdWithDetails(id, organizationId),
   ]);
 
   // Get the most recent agreement (first in array since it's sorted by created_at desc)
@@ -87,6 +89,7 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
       initialAgreement={agreement || null}
       agreementTemplateUrl={agreementTemplateUrl}
       agreementSignUrl={agreementSignUrl}
+      onboardingInvite={onboardingInvite}
     />
   );
 }

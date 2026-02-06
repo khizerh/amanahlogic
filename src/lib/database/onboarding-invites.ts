@@ -124,6 +124,37 @@ export class OnboardingInvitesService {
   }
 
   /**
+   * Get the latest invite with full details for a member
+   */
+  static async getByMemberIdWithDetails(
+    memberId: string,
+    organizationId: string
+  ): Promise<OnboardingInviteWithMember | null> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("onboarding_invites")
+      .select(`
+        *,
+        member:members(*),
+        membership:memberships(
+          *,
+          plan:plans(*)
+        )
+      `)
+      .eq("member_id", memberId)
+      .eq("organization_id", organizationId)
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    const results = transformInvitesWithDetails([data]);
+    return results[0] || null;
+  }
+
+  /**
    * Get invite by Stripe checkout session ID
    */
   static async getByCheckoutSessionId(

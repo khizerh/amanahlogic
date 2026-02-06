@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dialog";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { RecordMemberDuesDialog } from "@/components/payments/record-member-dues-dialog";
+import { RecordOnboardingPaymentDialog } from "@/components/payments/record-onboarding-payment-dialog";
 import { CollectPaymentDialog } from "@/components/payments/collect-payment-dialog";
 import { ChargeCardSheet } from "@/components/payments/charge-card-sheet";
 import { ChangeFrequencySheet } from "@/components/payments/change-frequency-sheet";
@@ -61,7 +62,7 @@ import {
   getEmailStatusVariant,
 } from "@/lib/utils/formatters";
 import { formatPhoneNumber } from "@/lib/utils";
-import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage, Agreement, Child } from "@/lib/types";
+import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage, Agreement, Child, OnboardingInviteWithMember } from "@/lib/types";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import {
@@ -96,6 +97,7 @@ interface MemberDetailClientProps {
   initialAgreement: Agreement | null;
   agreementTemplateUrl: string | null;
   agreementSignUrl: string | null;
+  onboardingInvite: OnboardingInviteWithMember | null;
 }
 
 export function MemberDetailClient({
@@ -105,6 +107,7 @@ export function MemberDetailClient({
   initialAgreement,
   agreementTemplateUrl,
   agreementSignUrl,
+  onboardingInvite,
 }: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
@@ -118,6 +121,7 @@ export function MemberDetailClient({
   const [collectPaymentOpen, setCollectPaymentOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [chargeCardOpen, setChargeCardOpen] = useState(false);
+  const [onboardingPaymentOpen, setOnboardingPaymentOpen] = useState(false);
 
   // State for email details sheet
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
@@ -763,7 +767,14 @@ export function MemberDetailClient({
                   </Badge>
                 )}
               </div>
-              <Button variant="default" onClick={() => setCollectPaymentOpen(true)}>
+              <Button variant="default" onClick={() => {
+                // If onboarding invite is still pending, open onboarding dialog (handles enrollment fee + first dues)
+                if (onboardingInvite && onboardingInvite.status === "pending") {
+                  setOnboardingPaymentOpen(true);
+                } else {
+                  setCollectPaymentOpen(true);
+                }
+              }}>
                 Collect Payment
               </Button>
             </div>
@@ -1519,6 +1530,14 @@ export function MemberDetailClient({
         onOpenChange={setCollectPaymentOpen}
         onSelectManual={() => setRecordPaymentOpen(true)}
         onSelectChargeCard={() => setChargeCardOpen(true)}
+      />
+
+      {/* Record Onboarding Payment Dialog (enrollment fee + first dues) */}
+      <RecordOnboardingPaymentDialog
+        invite={onboardingInvite}
+        open={onboardingPaymentOpen}
+        onOpenChange={setOnboardingPaymentOpen}
+        onPaymentRecorded={handlePaymentRecorded}
       />
 
       {/* Record Manual Payment Dialog */}
