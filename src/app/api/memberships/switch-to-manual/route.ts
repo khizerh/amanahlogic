@@ -92,13 +92,15 @@ export async function POST(req: Request) {
     }
 
     // Update membership to disable recurring payments
+    // Clear all Stripe fields so the UI shows clean "Manual Payments" state.
+    // send-payment-setup will find the existing Stripe customer via metadata if they switch back.
     await MembershipsService.update({
       id: membershipId,
       autoPayEnabled: false,
       stripeSubscriptionId: null,
-      subscriptionStatus: "canceled",
-      // Keep stripeCustomerId for future use if they want to set up recurring payments again
-      // Keep paymentMethod for display purposes
+      stripeCustomerId: null,
+      subscriptionStatus: null,
+      paymentMethod: null,
     });
 
     return NextResponse.json({
