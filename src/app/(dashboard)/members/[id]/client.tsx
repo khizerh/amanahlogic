@@ -1175,7 +1175,11 @@ export function MemberDetailClient({
                   {/* Next Payment Due */}
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Next Payment Due</p>
-                    <p className="font-medium">{formatDate(membership.nextPaymentDue)}</p>
+                    {membership.subscriptionStatus === 'paused' ? (
+                      <p className="font-medium text-amber-700">Paused</p>
+                    ) : (
+                      <p className="font-medium">{formatDate(membership.nextPaymentDue)}</p>
+                    )}
                   </div>
 
                   {/* Subscription Status (for recurring payments) */}

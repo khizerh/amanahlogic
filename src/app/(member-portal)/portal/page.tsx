@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, PauseCircle } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -227,6 +227,24 @@ export default async function MemberDashboardPage() {
         </Card>
       )}
 
+      {/* Subscription Paused Banner */}
+      {membership?.subscriptionStatus === "paused" && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-3">
+              <PauseCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h2 className="text-lg font-semibold text-amber-800">Subscription Paused</h2>
+                <p className="text-amber-700 mt-1">
+                  Your automatic payments are currently on hold. No payments will be collected until your subscription is resumed.
+                  Contact {organization.name} if you have any questions.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Eligibility Status Card */}
       <Card className={stats.isEligible ? "border-green-200 bg-green-50" : ""}>
         <CardHeader className="pb-2">
@@ -309,22 +327,31 @@ export default async function MemberDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-xl font-semibold">{formatDate(stats.nextPaymentDue, organization.timezone)}</p>
-            {plan && membership && (() => {
-              const basePrice =
-                membership.billingFrequency === "monthly"
-                  ? plan.pricing.monthly
-                  : membership.billingFrequency === "biannual"
-                  ? plan.pricing.biannual
-                  : plan.pricing.annual;
-              const baseCents = Math.round(basePrice * 100);
-              const fees = calculateFees(baseCents, organization.platformFee, organization.passFeesToMember);
-              return (
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(fees.chargeAmountCents / 100)}
-                </p>
-              );
-            })()}
+            {membership?.subscriptionStatus === "paused" ? (
+              <>
+                <p className="text-xl font-semibold text-amber-700">Paused</p>
+                <p className="text-sm text-muted-foreground">Payments on hold</p>
+              </>
+            ) : (
+              <>
+                <p className="text-xl font-semibold">{formatDate(stats.nextPaymentDue, organization.timezone)}</p>
+                {plan && membership && (() => {
+                  const basePrice =
+                    membership.billingFrequency === "monthly"
+                      ? plan.pricing.monthly
+                      : membership.billingFrequency === "biannual"
+                      ? plan.pricing.biannual
+                      : plan.pricing.annual;
+                  const baseCents = Math.round(basePrice * 100);
+                  const fees = calculateFees(baseCents, organization.platformFee, organization.passFeesToMember);
+                  return (
+                    <p className="text-sm text-muted-foreground">
+                      {formatCurrency(fees.chargeAmountCents / 100)}
+                    </p>
+                  );
+                })()}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
