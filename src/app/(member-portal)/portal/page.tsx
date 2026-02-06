@@ -345,6 +345,14 @@ export default async function MemberDashboardPage() {
                       : membership.billingFrequency === "biannual"
                       ? plan.pricing.biannual
                       : plan.pricing.annual;
+                  const isManual = !membership.stripeCustomerId;
+                  if (isManual) {
+                    return (
+                      <p className="text-sm text-muted-foreground">
+                        {formatCurrency(basePrice)}
+                      </p>
+                    );
+                  }
                   const baseCents = Math.round(basePrice * 100);
                   const fees = calculateFees(baseCents, organization.platformFee, organization.passFeesToMember);
                   return (

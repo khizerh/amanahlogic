@@ -22,6 +22,7 @@ interface PaymentsClientProps {
   organizationName: string;
   isPending?: boolean;
   isManualPayment?: boolean;
+  paidMonths?: number;
 }
 
 function formatDate(dateString: string | null): string {
@@ -77,7 +78,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function PaymentsClient({ paymentHistory, organizationName, isPending, isManualPayment }: PaymentsClientProps) {
+export function PaymentsClient({ paymentHistory, organizationName, isPending, isManualPayment, paidMonths }: PaymentsClientProps) {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -115,7 +116,7 @@ export function PaymentsClient({ paymentHistory, organizationName, isPending, is
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {paymentHistory.totalMonthsCredited} months
+              {paidMonths ?? paymentHistory.totalMonthsCredited} months
             </p>
           </CardContent>
         </Card>

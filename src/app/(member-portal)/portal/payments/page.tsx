@@ -45,6 +45,7 @@ export default async function MemberPaymentsPage() {
       organizationName={organizationName}
       isPending={isPending}
       isManualPayment={isManualPayment}
+      paidMonths={portalData?.membership?.paidMonths ?? paymentHistory.totalMonthsCredited}
     />
   );
 }
