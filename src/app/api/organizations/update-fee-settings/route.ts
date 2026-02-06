@@ -35,6 +35,11 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Error updating fee settings:", error);
     const message = error instanceof Error ? error.message : "Failed to update settings";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status =
+      error instanceof Error &&
+      message.includes("active Stripe subscriptions")
+        ? 409
+        : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

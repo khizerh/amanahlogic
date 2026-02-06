@@ -149,6 +149,40 @@ export class OrganizationsService {
     const client = supabase ?? (await createClientForContext());
     const { id, ...updates } = input;
 
+    if (updates.platformFee !== undefined || updates.passFeesToMember !== undefined) {
+      const { data: currentOrg, error: currentOrgError } = await client
+        .from("organizations")
+        .select("platform_fee, pass_fees_to_member")
+        .eq("id", id)
+        .single();
+
+      if (currentOrgError) throw currentOrgError;
+
+      const platformFeeChanging =
+        updates.platformFee !== undefined &&
+        updates.platformFee !== (currentOrg?.platform_fee ?? 0);
+      const passFeesChanging =
+        updates.passFeesToMember !== undefined &&
+        updates.passFeesToMember !== (currentOrg?.pass_fees_to_member ?? false);
+
+      if (platformFeeChanging || passFeesChanging) {
+        const { count, error: activeSubsError } = await client
+          .from("memberships")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", id)
+          .not("stripe_subscription_id", "is", null)
+          .or("subscription_status.is.null,subscription_status.in.(active,trialing,past_due,unpaid,incomplete,paused)");
+
+        if (activeSubsError) throw activeSubsError;
+
+        if ((count ?? 0) > 0) {
+          throw new Error(
+            "Cannot change fee settings while there are active Stripe subscriptions. Pause or cancel subscriptions first."
+          );
+        }
+      }
+    }
+
     const dbUpdates: Record<string, unknown> = {};
     if (updates.name !== undefined) dbUpdates.name = updates.name;
     if (updates.slug !== undefined) dbUpdates.slug = updates.slug;
