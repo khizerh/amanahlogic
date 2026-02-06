@@ -166,9 +166,28 @@ export function PaymentsPageClient({
     }
   };
 
-  const handleResendOnboardingEmail = (invite: OnboardingInviteWithMember) => {
-    const emailType = invite.paymentMethod === "stripe" ? "checkout" : "payment instructions";
-    toast.success(`${emailType.charAt(0).toUpperCase() + emailType.slice(1)} email resent to ${invite.member.email}`);
+  const handleResendOnboardingEmail = async (invite: OnboardingInviteWithMember) => {
+    if (invite.paymentMethod === "stripe") {
+      try {
+        const res = await fetch("/api/stripe/send-payment-setup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            membershipId: invite.membershipId,
+            memberId: invite.memberId,
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          throw new Error(result.error || "Failed to send email");
+        }
+        toast.success(`Payment setup email sent to ${invite.member.email}`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to resend email");
+      }
+    } else {
+      toast.info("Manual payment members don't have a payment link to resend");
+    }
   };
 
   const handleSendNewOnboardingLink = (invite: OnboardingInviteWithMember) => {
