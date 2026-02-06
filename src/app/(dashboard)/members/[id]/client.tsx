@@ -155,6 +155,7 @@ export function MemberDetailClient({
 
   // State for sending portal invite
   const [isSendingPortalInvite, setIsSendingPortalInvite] = useState(false);
+  const [portalInviteUrl, setPortalInviteUrl] = useState<string | null>(null);
 
   // Pagination
   const PAGE_SIZE = 5;
@@ -321,16 +322,22 @@ export function MemberDetailClient({
         throw new Error(result.error || "Failed to send invite");
       }
 
-      toast.success("Portal invite created!", {
-        description: "Copy the invite link to share with the member.",
-        action: {
-          label: "Copy Link",
-          onClick: () => {
-            navigator.clipboard.writeText(result.inviteUrl);
-            toast.info("Invite link copied to clipboard");
+      setPortalInviteUrl(result.inviteUrl);
+
+      if (result.emailSent) {
+        toast.success(result.message || "Portal invite email sent!");
+      } else {
+        toast.success("Portal invite created", {
+          description: "Email delivery failed - copy the link to share manually.",
+          action: {
+            label: "Copy Link",
+            onClick: () => {
+              navigator.clipboard.writeText(result.inviteUrl);
+              toast.info("Invite link copied to clipboard");
+            },
           },
-        },
-      });
+        });
+      }
 
       router.refresh();
     } catch (err) {
@@ -905,6 +912,19 @@ export function MemberDetailClient({
                                   "Send Invite"
                                 )}
                               </Button>
+                              {portalInviteUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(portalInviteUrl);
+                                    toast.success("Invite link copied to clipboard");
+                                  }}
+                                  className="h-7 text-xs"
+                                >
+                                  Copy Link
+                                </Button>
+                              )}
                             </div>
                           </div>
                         )}
