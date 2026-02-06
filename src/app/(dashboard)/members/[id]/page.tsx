@@ -14,6 +14,7 @@ import {
   resolveTemplateUrl,
 } from "@/lib/database/agreement-templates";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
+import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import Header from "@/components/Header";
@@ -30,12 +31,13 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   const organizationId = await getOrganizationId();
 
   // Fetch all data in parallel - with org scoping for security
-  const [memberData, payments, emailLogs, agreements, onboardingInvite] = await Promise.all([
+  const [memberData, payments, emailLogs, agreements, onboardingInvite, org] = await Promise.all([
     MembersService.getByIdWithMembership(id, organizationId),
     PaymentsService.getByMember(id, organizationId),
     EmailLogsService.getByMemberId(id, organizationId),
     AgreementsService.getByMemberId(id),
     OnboardingInvitesService.getByMemberIdWithDetails(id, organizationId),
+    OrganizationsService.getById(organizationId),
   ]);
 
   // Get the most recent agreement (first in array since it's sorted by created_at desc)
@@ -109,6 +111,7 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
       agreementSignUrl={agreementSignUrl}
       onboardingInvite={onboardingInvite}
       portalInviteUrl={portalInviteUrl}
+      passFeesToMember={org?.passFeesToMember ?? false}
     />
   );
 }

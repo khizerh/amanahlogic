@@ -33,6 +33,7 @@ interface ChargeCardSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPaymentRecorded?: () => void;
+  passFeesToMember: boolean;
 }
 
 export function ChargeCardSheet({
@@ -41,6 +42,7 @@ export function ChargeCardSheet({
   open,
   onOpenChange,
   onPaymentRecorded,
+  passFeesToMember,
 }: ChargeCardSheetProps) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
@@ -86,8 +88,11 @@ export function ChargeCardSheet({
   }
 
   const parsedAmount = parseFloat(amount) || 0;
-  const stripeFee = parsedAmount > 0 ? parseFloat((parsedAmount * 0.029 + 0.3).toFixed(2)) : 0;
-  const totalCharged = parsedAmount + stripeFee;
+  // If fees passed to member, gross up; otherwise member pays exact amount
+  const stripeFee = passFeesToMember && parsedAmount > 0
+    ? parseFloat(((parsedAmount + 0.3) / (1 - 0.029) - parsedAmount).toFixed(2))
+    : 0;
+  const totalCharged = passFeesToMember ? parsedAmount + stripeFee : parsedAmount;
 
   const handleCharge = async () => {
     if (!membership) return;
@@ -221,22 +226,31 @@ export function ChargeCardSheet({
             <>
               <Separator />
               <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span className="font-medium">{formatCurrency(parsedAmount)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Processing Fee (2.9% + $0.30)</span>
-                  <span className="font-medium">{formatCurrency(stripeFee)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="font-medium">Total to Charge</span>
-                  <span className="text-xl font-bold">{formatCurrency(totalCharged)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Processing fees are deducted from the charge
-                </p>
+                {passFeesToMember ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="font-medium">{formatCurrency(parsedAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Processing Fee (2.9% + $0.30)</span>
+                      <span className="font-medium">{formatCurrency(stripeFee)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between">
+                      <span className="font-medium">Total to Charge</span>
+                      <span className="text-xl font-bold">{formatCurrency(totalCharged)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Processing fees are passed to the member
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="font-medium">Total to Charge</span>
+                    <span className="text-xl font-bold">{formatCurrency(parsedAmount)}</span>
+                  </div>
+                )}
               </div>
             </>
           )}

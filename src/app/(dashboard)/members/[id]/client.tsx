@@ -99,6 +99,7 @@ interface MemberDetailClientProps {
   agreementSignUrl: string | null;
   onboardingInvite: OnboardingInviteWithMember | null;
   portalInviteUrl: string | null;
+  passFeesToMember: boolean;
 }
 
 export function MemberDetailClient({
@@ -110,6 +111,7 @@ export function MemberDetailClient({
   agreementSignUrl,
   onboardingInvite,
   portalInviteUrl: initialPortalInviteUrl,
+  passFeesToMember,
 }: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
@@ -1590,6 +1592,7 @@ export function MemberDetailClient({
         open={chargeCardOpen}
         onOpenChange={setChargeCardOpen}
         onPaymentRecorded={handlePaymentRecorded}
+        passFeesToMember={passFeesToMember}
       />
 
       {/* Change Frequency Sheet */}
