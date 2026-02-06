@@ -72,6 +72,16 @@ export async function POST(request: NextRequest) {
     const orgTimezone = org?.timezone || "America/Los_Angeles";
     const today = getTodayInOrgTimezone(orgTimezone);
 
+    // Get membership billing frequency to determine months credited
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("billing_frequency")
+      .eq("id", membershipId)
+      .single();
+
+    const billingFrequency = membership?.billing_frequency || "monthly";
+    const monthsCredited = billingFrequency === "annual" ? 12 : billingFrequency === "biannual" ? 6 : 1;
+
     const results = {
       enrollmentFeeRecorded: false,
       duesRecorded: false,
@@ -153,7 +163,7 @@ export async function POST(request: NextRequest) {
         const invoiceMetadata = await generateAdHocInvoiceMetadata(
           organizationId,
           today,
-          1, // First month
+          monthsCredited,
           orgTimezone,
           supabase
         );
@@ -173,7 +183,7 @@ export async function POST(request: NextRequest) {
             platform_fee: 0,
             total_charged: duesAmount,
             net_amount: duesAmount,
-            months_credited: 1,
+            months_credited: monthsCredited,
             invoice_number: invoiceMetadata.invoiceNumber,
             due_date: invoiceMetadata.dueDate,
             period_start: invoiceMetadata.periodStart,

@@ -786,11 +786,16 @@ export function MemberDetailClient({
 
                   if (needsEnrollment || needsDues) {
                     setOnboardingPaymentOpen(true);
-                  } else {
-                    setCollectPaymentOpen(true);
+                    return;
                   }
-                } else {
+                }
+
+                // If member has a card on file, show the choice dialog; otherwise go straight to record payment
+                const hasCardOnFile = membership?.autoPayEnabled && membership?.paymentMethod;
+                if (hasCardOnFile) {
                   setCollectPaymentOpen(true);
+                } else {
+                  setRecordPaymentOpen(true);
                 }
               }}>
                 Collect Payment
