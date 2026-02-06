@@ -15,6 +15,7 @@ import {
 } from "@/lib/database/agreement-templates";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import Header from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,23 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
     }
   }
 
+  // Get the portal invite URL if member hasn't enrolled yet
+  let portalInviteUrl: string | null = null;
+  if (memberData && !memberData.userId) {
+    const supabase = createServiceRoleClient();
+    const { data: invite } = await supabase
+      .from("member_invites")
+      .select("token")
+      .eq("member_id", id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (invite) {
+      portalInviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || ""}/portal/accept-invite?token=${invite.token}`;
+    }
+  }
+
   return (
     <MemberDetailClient
       initialMember={memberData}
@@ -90,6 +108,7 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
       agreementTemplateUrl={agreementTemplateUrl}
       agreementSignUrl={agreementSignUrl}
       onboardingInvite={onboardingInvite}
+      portalInviteUrl={portalInviteUrl}
     />
   );
 }

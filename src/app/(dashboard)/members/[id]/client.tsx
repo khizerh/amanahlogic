@@ -98,6 +98,7 @@ interface MemberDetailClientProps {
   agreementTemplateUrl: string | null;
   agreementSignUrl: string | null;
   onboardingInvite: OnboardingInviteWithMember | null;
+  portalInviteUrl: string | null;
 }
 
 export function MemberDetailClient({
@@ -108,6 +109,7 @@ export function MemberDetailClient({
   agreementTemplateUrl,
   agreementSignUrl,
   onboardingInvite,
+  portalInviteUrl: initialPortalInviteUrl,
 }: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
@@ -155,7 +157,7 @@ export function MemberDetailClient({
 
   // State for sending portal invite
   const [isSendingPortalInvite, setIsSendingPortalInvite] = useState(false);
-  const [portalInviteUrl, setPortalInviteUrl] = useState<string | null>(null);
+  const [portalInviteUrl, setPortalInviteUrl] = useState<string | null>(initialPortalInviteUrl);
 
   // Pagination
   const PAGE_SIZE = 5;
