@@ -222,7 +222,12 @@ export async function orchestrateOnboarding(
       result.errors.push(msg);
     }
   } else {
-    // Manual payment
+    // Manual payment — set amounts for email (no fee gross-up)
+    duesAmountForEmail = priceAmount;
+    if (includeEnrollmentFee && plan.enrollmentFee > 0) {
+      enrollmentFeeForEmail = plan.enrollmentFee;
+    }
+
     try {
       await OnboardingInvitesService.create({
         organizationId,

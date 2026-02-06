@@ -42,7 +42,7 @@ const t = {
     bodyStripe: (org: string) =>
       `Your membership account has been created at ${org}, please set up your member portal and complete your payment setup.`,
     bodyManual: (org: string) =>
-      `Welcome! Your membership account has been created at ${org}. Please set up your member portal account to view your membership details and track payments.`,
+      `Your membership account has been created at ${org}. Please make arrangements for your payment and set up your member portal account to view your membership details and track payments.`,
     step1Title: "Create Your Portal Account",
     step1Desc: "Access your membership details, track payments, and manage your profile.",
     step1Cta: "Create Your Account",
@@ -76,7 +76,7 @@ const t = {
     bodyStripe: (org: string) =>
       `حساب عضویت شما در ${org} ایجاد شده است، لطفاً پورتال اعضای خود را ایجاد کنید و تنظیمات پرداخت خود را تکمیل کنید.`,
     bodyManual: (org: string) =>
-      `خوش آمدید! حساب عضویت شما در ${org} ایجاد شده است. لطفاً حساب پورتال اعضای خود را ایجاد کنید تا جزئیات عضویت و پیگیری پرداخت‌ها را مشاهده کنید.`,
+      `حساب عضویت شما در ${org} ایجاد شده است. لطفاً ترتیب پرداخت خود را بدهید و حساب پورتال اعضای خود را ایجاد کنید تا جزئیات عضویت و پیگیری پرداخت‌ها را مشاهده کنید.`,
     step1Title: "ایجاد حساب پورتال",
     step1Desc: "جزئیات عضویت، پیگیری پرداخت‌ها و مدیریت پروفایل خود را مشاهده کنید.",
     step1Cta: "ایجاد حساب کاربری",
@@ -157,7 +157,7 @@ export function WelcomeEmail(props: WelcomeProps) {
       <Heading as="h2" style={styles.stepHeading}>
         {isStripe ? l.step1Title : l.step1Title}
       </Heading>
-      {isStripe ? <Text style={styles.muted}>{l.step1Desc}</Text> : null}
+      <Text style={styles.muted}>{l.step1Desc}</Text>
       <Button href={inviteUrl} style={styles.ctaButton} className="email-cta-button">
         {l.step1Cta}
       </Button>
@@ -203,14 +203,28 @@ export function WelcomeEmail(props: WelcomeProps) {
       ) : (
         <>
           {/* Manual payment path */}
-          <Text style={styles.muted}>
-            <strong>{l.portalListHeader}</strong>
-          </Text>
-          <ul style={styles.list}>
-            {l.portalItems.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
+          {(planName || duesAmount != null || enrollmentFee) && (
+            <Section style={styles.summaryBox}>
+              <Text style={styles.summaryTitle}>{l.summaryTitle}</Text>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <tbody>
+                  <SummaryRow label={l.plan} value={planName || "Membership"} align={valueAlign} />
+                  {enrollmentFee ? (
+                    <SummaryRow
+                      label={l.enrollmentFee}
+                      value={formatCurrency(enrollmentFee)}
+                      align={valueAlign}
+                    />
+                  ) : null}
+                  <SummaryRow
+                    label={l.recurringDues(freqText)}
+                    value={duesAmount != null ? formatCurrency(duesAmount) : "N/A"}
+                    align={valueAlign}
+                  />
+                </tbody>
+              </table>
+            </Section>
+          )}
           <Section style={styles.warningBox}>
             <Text style={styles.warningText}>
               <strong>{l.manualPaymentReminder}</strong> {l.manualPaymentNote}
