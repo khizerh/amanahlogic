@@ -43,6 +43,18 @@ export function MemberNavigation() {
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        const { data: member } = await supabase
+          .from("members")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle();
+        if (member) {
+          setUserDisplay(`${member.first_name} ${member.last_name}`.trim());
+          return;
+        }
+      }
       if (user?.email) {
         setUserDisplay(user.email.split("@")[0]);
       }
