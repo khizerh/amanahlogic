@@ -66,7 +66,7 @@ const t = {
     ],
     manualPaymentReminder: "Payment Reminder:",
     manualPaymentNote:
-      "Please arrange your membership payment (cash, check, or Zelle) with the administration. You'll also receive a separate email to sign your membership agreement.",
+      "Please arrange your membership payment (cash, check, or other).",
     contact: "If you have any questions, please contact us.",
   },
   fa: {
@@ -99,7 +99,7 @@ const t = {
     ],
     manualPaymentReminder: "یادآوری پرداخت:",
     manualPaymentNote:
-      "لطفاً پرداخت عضویت خود را (نقدی، چک یا Zelle) با مدیریت هماهنگ کنید. همچنین یک ایمیل جداگانه برای امضای قرارداد عضویت دریافت خواهید کرد.",
+      "لطفاً ترتیب پرداخت عضویت خود را بدهید (نقدی، چک یا سایر).",
     contact: "اگر سوالی دارید، لطفاً با ما تماس بگیرید.",
   },
 };
@@ -204,8 +204,8 @@ export function WelcomeEmail(props: WelcomeProps) {
         <>
           {/* Manual payment path */}
           {(planName || duesAmount != null || enrollmentFee) && (
-            <Section style={styles.summaryBox}>
-              <Text style={styles.summaryTitle}>{l.summaryTitle}</Text>
+            <Section style={styles.manualSummaryBox}>
+              <Text style={styles.manualSummaryTitle}>{l.summaryTitle}</Text>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
                   <SummaryRow label={l.plan} value={planName || "Membership"} align={valueAlign} />
@@ -223,13 +223,14 @@ export function WelcomeEmail(props: WelcomeProps) {
                   />
                 </tbody>
               </table>
+              <Text style={styles.manualPaymentText}>
+                {l.manualPaymentNote}
+              </Text>
             </Section>
           )}
-          <Section style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              <strong>{l.manualPaymentReminder}</strong> {l.manualPaymentNote}
-            </Text>
-          </Section>
+          <Text style={styles.muted}>
+            {l.agreementNote}
+          </Text>
         </>
       )}
 
@@ -310,6 +311,26 @@ const styles = {
     fontSize: "16px",
     fontWeight: 600 as const,
     color: "#1a1a1a",
+  },
+  manualSummaryBox: {
+    backgroundColor: "#fef3c7",
+    border: "1px solid #f59e0b",
+    borderRadius: "8px",
+    padding: "20px",
+    margin: "20px 0",
+  },
+  manualSummaryTitle: {
+    margin: "0 0 15px 0",
+    fontSize: "16px",
+    fontWeight: 600 as const,
+    color: "#92400e",
+  },
+  manualPaymentText: {
+    margin: "15px 0 0 0",
+    fontSize: "14px",
+    color: "#92400e",
+    borderTop: "1px solid #f59e0b",
+    paddingTop: "12px",
   },
   warningBox: {
     backgroundColor: "#fef3c7",
