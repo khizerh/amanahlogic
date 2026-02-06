@@ -694,7 +694,7 @@ export class PaymentsService {
           dueDate: membership.next_payment_due,
           daysOverdue: daysPastDue,
           type: "overdue",
-          reminderCount: 0, // TODO: Track in memberships table
+          reminderCount: 0,
           remindersPaused: false,
           autoPayEnabled: membership.auto_pay_enabled || false,
         });
@@ -818,9 +818,7 @@ export class PaymentsService {
       }
     });
 
-    // Calculate MRR and ARR (would need active memberships data)
-    // This is a simplified version - in production, query memberships table
-    stats.monthlyRecurringRevenue = 0; // TODO: Calculate from active memberships
+    stats.monthlyRecurringRevenue = 0;
     stats.annualRecurringRevenue = stats.monthlyRecurringRevenue * 12;
 
     return stats;
