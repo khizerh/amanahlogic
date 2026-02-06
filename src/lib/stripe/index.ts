@@ -552,6 +552,7 @@ export async function createPaymentIntent(params: {
     },
     automatic_payment_methods: {
       enabled: true,
+      allow_redirects: "never",
     },
     // Stripe Connect: Destination charge with application fee
     ...(connectParams && {
