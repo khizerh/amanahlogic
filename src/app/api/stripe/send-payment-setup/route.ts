@@ -165,6 +165,18 @@ export async function POST(req: Request) {
       sentAt: new Date().toISOString(),
     });
 
+    // Format first charge date for the email
+    let firstChargeDate: string | undefined;
+    if (nextPaymentDue) {
+      const lang = member.preferredLanguage || "en";
+      const date = new Date(nextPaymentDue);
+      firstChargeDate = date.toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+
     // Send email to member with payment setup link
     const emailResult = await sendPaymentSetupEmail({
       to: member.email,
@@ -177,6 +189,7 @@ export async function POST(req: Request) {
       duesAmount: fees.chargeAmountCents / 100,
       billingFrequency,
       language: member.preferredLanguage || "en",
+      firstChargeDate,
     });
 
     if (!emailResult.success) {

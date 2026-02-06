@@ -16,6 +16,7 @@ interface SendPaymentSetupEmailParams {
   duesAmount: number;
   billingFrequency: string;
   language: "en" | "fa";
+  firstChargeDate?: string;
 }
 
 interface SendPaymentSetupEmailResult {
@@ -42,6 +43,7 @@ export async function sendPaymentSetupEmail(
     duesAmount,
     billingFrequency,
     language,
+    firstChargeDate,
   } = params;
   const serviceClient = createServiceRoleClient();
 
@@ -67,6 +69,7 @@ export async function sendPaymentSetupEmail(
     duesAmount,
     billingFrequency,
     language,
+    firstChargeDate,
   });
 
   // Create email log entry (queued status)

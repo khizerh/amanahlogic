@@ -12,6 +12,7 @@ interface PaymentSetupProps {
   duesAmount: number;
   billingFrequency: string;
   language?: "en" | "fa";
+  firstChargeDate?: string;
 }
 
 function formatCurrency(amount: number): string {
@@ -35,7 +36,7 @@ const t = {
     subject: (org: string) => `Complete Your Membership Setup - ${org}`,
     subtitle: "Membership Payment Setup",
     greeting: (name: string) => `Assalamu Alaikum ${name},`,
-    body: "Welcome! Your membership account has been created. Please complete your payment setup using the secure link below.",
+    body: "Please complete your payment setup using the secure link below.",
     summaryTitle: "Payment Summary",
     plan: "Plan",
     enrollmentFee: "Enrollment Fee (one-time)",
@@ -44,6 +45,7 @@ const t = {
     nextSteps: "What happens next:",
     enrollmentCharge: "Your enrollment fee will be charged immediately",
     cardSaved: "Your card will be saved for automatic future payments",
+    firstCharge: (date: string) => `Automatic payments begin ${date}`,
     confirmation: "You'll receive a confirmation once setup is complete",
     contact: "If you have any questions, please contact us.",
   },
@@ -51,7 +53,7 @@ const t = {
     subject: (org: string) => `تکمیل تنظیمات عضویت - ${org}`,
     subtitle: "تنظیم پرداخت عضویت",
     greeting: (name: string) => `السلام علیکم ${name} عزیز،`,
-    body: "خوش آمدید! حساب عضویت شما ایجاد شده است. لطفاً تنظیمات پرداخت خود را با استفاده از لینک امن زیر تکمیل کنید.",
+    body: "لطفاً تنظیمات پرداخت خود را با استفاده از لینک امن زیر تکمیل کنید.",
     summaryTitle: "خلاصه پرداخت",
     plan: "طرح",
     enrollmentFee: "هزینه ثبت‌نام (یکبار)",
@@ -60,6 +62,7 @@ const t = {
     nextSteps: "مراحل بعدی:",
     enrollmentCharge: "هزینه ثبت‌نام شما فوراً کسر می‌شود",
     cardSaved: "کارت شما برای پرداخت‌های خودکار آینده ذخیره می‌شود",
+    firstCharge: (date: string) => `پرداخت‌های خودکار از ${date} شروع می‌شود`,
     confirmation: "پس از تکمیل تنظیمات، تأییدیه دریافت خواهید کرد",
     contact: "اگر سوالی دارید، لطفاً با ما تماس بگیرید.",
   },
@@ -92,6 +95,7 @@ export function PaymentSetupEmail(props: PaymentSetupProps) {
     duesAmount,
     billingFrequency,
     language = "en",
+    firstChargeDate,
   } = props;
   const l = t[language];
   const freqText = getFrequencyText(billingFrequency, language);
@@ -135,6 +139,7 @@ export function PaymentSetupEmail(props: PaymentSetupProps) {
       <ul style={styles.list}>
         {enrollmentFee ? <li>{l.enrollmentCharge}</li> : null}
         <li>{l.cardSaved}</li>
+        {firstChargeDate ? <li>{l.firstCharge(firstChargeDate)}</li> : null}
         <li>{l.confirmation}</li>
       </ul>
       <Text style={styles.muted}>{l.contact}</Text>
