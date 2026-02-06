@@ -152,11 +152,25 @@ export class EmailTemplatesService {
   }
 }
 
-function transformTemplate(db: any): EmailTemplate {
+interface DbEmailTemplateRow {
+  id: string;
+  organization_id: string;
+  type: string;
+  name: string;
+  description: string | null;
+  subject: { en: string; fa: string };
+  body: { en: string; fa: string };
+  variables: string[] | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformTemplate(db: DbEmailTemplateRow): EmailTemplate {
   return {
     id: db.id,
     organizationId: db.organization_id,
-    type: db.type,
+    type: db.type as EmailTemplateType,
     name: db.name,
     description: db.description || "",
     subject: db.subject,
@@ -168,6 +182,6 @@ function transformTemplate(db: any): EmailTemplate {
   };
 }
 
-function transformTemplates(dbTemplates: any[]): EmailTemplate[] {
+function transformTemplates(dbTemplates: DbEmailTemplateRow[]): EmailTemplate[] {
   return dbTemplates.map(transformTemplate);
 }

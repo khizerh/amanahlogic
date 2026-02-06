@@ -328,7 +328,36 @@ export class OrganizationSettingsService {
 // Transform Functions
 // =============================================================================
 
-function transformOrganization(dbOrg: any): Organization {
+interface DbOrganizationRow {
+  id: string;
+  name: string;
+  slug: string;
+  address: Address;
+  phone: string | null;
+  email: string | null;
+  timezone: string | null;
+  stripe_connect_id: string | null;
+  stripe_onboarded: boolean;
+  platform_fee: number | null;
+  pass_fees_to_member: boolean | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbOrganizationSettingsRow {
+  id: string;
+  organization_id: string;
+  billing_config: Partial<BillingConfig> | null;
+  send_welcome_email: boolean;
+  send_receipt_email: boolean;
+  send_eligibility_email: boolean;
+  require_agreement_signature: boolean;
+  agreement_template_version: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformOrganization(dbOrg: DbOrganizationRow): Organization {
   return {
     id: dbOrg.id,
     name: dbOrg.name,
@@ -346,7 +375,7 @@ function transformOrganization(dbOrg: any): Organization {
   };
 }
 
-function transformSettings(dbSettings: any): OrganizationSettings {
+function transformSettings(dbSettings: DbOrganizationSettingsRow): OrganizationSettings {
   const billingConfig = dbSettings.billing_config || {};
 
   return {

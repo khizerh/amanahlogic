@@ -225,26 +225,45 @@ export class AgreementsService {
 // Transform Functions
 // =============================================================================
 
-function transformAgreement(dbAgreement: any): Agreement {
+interface DbAgreementRow {
+  id: string;
+  organization_id: string;
+  membership_id: string;
+  member_id: string;
+  template_version: string;
+  template_language: "en" | "fa" | null;
+  pdf_url: string | null;
+  signature_image_url: string | null;
+  signed_name: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  consent_checked: boolean;
+  sent_at: string;
+  signed_at: string | null;
+  created_at: string;
+}
+
+function transformAgreement(dbAgreement: Record<string, unknown>): Agreement {
+  const row = dbAgreement as unknown as DbAgreementRow;
   return {
-    id: dbAgreement.id,
-    organizationId: dbAgreement.organization_id,
-    membershipId: dbAgreement.membership_id,
-    memberId: dbAgreement.member_id,
-    templateVersion: dbAgreement.template_version,
-    templateLanguage: dbAgreement.template_language || undefined,
-    pdfUrl: dbAgreement.pdf_url,
-    signatureImageUrl: dbAgreement.signature_image_url,
-    signedName: dbAgreement.signed_name,
-    ipAddress: dbAgreement.ip_address,
-    userAgent: dbAgreement.user_agent,
-    consentChecked: dbAgreement.consent_checked,
-    sentAt: dbAgreement.sent_at,
-    signedAt: dbAgreement.signed_at,
-    createdAt: dbAgreement.created_at,
+    id: row.id,
+    organizationId: row.organization_id,
+    membershipId: row.membership_id,
+    memberId: row.member_id,
+    templateVersion: row.template_version,
+    templateLanguage: row.template_language || undefined,
+    pdfUrl: row.pdf_url,
+    signatureImageUrl: row.signature_image_url,
+    signedName: row.signed_name,
+    ipAddress: row.ip_address,
+    userAgent: row.user_agent,
+    consentChecked: row.consent_checked,
+    sentAt: row.sent_at,
+    signedAt: row.signed_at,
+    createdAt: row.created_at,
   };
 }
 
-function transformAgreements(dbAgreements: any[]): Agreement[] {
+function transformAgreements(dbAgreements: Record<string, unknown>[]): Agreement[] {
   return dbAgreements.map(transformAgreement);
 }

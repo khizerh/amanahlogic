@@ -560,7 +560,7 @@ export class PaymentsService {
     if (error) throw error;
 
     // Transform to overdue payment info
-    return (data || []).map((membership: any) => {
+    return (data || []).map((membership: DbOverdueMembershipRow) => {
       const dueDate = new Date(membership.next_payment_due);
       const now = new Date();
       const daysPastDue = Math.floor(
@@ -894,13 +894,100 @@ export class PaymentsService {
 }
 
 // =============================================================================
+// DB Row Interfaces (snake_case shapes returned by Supabase)
+// =============================================================================
+
+interface DbPaymentRow {
+  id: string;
+  organization_id: string;
+  membership_id: string;
+  member_id: string;
+  type: PaymentType;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  amount: number;
+  stripe_fee: number;
+  platform_fee: number;
+  total_charged: number;
+  net_amount: number;
+  months_credited: number;
+  invoice_number: string | null;
+  due_date: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  period_label: string | null;
+  stripe_payment_intent_id: string | null;
+  check_number: string | null;
+  zelle_transaction_id: string | null;
+  notes: string | null;
+  recorded_by: string | null;
+  reminder_count: number;
+  reminder_sent_at: string | null;
+  reminders_paused: boolean;
+  requires_review: boolean;
+  created_at: string;
+  paid_at: string | null;
+  refunded_at: string | null;
+}
+
+interface DbPaymentMemberJoinRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+interface DbPaymentPlanJoinRow {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface DbPaymentMembershipJoinRow {
+  id: string;
+  status: MembershipStatus;
+  paid_months: number;
+  billing_frequency: "monthly" | "biannual" | "annual";
+  plan: DbPaymentPlanJoinRow | DbPaymentPlanJoinRow[] | null;
+}
+
+interface DbPaymentWithDetailsRow extends DbPaymentRow {
+  member: DbPaymentMemberJoinRow | DbPaymentMemberJoinRow[] | null;
+  membership: DbPaymentMembershipJoinRow | DbPaymentMembershipJoinRow[] | null;
+}
+
+interface DbOverdueMemberJoinRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+interface DbOverduePlanJoinRow {
+  id: string;
+  name: string;
+  pricing: { monthly?: number; biannual?: number; annual?: number };
+}
+
+interface DbOverdueMembershipRow {
+  id: string;
+  member_id: string;
+  status: MembershipStatus;
+  paid_months: number;
+  billing_frequency: string;
+  next_payment_due: string;
+  member: DbOverdueMemberJoinRow | DbOverdueMemberJoinRow[] | null;
+  plan: DbOverduePlanJoinRow | DbOverduePlanJoinRow[] | null;
+}
+
+// =============================================================================
 // Transform Functions (snake_case DB → camelCase TypeScript)
 // =============================================================================
 
 /**
  * Transform a single payment from DB format to TypeScript format
  */
-function transformPayment(dbPayment: any): Payment {
+function transformPayment(dbPayment: DbPaymentRow): Payment {
   return {
     id: dbPayment.id,
     organizationId: dbPayment.organization_id,
@@ -943,14 +1030,14 @@ function transformPayment(dbPayment: any): Payment {
 /**
  * Transform multiple payments from DB format to TypeScript format
  */
-function transformPayments(dbPayments: any[]): Payment[] {
+function transformPayments(dbPayments: DbPaymentRow[]): Payment[] {
   return dbPayments.map(transformPayment);
 }
 
 /**
  * Transform a payment with details from DB format to TypeScript format
  */
-function transformPaymentsWithDetails(dbPayments: any[]): PaymentWithDetails[] {
+function transformPaymentsWithDetails(dbPayments: DbPaymentWithDetailsRow[]): PaymentWithDetails[] {
   return dbPayments.map((dbPayment) => {
     const member = Array.isArray(dbPayment.member) ? dbPayment.member[0] : dbPayment.member;
     const membership = Array.isArray(dbPayment.membership) ? dbPayment.membership[0] : dbPayment.membership;

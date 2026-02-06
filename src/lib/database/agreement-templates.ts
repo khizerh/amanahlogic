@@ -129,20 +129,32 @@ export class AgreementTemplatesService {
   }
 }
 
-function transformTemplate(db: any): AgreementTemplate {
+interface DbTemplateRow {
+  id: string;
+  organization_id: string;
+  language: "en" | "fa";
+  version: string;
+  storage_path: string;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+}
+
+function transformTemplate(db: Record<string, unknown>): AgreementTemplate {
+  const row = db as unknown as DbTemplateRow;
   return {
-    id: db.id,
-    organizationId: db.organization_id,
-    language: db.language,
-    version: db.version,
-    storagePath: db.storage_path,
-    isActive: db.is_active,
-    notes: db.notes || "",
-    createdAt: db.created_at,
+    id: row.id,
+    organizationId: row.organization_id,
+    language: row.language,
+    version: row.version,
+    storagePath: row.storage_path,
+    isActive: row.is_active,
+    notes: row.notes || "",
+    createdAt: row.created_at,
   };
 }
 
-function transformTemplates(dbTemplates: any[]): AgreementTemplate[] {
+function transformTemplates(dbTemplates: Record<string, unknown>[]): AgreementTemplate[] {
   return dbTemplates.map(transformTemplate);
 }
 

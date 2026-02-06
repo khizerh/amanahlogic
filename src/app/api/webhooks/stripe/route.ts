@@ -40,6 +40,12 @@ const IGNORED_EVENTS = [
 type InvoiceWithSubscription = Stripe.Invoice & {
   subscription?: string | Stripe.Subscription | null;
   payment_intent?: string | Stripe.PaymentIntent | null;
+  application_fee_amount?: number | null;
+  subscription_details?: {
+    metadata: Stripe.Metadata | null;
+    subscription?: string | Stripe.Subscription;
+    subscription_proration_date?: number;
+  } | null;
 };
 
 /**
@@ -434,7 +440,7 @@ async function handleInvoiceCreated(
   }
 
   // Skip if invoice already has an application fee set
-  if ((invoice as any).application_fee_amount) {
+  if (invoice.application_fee_amount) {
     console.log("[Webhook] invoice.created - application_fee_amount already set, skipping");
     return;
   }
@@ -550,7 +556,7 @@ async function handleInvoicePaid(
   // Check if this invoice includes enrollment fee (from subscription metadata)
   // We need to subtract it since enrollment fee is handled separately in checkout.session.completed
   let enrollmentFeeAmountCents = 0;
-  const subscriptionMetadata = (invoice as any).subscription_details?.metadata || {};
+  const subscriptionMetadata = invoice.subscription_details?.metadata || {};
   if (subscriptionMetadata.includes_enrollment_fee === "true" && invoice.billing_reason === "subscription_create") {
     // This is the first invoice with enrollment fee - we need to exclude it from dues calculation
     enrollmentFeeAmountCents = subscriptionMetadata.enrollment_fee_amount_cents

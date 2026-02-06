@@ -361,27 +361,47 @@ export class EmailLogsService {
 // Transform Functions
 // =============================================================================
 
-function transformEmailLog(dbLog: any): EmailLog {
+interface DbEmailLogRow {
+  id: string;
+  organization_id: string;
+  member_id: string;
+  member_name: string;
+  member_email: string;
+  template_type: EmailTemplateType | "custom";
+  to: string;
+  subject: string;
+  body_preview: string | null;
+  language: CommunicationLanguage;
+  status: EmailStatus;
+  sent_at: string | null;
+  delivered_at: string | null;
+  failure_reason: string | null;
+  resend_id: string | null;
+  created_at: string;
+}
+
+function transformEmailLog(dbLog: Record<string, unknown>): EmailLog {
+  const row = dbLog as unknown as DbEmailLogRow;
   return {
-    id: dbLog.id,
-    organizationId: dbLog.organization_id,
-    memberId: dbLog.member_id,
-    memberName: dbLog.member_name,
-    memberEmail: dbLog.member_email,
-    templateType: dbLog.template_type,
-    to: dbLog.to,
-    subject: dbLog.subject,
-    bodyPreview: dbLog.body_preview || "",
-    language: dbLog.language,
-    status: dbLog.status,
-    sentAt: dbLog.sent_at,
-    deliveredAt: dbLog.delivered_at,
-    failureReason: dbLog.failure_reason,
-    resendId: dbLog.resend_id,
-    createdAt: dbLog.created_at,
+    id: row.id,
+    organizationId: row.organization_id,
+    memberId: row.member_id,
+    memberName: row.member_name,
+    memberEmail: row.member_email,
+    templateType: row.template_type,
+    to: row.to,
+    subject: row.subject,
+    bodyPreview: row.body_preview || "",
+    language: row.language,
+    status: row.status,
+    sentAt: row.sent_at,
+    deliveredAt: row.delivered_at,
+    failureReason: row.failure_reason,
+    resendId: row.resend_id,
+    createdAt: row.created_at,
   };
 }
 
-function transformEmailLogs(dbLogs: any[]): EmailLog[] {
+function transformEmailLogs(dbLogs: Record<string, unknown>[]): EmailLog[] {
   return dbLogs.map(transformEmailLog);
 }

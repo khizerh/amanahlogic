@@ -316,7 +316,112 @@ export class MemberPortalService {
 // Transform Functions
 // =============================================================================
 
-function transformMember(db: any): Member {
+interface DbMemberRow {
+  id: string;
+  organization_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  address: { street: string; city: string; state: string; zip: string };
+  spouse_name: string | null;
+  children: { id: string; name: string; dateOfBirth: string }[] | null;
+  emergency_contact: { name: string; phone: string };
+  preferred_language: "en" | "fa";
+  user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbMembershipRow {
+  id: string;
+  organization_id: string;
+  member_id: string;
+  plan_id: string;
+  status: string;
+  billing_frequency: string;
+  billing_anniversary_day: number;
+  paid_months: number;
+  enrollment_fee_status: string | null;
+  join_date: string | null;
+  last_payment_date: string | null;
+  next_payment_due: string | null;
+  eligible_date: string | null;
+  cancelled_date: string | null;
+  agreement_signed_at: string | null;
+  agreement_id: string | null;
+  auto_pay_enabled: boolean;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  subscription_status: string | null;
+  payment_method: { type: string; last4: string; brand?: string; bankName?: string; expiryMonth?: number; expiryYear?: number } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbPlanRow {
+  id: string;
+  organization_id: string;
+  type: string;
+  name: string;
+  description: string;
+  pricing: { monthly: number; biannual: number; annual: number };
+  enrollment_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbOrganizationRow {
+  id: string;
+  name: string;
+  slug: string;
+  address: { street: string; city: string; state: string; zip: string };
+  phone: string;
+  email: string;
+  timezone: string;
+  stripe_connect_id: string | null;
+  stripe_onboarded: boolean;
+  platform_fee: number;
+  pass_fees_to_member: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbPaymentRow {
+  id: string;
+  organization_id: string;
+  membership_id: string;
+  member_id: string;
+  type: string;
+  method: string;
+  status: string;
+  amount: number;
+  stripe_fee: number;
+  platform_fee: number;
+  total_charged: number;
+  net_amount: number;
+  months_credited: number;
+  invoice_number: string | null;
+  due_date: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  period_label: string | null;
+  stripe_payment_intent_id: string | null;
+  check_number: string | null;
+  zelle_transaction_id: string | null;
+  notes: string | null;
+  recorded_by: string | null;
+  reminder_count: number;
+  reminder_sent_at: string | null;
+  reminders_paused: boolean;
+  requires_review: boolean;
+  created_at: string;
+  paid_at: string | null;
+  refunded_at: string | null;
+}
+
+function transformMember(db: DbMemberRow): Member {
   return {
     id: db.id,
     organizationId: db.organization_id,
@@ -335,17 +440,17 @@ function transformMember(db: any): Member {
   };
 }
 
-function transformMembership(db: any): Membership {
+function transformMembership(db: DbMembershipRow): Membership {
   return {
     id: db.id,
     organizationId: db.organization_id,
     memberId: db.member_id,
     planId: db.plan_id,
-    status: db.status,
-    billingFrequency: db.billing_frequency,
+    status: db.status as Membership["status"],
+    billingFrequency: db.billing_frequency as Membership["billingFrequency"],
     billingAnniversaryDay: db.billing_anniversary_day,
     paidMonths: db.paid_months,
-    enrollmentFeeStatus: db.enrollment_fee_status || "unpaid",
+    enrollmentFeeStatus: (db.enrollment_fee_status || "unpaid") as Membership["enrollmentFeeStatus"],
     joinDate: db.join_date,
     lastPaymentDate: db.last_payment_date,
     nextPaymentDue: db.next_payment_due,
@@ -356,14 +461,14 @@ function transformMembership(db: any): Membership {
     autoPayEnabled: db.auto_pay_enabled,
     stripeSubscriptionId: db.stripe_subscription_id,
     stripeCustomerId: db.stripe_customer_id,
-    subscriptionStatus: db.subscription_status,
-    paymentMethod: db.payment_method,
+    subscriptionStatus: db.subscription_status as Membership["subscriptionStatus"],
+    paymentMethod: db.payment_method as Membership["paymentMethod"],
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };
 }
 
-function transformPlan(db: any): Plan {
+function transformPlan(db: DbPlanRow): Plan {
   return {
     id: db.id,
     organizationId: db.organization_id,
@@ -378,7 +483,7 @@ function transformPlan(db: any): Plan {
   };
 }
 
-function transformOrganization(db: any): Organization {
+function transformOrganization(db: DbOrganizationRow): Organization {
   return {
     id: db.id,
     name: db.name,
@@ -396,15 +501,15 @@ function transformOrganization(db: any): Organization {
   };
 }
 
-function transformPayment(db: any): Payment {
+function transformPayment(db: DbPaymentRow): Payment {
   return {
     id: db.id,
     organizationId: db.organization_id,
     membershipId: db.membership_id,
     memberId: db.member_id,
-    type: db.type,
-    method: db.method,
-    status: db.status,
+    type: db.type as Payment["type"],
+    method: db.method as Payment["method"],
+    status: db.status as Payment["status"],
     amount: db.amount,
     stripeFee: db.stripe_fee,
     platformFee: db.platform_fee,
@@ -431,6 +536,6 @@ function transformPayment(db: any): Payment {
   };
 }
 
-function transformPayments(dbPayments: any[]): Payment[] {
+function transformPayments(dbPayments: DbPaymentRow[]): Payment[] {
   return dbPayments.map(transformPayment);
 }

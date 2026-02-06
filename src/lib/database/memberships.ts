@@ -3,11 +3,18 @@ import "server-only";
 import { createClientForContext } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  Member,
   Membership,
   MembershipStatus,
   MembershipWithDetails,
   BillingFrequency,
+  Payment,
+  PaymentMethod,
   PaymentMethodDetails,
+  PaymentStatus,
+  PaymentType,
+  Plan,
+  PlanPricing,
   SubscriptionStatus,
 } from "@/lib/types";
 
@@ -438,10 +445,109 @@ export class MembershipsService {
 }
 
 // =============================================================================
+// DB Row Interfaces (snake_case shapes returned by Supabase)
+// =============================================================================
+
+interface DbMembershipRow {
+  id: string;
+  organization_id: string;
+  member_id: string;
+  plan_id: string;
+  status: MembershipStatus;
+  billing_frequency: BillingFrequency;
+  billing_anniversary_day: number;
+  paid_months: number;
+  enrollment_fee_status: "unpaid" | "paid" | "waived" | null;
+  join_date: string | null;
+  last_payment_date: string | null;
+  next_payment_due: string | null;
+  eligible_date: string | null;
+  cancelled_date: string | null;
+  agreement_signed_at: string | null;
+  agreement_id: string | null;
+  auto_pay_enabled: boolean;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  subscription_status: SubscriptionStatus | null;
+  payment_method: PaymentMethodDetails | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbMemberJoinRow {
+  id: string;
+  organization_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  address: { street: string; city: string; state: string; zip: string };
+  spouse_name: string | null;
+  children: { id: string; name: string; dateOfBirth: string }[] | null;
+  emergency_contact: { name: string; phone: string };
+  preferred_language: "en" | "fa";
+  user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbPlanJoinRow {
+  id: string;
+  organization_id: string;
+  type: string;
+  name: string;
+  description: string;
+  pricing: PlanPricing;
+  enrollment_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbPaymentJoinRow {
+  id: string;
+  organization_id: string;
+  membership_id: string;
+  member_id: string;
+  type: PaymentType;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  amount: number;
+  stripe_fee: number;
+  platform_fee: number;
+  total_charged: number;
+  net_amount: number;
+  months_credited: number;
+  invoice_number: string | null;
+  due_date: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  period_label: string | null;
+  stripe_payment_intent_id: string | null;
+  check_number: string | null;
+  zelle_transaction_id: string | null;
+  notes: string | null;
+  recorded_by: string | null;
+  reminder_count: number;
+  reminder_sent_at: string | null;
+  reminders_paused: boolean;
+  requires_review: boolean;
+  created_at: string;
+  paid_at: string | null;
+  refunded_at: string | null;
+}
+
+interface DbMembershipWithDetailsRow extends DbMembershipRow {
+  member: DbMemberJoinRow | DbMemberJoinRow[] | null;
+  plan: DbPlanJoinRow | DbPlanJoinRow[] | null;
+  recentPayments: DbPaymentJoinRow[] | null;
+}
+
+// =============================================================================
 // Transform Functions
 // =============================================================================
 
-function transformMembership(dbMembership: any): Membership {
+function transformMembership(dbMembership: DbMembershipRow): Membership {
   return {
     id: dbMembership.id,
     organizationId: dbMembership.organization_id,
@@ -469,12 +575,12 @@ function transformMembership(dbMembership: any): Membership {
   };
 }
 
-function transformMemberships(dbMemberships: any[]): Membership[] {
+function transformMemberships(dbMemberships: DbMembershipRow[]): Membership[] {
   return dbMemberships.map(transformMembership);
 }
 
 function transformMembershipWithDetails(
-  dbMembership: any
+  dbMembership: DbMembershipWithDetailsRow
 ): MembershipWithDetails {
   const member = Array.isArray(dbMembership.member)
     ? dbMembership.member[0]
@@ -499,10 +605,11 @@ function transformMembershipWithDetails(
           children: member.children || [],
           emergencyContact: member.emergency_contact,
           preferredLanguage: member.preferred_language,
+          userId: member.user_id,
           createdAt: member.created_at,
           updatedAt: member.updated_at,
         }
-      : ({} as any),
+      : ({} as Member),
     plan: plan
       ? {
           id: plan.id,
@@ -516,8 +623,8 @@ function transformMembershipWithDetails(
           createdAt: plan.created_at,
           updatedAt: plan.updated_at,
         }
-      : ({} as any),
-    recentPayments: payments.slice(0, 5).map((p: any) => ({
+      : ({} as Plan),
+    recentPayments: payments.slice(0, 5).map((p: DbPaymentJoinRow): Payment => ({
       id: p.id,
       organizationId: p.organization_id,
       membershipId: p.membership_id,
@@ -553,7 +660,7 @@ function transformMembershipWithDetails(
 }
 
 function transformMembershipsWithDetails(
-  dbMemberships: any[]
+  dbMemberships: DbMembershipWithDetailsRow[]
 ): MembershipWithDetails[] {
   return dbMemberships.map(transformMembershipWithDetails);
 }

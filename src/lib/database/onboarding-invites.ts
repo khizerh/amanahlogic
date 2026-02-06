@@ -3,11 +3,18 @@ import "server-only";
 import { createClientForContext } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  BillingFrequency,
+  Member,
+  Membership,
+  MembershipStatus,
   OnboardingInvite,
   OnboardingInviteWithMember,
   OnboardingInviteStatus,
   OnboardingPaymentMethod,
-  BillingFrequency,
+  PaymentMethodDetails,
+  Plan,
+  PlanPricing,
+  SubscriptionStatus,
 } from "@/lib/types";
 
 // =============================================================================
@@ -476,10 +483,100 @@ function isInviteComplete(invite: OnboardingInvite): boolean {
 }
 
 // =============================================================================
+// DB Row Interfaces (snake_case shapes returned by Supabase)
+// =============================================================================
+
+interface DbOnboardingInviteRow {
+  id: string;
+  organization_id: string;
+  membership_id: string;
+  member_id: string;
+  payment_method: OnboardingPaymentMethod;
+  stripe_checkout_session_id: string | null;
+  stripe_setup_intent_id: string | null;
+  enrollment_fee_amount: number | string;
+  includes_enrollment_fee: boolean;
+  enrollment_fee_paid_at: string | null;
+  dues_amount: number | string;
+  billing_frequency: BillingFrequency | null;
+  dues_paid_at: string | null;
+  planned_amount: number;
+  first_charge_date: string | null;
+  status: OnboardingInviteStatus;
+  sent_at: string;
+  completed_at: string | null;
+  expired_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbMemberJoinRow {
+  id: string;
+  organization_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  address: { street: string; city: string; state: string; zip: string };
+  spouse_name: string | null;
+  children: { id: string; name: string; dateOfBirth: string }[] | null;
+  emergency_contact: { name: string; phone: string };
+  preferred_language: "en" | "fa";
+  user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbMembershipJoinRow {
+  id: string;
+  organization_id: string;
+  member_id: string;
+  plan_id: string;
+  status: MembershipStatus;
+  billing_frequency: BillingFrequency;
+  billing_anniversary_day: number;
+  paid_months: number;
+  enrollment_fee_status: "unpaid" | "paid" | "waived" | null;
+  join_date: string | null;
+  last_payment_date: string | null;
+  next_payment_due: string | null;
+  eligible_date: string | null;
+  cancelled_date: string | null;
+  agreement_signed_at: string | null;
+  agreement_id: string | null;
+  auto_pay_enabled: boolean;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  subscription_status: SubscriptionStatus | null;
+  payment_method: PaymentMethodDetails | null;
+  created_at: string;
+  updated_at: string;
+  plan?: DbPlanJoinRow | DbPlanJoinRow[];
+}
+
+interface DbPlanJoinRow {
+  id: string;
+  organization_id: string;
+  type: string;
+  name: string;
+  description: string;
+  pricing: PlanPricing;
+  enrollment_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbOnboardingInviteWithDetailsRow extends DbOnboardingInviteRow {
+  member: DbMemberJoinRow | DbMemberJoinRow[] | null;
+  membership: DbMembershipJoinRow | DbMembershipJoinRow[] | null;
+}
+
+// =============================================================================
 // Transform Functions
 // =============================================================================
 
-function transformInvite(dbInvite: any): OnboardingInvite {
+function transformInvite(dbInvite: DbOnboardingInviteRow): OnboardingInvite {
   return {
     id: dbInvite.id,
     organizationId: dbInvite.organization_id,
@@ -488,10 +585,10 @@ function transformInvite(dbInvite: any): OnboardingInvite {
     paymentMethod: dbInvite.payment_method || "stripe",
     stripeCheckoutSessionId: dbInvite.stripe_checkout_session_id,
     stripeSetupIntentId: dbInvite.stripe_setup_intent_id || null,
-    enrollmentFeeAmount: parseFloat(dbInvite.enrollment_fee_amount) || 0,
+    enrollmentFeeAmount: Number(dbInvite.enrollment_fee_amount) || 0,
     includesEnrollmentFee: dbInvite.includes_enrollment_fee || false,
     enrollmentFeePaidAt: dbInvite.enrollment_fee_paid_at,
-    duesAmount: parseFloat(dbInvite.dues_amount) || 0,
+    duesAmount: Number(dbInvite.dues_amount) || 0,
     billingFrequency: dbInvite.billing_frequency,
     duesPaidAt: dbInvite.dues_paid_at,
     plannedAmount: dbInvite.planned_amount,
@@ -505,12 +602,12 @@ function transformInvite(dbInvite: any): OnboardingInvite {
   };
 }
 
-function transformInvites(dbInvites: any[]): OnboardingInvite[] {
+function transformInvites(dbInvites: DbOnboardingInviteRow[]): OnboardingInvite[] {
   return dbInvites.map(transformInvite);
 }
 
 function transformInvitesWithDetails(
-  dbInvites: any[]
+  dbInvites: DbOnboardingInviteWithDetailsRow[]
 ): OnboardingInviteWithMember[] {
   return dbInvites.map((dbInvite) => {
     const member = Array.isArray(dbInvite.member)
@@ -537,10 +634,11 @@ function transformInvitesWithDetails(
             children: member.children || [],
             emergencyContact: member.emergency_contact,
             preferredLanguage: member.preferred_language,
+            userId: member.user_id,
             createdAt: member.created_at,
             updatedAt: member.updated_at,
           }
-        : ({} as any),
+        : ({} as Member),
       membership: membership
         ? {
             id: membership.id,
@@ -567,7 +665,7 @@ function transformInvitesWithDetails(
             createdAt: membership.created_at,
             updatedAt: membership.updated_at,
           }
-        : ({} as any),
+        : ({} as Membership),
       plan: planData
         ? {
             id: planData.id,
@@ -581,7 +679,7 @@ function transformInvitesWithDetails(
             createdAt: planData.created_at,
             updatedAt: planData.updated_at,
           }
-        : ({} as any),
+        : ({} as Plan),
     };
   });
 }

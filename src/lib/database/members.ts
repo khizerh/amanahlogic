@@ -3,10 +3,14 @@ import "server-only";
 import { createClientForContext } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  BillingFrequency,
   Member,
   MemberWithMembership,
   MemberFilters,
   MembershipStatus,
+  PaymentMethodDetails,
+  PlanPricing,
+  SubscriptionStatus,
 } from "@/lib/types";
 
 // =============================================================================
@@ -356,10 +360,75 @@ export class MembersService {
 }
 
 // =============================================================================
+// DB Row Interfaces (snake_case shapes returned by Supabase)
+// =============================================================================
+
+interface DbMemberRow {
+  id: string;
+  organization_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  address: { street: string; city: string; state: string; zip: string };
+  spouse_name: string | null;
+  children: { id: string; name: string; dateOfBirth: string }[] | null;
+  emergency_contact: { name: string; phone: string };
+  preferred_language: "en" | "fa";
+  user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbMembershipJoinRow {
+  id: string;
+  organization_id: string;
+  member_id: string;
+  plan_id: string;
+  status: MembershipStatus;
+  billing_frequency: BillingFrequency;
+  billing_anniversary_day: number;
+  paid_months: number;
+  enrollment_fee_status: "unpaid" | "paid" | "waived" | null;
+  join_date: string | null;
+  last_payment_date: string | null;
+  next_payment_due: string | null;
+  eligible_date: string | null;
+  cancelled_date: string | null;
+  agreement_signed_at: string | null;
+  agreement_id: string | null;
+  auto_pay_enabled: boolean;
+  stripe_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  subscription_status: SubscriptionStatus | null;
+  payment_method: PaymentMethodDetails | null;
+  created_at: string;
+  updated_at: string;
+  plan?: DbPlanJoinRow | DbPlanJoinRow[];
+}
+
+interface DbPlanJoinRow {
+  id: string;
+  organization_id: string;
+  type: string;
+  name: string;
+  description: string;
+  pricing: PlanPricing;
+  enrollment_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DbMemberWithMembershipRow extends DbMemberRow {
+  membership: DbMembershipJoinRow | DbMembershipJoinRow[] | null;
+}
+
+// =============================================================================
 // Transform Functions (snake_case DB → camelCase TypeScript)
 // =============================================================================
 
-function transformMember(dbMember: any): Member {
+function transformMember(dbMember: DbMemberRow): Member {
   return {
     id: dbMember.id,
     organizationId: dbMember.organization_id,
@@ -378,11 +447,11 @@ function transformMember(dbMember: any): Member {
   };
 }
 
-function transformMembers(dbMembers: any[]): Member[] {
+function transformMembers(dbMembers: DbMemberRow[]): Member[] {
   return dbMembers.map(transformMember);
 }
 
-function transformMemberWithMembership(dbMember: any): MemberWithMembership {
+function transformMemberWithMembership(dbMember: DbMemberWithMembershipRow): MemberWithMembership {
   const membership = Array.isArray(dbMember.membership)
     ? dbMember.membership[0]
     : dbMember.membership;
@@ -436,7 +505,7 @@ function transformMemberWithMembership(dbMember: any): MemberWithMembership {
 }
 
 function transformMembersWithMembership(
-  dbMembers: any[]
+  dbMembers: DbMemberWithMembershipRow[]
 ): MemberWithMembership[] {
   return dbMembers.map(transformMemberWithMembership);
 }

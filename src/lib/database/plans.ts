@@ -198,7 +198,20 @@ export class PlansService {
 // Transform Functions
 // =============================================================================
 
-function transformPlan(dbPlan: any): Plan {
+interface DbPlanRow {
+  id: string;
+  organization_id: string;
+  type: string;
+  name: string;
+  description: string | null;
+  pricing: PlanPricing;
+  enrollment_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function transformPlan(dbPlan: DbPlanRow): Plan {
   return {
     id: dbPlan.id,
     organizationId: dbPlan.organization_id,
@@ -213,6 +226,6 @@ function transformPlan(dbPlan: any): Plan {
   };
 }
 
-function transformPlans(dbPlans: any[]): Plan[] {
+function transformPlans(dbPlans: DbPlanRow[]): Plan[] {
   return dbPlans.map(transformPlan);
 }

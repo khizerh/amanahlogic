@@ -150,13 +150,23 @@ export class AgreementSigningLinksService {
 // Helpers
 // -----------------------------------------------------------------------------
 
-function transformLink(dbLink: any): AgreementSigningLink {
+interface DbSigningLinkRow {
+  id: string;
+  agreement_id: string;
+  token: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
+function transformLink(dbLink: Record<string, unknown>): AgreementSigningLink {
+  const row = dbLink as unknown as DbSigningLinkRow;
   return {
-    id: dbLink.id,
-    agreementId: dbLink.agreement_id,
-    token: dbLink.token,
-    expiresAt: dbLink.expires_at,
-    usedAt: dbLink.used_at,
-    createdAt: dbLink.created_at,
+    id: row.id,
+    agreementId: row.agreement_id,
+    token: row.token,
+    expiresAt: row.expires_at,
+    usedAt: row.used_at,
+    createdAt: row.created_at,
   };
 }
