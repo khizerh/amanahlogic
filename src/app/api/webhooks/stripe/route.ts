@@ -8,6 +8,7 @@ import {
   getTodayInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
 import { calculateFees, reverseCalculateBaseAmount } from "@/lib/stripe";
+import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import type { BillingFrequency, PaymentMethod } from "@/lib/types";
 
@@ -1060,6 +1061,35 @@ async function handleSetupIntentSucceeded(
             paid_at: new Date().toISOString(),
           });
           console.log(`[Webhook] Created enrollment fee payment record for membership ${membershipId}`);
+
+          // Send enrollment fee receipt email
+          try {
+            const { data: member } = await supabase
+              .from("members")
+              .select("first_name, last_name, email, preferred_language")
+              .eq("id", memberId)
+              .single();
+
+            if (member) {
+              const pmType = pm.type === "us_bank_account" ? "Bank Account" : "Credit Card";
+              await sendPaymentReceiptEmail({
+                to: member.email,
+                memberName: `${member.first_name} ${member.last_name}`,
+                memberId,
+                organizationId,
+                amount: `$${(enrollmentFees.breakdown.chargeAmount).toFixed(2)}`,
+                paymentDate: new Date().toLocaleDateString("en-US", {
+                  year: "numeric", month: "long", day: "numeric",
+                }),
+                paymentMethod: pmType,
+                periodLabel: "Enrollment Fee",
+                language: (member.preferred_language as "en" | "fa") || "en",
+              });
+              console.log(`[Webhook] Sent enrollment fee receipt email to ${member.email}`);
+            }
+          } catch (emailErr) {
+            console.error("[Webhook] Failed to send enrollment fee receipt:", emailErr);
+          }
         }
       }
     } catch (err) {

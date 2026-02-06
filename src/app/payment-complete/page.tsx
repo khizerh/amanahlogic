@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Suspense } from "react";
 
 function PaymentCompleteContent() {
@@ -58,7 +60,12 @@ function PaymentCompleteContent() {
               </>
             )}
 
-            <div className="pt-4">
+            <div className="pt-4 space-y-3">
+              <Link href="/portal">
+                <Button className="w-full bg-green-600 hover:bg-green-700">
+                  Go to Member Portal
+                </Button>
+              </Link>
               <p className="text-sm text-gray-500">
                 Questions? Contact your organization administrator.
               </p>

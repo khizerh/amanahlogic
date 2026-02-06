@@ -495,7 +495,7 @@ export function reverseCalculateBaseAmount(
     // base = charge * (1 - stripePercent) - platformFee - stripeFixed
     const stripeFeePercent = 0.029;
     const stripeFixedFeeCents = 30;
-    const baseAmountCents = Math.round(
+    const baseAmountCents = Math.floor(
       chargeAmountCents * (1 - stripeFeePercent) - platformFeeCents - stripeFixedFeeCents
     );
     return Math.max(0, baseAmountCents);
