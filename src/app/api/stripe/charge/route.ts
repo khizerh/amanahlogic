@@ -139,7 +139,7 @@ export async function POST(req: Request) {
         organization_id: organizationId,
         membership_id: membershipId,
         member_id: memberId,
-        type: "dues",
+        type: "back_dues",
         method: "stripe",
         status: "pending",
         amount: amount,
