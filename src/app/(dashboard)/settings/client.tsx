@@ -804,17 +804,22 @@ export function SettingsPageClient({
             <TabsContent value="emails">
               <div className="space-y-6">
                 {/* Email Sender Configuration */}
-                <div className="flex items-center gap-6 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">From:</span>
-                    <span className="font-medium">&quot;{organization.name}&quot; &lt;{organization.slug}@amanahlogic.com&gt;</span>
+                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Mail className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">Email Configuration</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Reply-To:</span>
-                    <span className="font-medium">
-                      {organization.email || <span className="text-muted-foreground italic">Not set</span>}
-                    </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-blue-700 mb-0.5">Emails sent from</p>
+                      <p className="font-medium text-blue-900">&quot;{organization.name}&quot; &lt;{organization.slug}@amanahlogic.com&gt;</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-700 mb-0.5">Replies go to</p>
+                      <p className="font-medium text-blue-900">
+                        {organization.email || <span className="italic text-blue-400">Not set</span>}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
