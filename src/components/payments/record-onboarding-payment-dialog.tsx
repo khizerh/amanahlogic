@@ -164,6 +164,7 @@ export function RecordOnboardingPaymentDialog({
   ];
 
   // Build payment options based on what's owed
+  // When both are owed, force collecting together to avoid split payment issues
   const paymentOptions: { value: PaymentOption; label: string; amount: number; disabled: boolean }[] = [];
 
   if (enrollmentFeeOwed > 0 && duesOwed > 0) {
@@ -173,18 +174,14 @@ export function RecordOnboardingPaymentDialog({
       amount: enrollmentFeeOwed + duesOwed,
       disabled: false,
     });
-  }
-
-  if (enrollmentFeeOwed > 0) {
+  } else if (enrollmentFeeOwed > 0) {
     paymentOptions.push({
       value: "enrollment_only",
       label: "Enrollment Fee Only",
       amount: enrollmentFeeOwed,
       disabled: false,
     });
-  }
-
-  if (duesOwed > 0) {
+  } else if (duesOwed > 0) {
     paymentOptions.push({
       value: "dues_only",
       label: "First Dues Only",

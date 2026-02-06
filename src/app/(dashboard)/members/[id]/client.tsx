@@ -775,9 +775,18 @@ export function MemberDetailClient({
                 )}
               </div>
               <Button variant="default" onClick={() => {
-                // If onboarding invite is still pending, open onboarding dialog (handles enrollment fee + first dues)
+                // If onboarding invite is still pending, check if there's actually anything left to collect
                 if (onboardingInvite && onboardingInvite.status === "pending") {
-                  setOnboardingPaymentOpen(true);
+                  const hasCompletedDues = initialPayments.some(p => p.type === "dues" && p.status === "completed");
+                  const hasCompletedEnrollment = initialPayments.some(p => p.type === "enrollment_fee" && p.status === "completed");
+                  const needsEnrollment = onboardingInvite.includesEnrollmentFee && !onboardingInvite.enrollmentFeePaidAt && !hasCompletedEnrollment;
+                  const needsDues = !onboardingInvite.duesPaidAt && !hasCompletedDues;
+
+                  if (needsEnrollment || needsDues) {
+                    setOnboardingPaymentOpen(true);
+                  } else {
+                    setCollectPaymentOpen(true);
+                  }
                 } else {
                   setCollectPaymentOpen(true);
                 }
