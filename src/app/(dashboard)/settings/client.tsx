@@ -31,6 +31,7 @@ import {
   Loader2,
   Trash2,
   Mail,
+  Pencil,
 } from "lucide-react";
 import { getEmailTemplateTypeLabel } from "@/lib/utils/formatters";
 import { Organization, EmailTemplate, AgreementTemplate } from "@/lib/types";
@@ -53,6 +54,7 @@ export function SettingsPageClient({
 
   const [savingOrg, setSavingOrg] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [editOrgOpen, setEditOrgOpen] = useState(false);
 
   // Prevent hydration mismatch with Radix UI components
   useEffect(() => {
@@ -179,7 +181,7 @@ export function SettingsPageClient({
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
     setPhoneError(null);
 
@@ -187,7 +189,7 @@ export function SettingsPageClient({
     if (formData.phone && !isValidPhoneNumber(formData.phone)) {
       setPhoneError("Please enter a valid US phone number");
       toast.error("Invalid phone number format");
-      return;
+      return false;
     }
 
     setSavingOrg(true);
@@ -215,9 +217,11 @@ export function SettingsPageClient({
         throw new Error(json.error || "Failed to save organization");
       }
       setOrganization(json.organization);
-      toast.success("Organization settings saved successfully");
+      toast.success("Organization settings saved");
+      return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save");
+      return false;
     } finally {
       setSavingOrg(false);
     }
@@ -281,114 +285,58 @@ export function SettingsPageClient({
             {/* Organization Tab */}
             <TabsContent value="organization">
               <Card>
-                <CardHeader>
-                  <CardTitle>Organization Information</CardTitle>
-                  <CardDescription>
-                    Update your organization details and contact information
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Organization Information</CardTitle>
+                    <CardDescription>
+                      Your organization details and contact information
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setFormData({
+                        name: organization.name,
+                        email: organization.email || "",
+                        phone: formatPhoneNumber(organization.phone || ""),
+                        street: organization.address.street,
+                        city: organization.address.city,
+                        state: organization.address.state,
+                        zip: organization.address.zip,
+                      });
+                      setPhoneError(null);
+                      setEditOrgOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleSave} className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Organization Name</Label>
-                      <Input
-                        id="name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        placeholder="Enter organization name"
-                      />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Organization Name</p>
+                      <p className="font-medium">{organization.name}</p>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Contact Email</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        placeholder="admin@organization.org"
-                      />
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Contact Email</p>
+                      <p className="font-medium">{organization.email || <span className="text-muted-foreground italic">Not set</span>}</p>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <PhoneInput
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(value) => {
-                          setFormData({ ...formData, phone: value });
-                          setPhoneError(null);
-                        }}
-                        error={phoneError || undefined}
-                      />
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Phone Number</p>
+                      <p className="font-medium">{organization.phone ? formatPhoneNumber(organization.phone) : <span className="text-muted-foreground italic">Not set</span>}</p>
                     </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Address</h3>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="street">Street Address</Label>
-                        <Input
-                          id="street"
-                          name="street"
-                          value={formData.street}
-                          onChange={handleChange}
-                          placeholder="123 Main Street"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="city">City</Label>
-                          <Input
-                            id="city"
-                            name="city"
-                            value={formData.city}
-                            onChange={handleChange}
-                            placeholder="Houston"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="state">State</Label>
-                          <Input
-                            id="state"
-                            name="state"
-                            value={formData.state}
-                            onChange={handleChange}
-                            placeholder="TX"
-                            maxLength={2}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="zip">ZIP Code</Label>
-                          <Input
-                            id="zip"
-                            name="zip"
-                            value={formData.zip}
-                            onChange={handleChange}
-                            placeholder="77001"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button type="submit" disabled={savingOrg}>
-                        {savingOrg ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          "Save Changes"
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Address</p>
+                      <p className="font-medium">
+                        {organization.address.street && (
+                          <>{organization.address.street}<br /></>
                         )}
-                      </Button>
+                        {[organization.address.city, organization.address.state, organization.address.zip].filter(Boolean).join(", ") || <span className="text-muted-foreground italic">Not set</span>}
+                      </p>
                     </div>
-                  </form>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -910,6 +858,111 @@ export function SettingsPageClient({
           )}
         </div>
       </div>
+
+      {/* Edit Organization Dialog */}
+      <Dialog open={editOrgOpen} onOpenChange={setEditOrgOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Organization</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={async (e) => {
+            const success = await handleSave(e);
+            if (success) setEditOrgOpen(false);
+          }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Organization Name</Label>
+              <Input
+                id="edit-name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter organization name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Contact Email</Label>
+              <Input
+                id="edit-email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="admin@organization.org"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <PhoneInput
+                id="edit-phone"
+                value={formData.phone}
+                onChange={(value) => {
+                  setFormData({ ...formData, phone: value });
+                  setPhoneError(null);
+                }}
+                error={phoneError || undefined}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-street">Street Address</Label>
+              <Input
+                id="edit-street"
+                name="street"
+                value={formData.street}
+                onChange={handleChange}
+                placeholder="123 Main Street"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-city">City</Label>
+                <Input
+                  id="edit-city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="Houston"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-state">State</Label>
+                <Input
+                  id="edit-state"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleChange}
+                  placeholder="TX"
+                  maxLength={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-zip">ZIP Code</Label>
+                <Input
+                  id="edit-zip"
+                  name="zip"
+                  value={formData.zip}
+                  onChange={handleChange}
+                  placeholder="77001"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditOrgOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingOrg}>
+                {savingOrg ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Email Template Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
