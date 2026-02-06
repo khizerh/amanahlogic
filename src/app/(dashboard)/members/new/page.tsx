@@ -87,6 +87,7 @@ export default function NewMemberPage() {
   const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("stripe");
   const [waiveEnrollmentFee, setWaiveEnrollmentFee] = useState(false);
   const [paidMonths, setPaidMonths] = useState<number>(0);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emergencyPhoneError, setEmergencyPhoneError] = useState<string | null>(null);
 
@@ -119,12 +120,21 @@ export default function NewMemberPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEmailError(null);
     setPhoneError(null);
     setEmergencyPhoneError(null);
 
     // Basic validation
     if (!firstName || !lastName || !email || !phone) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address");
+      toast.error("Invalid email address");
       return;
     }
 
@@ -288,10 +298,17 @@ export default function NewMemberPage() {
                       id="email"
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setEmailError(null);
+                      }}
                       placeholder="email@example.com"
                       required
+                      className={emailError ? "border-red-500" : ""}
                     />
+                    {emailError && (
+                      <p className="text-sm text-red-500">{emailError}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">
