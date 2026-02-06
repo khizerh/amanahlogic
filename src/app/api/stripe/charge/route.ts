@@ -14,27 +14,22 @@ import {
   calculateFees,
   type ConnectParams,
 } from "@/lib/stripe";
-import {
-  generateAdHocInvoiceMetadata,
-  getTodayInOrgTimezone,
-  parseDateInOrgTimezone,
-} from "@/lib/billing/invoice-generator";
-import { settlePayment } from "@/lib/billing/engine";
-import type { PaymentType } from "@/lib/types";
+import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 
 interface ChargeCardBody {
   membershipId: string;
   memberId: string;
-  type: PaymentType;
   amount: number;
-  monthsCredited: number;
+  description: string;
 }
 
 /**
  * POST /api/stripe/charge
  *
- * Charge a member's saved card for a one-time payment.
+ * Charge a member's saved card for a one-time ad-hoc payment.
  * Creates a payment record and charges the card immediately.
+ * Does NOT credit months or advance billing dates - this is purely
+ * a money collection tool for things like catch-up dues, enrollment fees, etc.
  */
 export async function POST(req: Request) {
   try {
@@ -47,12 +42,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const { membershipId, memberId, type, amount, monthsCredited }: ChargeCardBody =
+    const { membershipId, memberId, amount, description }: ChargeCardBody =
       await req.json();
 
-    if (!membershipId || !memberId || !type || !amount) {
+    if (!membershipId || !memberId || !amount || !description) {
       return NextResponse.json(
-        { error: "membershipId, memberId, type, and amount are required" },
+        { error: "membershipId, memberId, amount, and description are required" },
+        { status: 400 }
+      );
+    }
+
+    if (amount <= 0) {
+      return NextResponse.json(
+        { error: "Amount must be greater than zero" },
         { status: 400 }
       );
     }
@@ -97,7 +99,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get organization (for timezone and Connect config)
+    // Get organization (for Connect config)
     const org = await OrganizationsService.getById(organizationId);
     if (!org) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
@@ -106,9 +108,7 @@ export async function POST(req: Request) {
     const orgTimezone = org.timezone || "America/Los_Angeles";
     const today = getTodayInOrgTimezone(orgTimezone);
 
-    // Calculate fees based on org's platform fee and pass-through setting
-    // "amount" is the base amount (e.g., $50 dues)
-    // If passFeesToMember is true, we gross-up so org receives full base amount
+    // Calculate fees
     const baseAmountCents = Math.round(amount * 100);
     const fees = calculateFees(baseAmountCents, org.platformFee || 0, org.passFeesToMember);
 
@@ -121,85 +121,37 @@ export async function POST(req: Request) {
       };
     }
 
-    // Generate invoice metadata
-    let invoiceMetadata;
-    if (type === "enrollment_fee") {
-      invoiceMetadata = {
-        invoiceNumber: null,
-        dueDate: today,
-        periodStart: today,
-        periodEnd: today,
-        periodLabel: "Enrollment Fee",
-        monthsCredited: 0,
-      };
-    } else {
-      let billingAnchor: string;
-      if (
-        membership.nextPaymentDue &&
-        /^\d{4}-\d{2}-\d{2}$/.test(membership.nextPaymentDue)
-      ) {
-        billingAnchor = membership.nextPaymentDue;
-      } else if (membership.billingAnniversaryDay) {
-        const todayDate = parseDateInOrgTimezone(today, orgTimezone);
-        const anniversaryDay = membership.billingAnniversaryDay;
-        const lastDayOfMonth = new Date(
-          todayDate.getFullYear(),
-          todayDate.getMonth() + 1,
-          0
-        ).getDate();
-        const day = Math.min(anniversaryDay, lastDayOfMonth);
-        billingAnchor = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      } else {
-        billingAnchor = today;
-      }
-
-      invoiceMetadata = await generateAdHocInvoiceMetadata(
-        organizationId,
-        billingAnchor,
-        monthsCredited,
-        orgTimezone,
-        supabase
-      );
-    }
-
-    // Payment record amounts
-    // - amount: base amount (what the org conceptually charges, e.g., dues)
-    // - total_charged: what the member actually pays (includes fees if passed through)
-    // - net_amount: what the org receives after all fees
     const chargeAmount = fees.breakdown.chargeAmount;
     const stripeFee = fees.breakdown.stripeFee;
     const platformFee = fees.breakdown.platformFee;
     const netAmount = fees.netAmountCents / 100;
 
-    // Build notes with fee breakdown if fees are passed to member
-    let notes = `Charged ${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`;
+    // Build notes
+    let notes = `${description} | Charged ${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`;
     if (org.passFeesToMember) {
       notes += ` | Base: $${amount.toFixed(2)} + Fees: $${fees.breakdown.totalFees.toFixed(2)}`;
     }
-    if (connectParams) {
-      notes += " (via Connect)";
-    }
 
+    // Create payment record (completed immediately, no month crediting)
     const { data: newPayment, error: createError } = await supabase
       .from("payments")
       .insert({
         organization_id: organizationId,
         membership_id: membershipId,
         member_id: memberId,
-        type,
+        type: "dues",
         method: "stripe",
         status: "pending",
-        amount: amount, // Base amount (dues)
+        amount: amount,
         stripe_fee: stripeFee,
         platform_fee: platformFee,
-        total_charged: chargeAmount, // What member actually pays
-        net_amount: netAmount, // What org receives
-        months_credited: type === "enrollment_fee" ? 0 : monthsCredited,
-        invoice_number: invoiceMetadata.invoiceNumber,
-        due_date: invoiceMetadata.dueDate,
-        period_start: invoiceMetadata.periodStart,
-        period_end: invoiceMetadata.periodEnd,
-        period_label: invoiceMetadata.periodLabel,
+        total_charged: chargeAmount,
+        net_amount: netAmount,
+        months_credited: 0,
+        due_date: today,
+        period_start: today,
+        period_end: today,
+        period_label: description,
         notes,
       })
       .select()
@@ -212,8 +164,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create and confirm payment intent (with Connect if org is onboarded)
-    // Use chargeAmountCents which includes fees if passFeesToMember is enabled
+    // Create and confirm payment intent
     const { paymentIntentId } = await createPaymentIntent({
       customerId,
       amountCents: fees.chargeAmountCents,
@@ -221,9 +172,7 @@ export async function POST(req: Request) {
       memberId,
       organizationId,
       paymentId: newPayment.id,
-      description: org.passFeesToMember
-        ? `${invoiceMetadata.periodLabel} ($${amount.toFixed(2)} + $${fees.breakdown.totalFees.toFixed(2)} fees)`
-        : invoiceMetadata.periodLabel,
+      description,
       connectParams,
     });
 
@@ -240,7 +189,7 @@ export async function POST(req: Request) {
         .update({
           status: "failed",
           stripe_payment_intent_id: paymentIntentId,
-          notes: `${newPayment.notes} - Payment failed: ${confirmation.status}`,
+          notes: `${notes} - Payment failed: ${confirmation.status}`,
         })
         .eq("id", newPayment.id);
 
@@ -254,53 +203,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Update payment with intent ID
+    // Mark payment as completed
     await supabase
       .from("payments")
       .update({
+        status: "completed",
         stripe_payment_intent_id: paymentIntentId,
+        paid_at: new Date().toISOString(),
       })
       .eq("id", newPayment.id);
-
-    // Settle the payment
-    const result = await settlePayment({
-      paymentId: newPayment.id,
-      method: "stripe",
-      paidAt: new Date().toISOString(),
-      stripePaymentIntentId: paymentIntentId,
-      supabase,
-    });
-
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          error: result.error || "Payment charged but settlement failed",
-          paymentId: newPayment.id,
-          partialSuccess: true,
-        },
-        { status: 500 }
-      );
-    }
-
-    // Handle enrollment fee
-    if (type === "enrollment_fee") {
-      await supabase
-        .from("memberships")
-        .update({
-          enrollment_fee_status: "paid",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", membershipId);
-    }
 
     return NextResponse.json({
       success: true,
       paymentId: newPayment.id,
       paymentIntentId,
       amount,
-      newPaidMonths: result.newPaidMonths,
-      newStatus: result.newStatus,
-      becameEligible: result.becameEligible,
     });
   } catch (error) {
     console.error("Error charging card:", error);

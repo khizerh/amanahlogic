@@ -10,11 +10,11 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { MemberWithMembership, PaymentType, Plan } from "@/lib/types";
+import { MemberWithMembership, Plan } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -24,9 +24,6 @@ import {
   AlertCircle,
   Loader2,
   Lock,
-  TrendingUp,
-  ArrowRight,
-  Award,
   Zap,
 } from "lucide-react";
 
@@ -46,31 +43,17 @@ export function ChargeCardSheet({
   onPaymentRecorded,
 }: ChargeCardSheetProps) {
   const router = useRouter();
-  const [paymentType, setPaymentType] = useState<PaymentType>("dues");
-  const [monthsCount, setMonthsCount] = useState<number>(1);
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Reset form when opening
   useEffect(() => {
-    if (open && member?.membership) {
-      if (member.membership.enrollmentFeeStatus === "unpaid") {
-        setPaymentType("enrollment_fee");
-      } else {
-        setPaymentType("dues");
-      }
-      // Default to billing frequency
-      switch (member.membership.billingFrequency) {
-        case "biannual":
-          setMonthsCount(6);
-          break;
-        case "annual":
-          setMonthsCount(12);
-          break;
-        default:
-          setMonthsCount(1);
-      }
+    if (open) {
+      setAmount("");
+      setDescription("");
     }
-  }, [open, member]);
+  }, [open]);
 
   if (!member || !plan) return null;
 
@@ -102,30 +85,22 @@ export function ChargeCardSheet({
     );
   }
 
-  const enrollmentFeeSettled = membership?.enrollmentFeeStatus !== "unpaid";
-  const enrollmentFeeAmount = plan.enrollmentFee;
-
-  // Calculate amounts
-  const baseAmount =
-    paymentType === "enrollment_fee"
-      ? enrollmentFeeAmount
-      : plan.pricing.monthly * monthsCount;
-
-  // Stripe fee: 2.9% + $0.30
-  const stripeFee = parseFloat((baseAmount * 0.029 + 0.3).toFixed(2));
-  const platformFee = 2.0;
-  const totalCharged = baseAmount + stripeFee;
-  const monthsCredited = paymentType === "enrollment_fee" ? 0 : monthsCount;
-
-  // Quick select options
-  const monthOptions = [
-    { value: 1, label: "1 month", price: plan.pricing.monthly },
-    { value: 6, label: "6 months", price: plan.pricing.biannual },
-    { value: 12, label: "12 months", price: plan.pricing.annual },
-  ];
+  const parsedAmount = parseFloat(amount) || 0;
+  const stripeFee = parsedAmount > 0 ? parseFloat((parsedAmount * 0.029 + 0.3).toFixed(2)) : 0;
+  const totalCharged = parsedAmount + stripeFee;
 
   const handleCharge = async () => {
     if (!membership) return;
+
+    if (parsedAmount <= 0) {
+      toast.error("Please enter an amount");
+      return;
+    }
+
+    if (!description.trim()) {
+      toast.error("Please enter a description");
+      return;
+    }
 
     setIsProcessing(true);
 
@@ -136,9 +111,8 @@ export function ChargeCardSheet({
         body: JSON.stringify({
           membershipId: membership.id,
           memberId: member.id,
-          type: paymentType,
-          amount: baseAmount,
-          monthsCredited,
+          amount: parsedAmount,
+          description: description.trim(),
         }),
       });
 
@@ -148,22 +122,7 @@ export function ChargeCardSheet({
         throw new Error(result.error || "Payment failed");
       }
 
-      // Success message
-      const paymentTypeLabel =
-        paymentType === "enrollment_fee" ? "Enrollment fee" : "Dues";
-
-      if (result.becameEligible) {
-        toast.success(`${paymentTypeLabel} of ${formatCurrency(baseAmount)} charged successfully`, {
-          duration: 5000,
-          description: `${member.firstName} has reached 60 paid months and is now fully eligible for benefits!`,
-        });
-      } else {
-        toast.success(`${paymentTypeLabel} of ${formatCurrency(baseAmount)} charged successfully`, {
-          description: result.newPaidMonths
-            ? `Progress: ${result.newPaidMonths}/60 months`
-            : undefined,
-        });
-      }
+      toast.success(`${formatCurrency(parsedAmount)} charged successfully`);
 
       onOpenChange(false);
       onPaymentRecorded?.();
@@ -222,117 +181,65 @@ export function ChargeCardSheet({
             </p>
           </div>
 
-          {/* Enrollment Fee Alert */}
-          {!enrollmentFeeSettled && paymentType !== "enrollment_fee" && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Enrollment fee of {formatCurrency(enrollmentFeeAmount)} has not been paid.
-              </AlertDescription>
-            </Alert>
-          )}
-
           <Separator />
 
-          {/* Payment Type */}
-          <div className="space-y-3">
-            <Label>What to charge</Label>
-            <RadioGroup
-              value={paymentType}
-              onValueChange={(value) => setPaymentType(value as PaymentType)}
-            >
-              {!enrollmentFeeSettled && (
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="enrollment_fee" id="cf_enrollment" />
-                  <Label htmlFor="cf_enrollment" className="font-normal cursor-pointer">
-                    Enrollment Fee ({formatCurrency(enrollmentFeeAmount)})
-                  </Label>
-                </div>
-              )}
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="dues" id="cf_dues" />
-                <Label htmlFor="cf_dues" className="font-normal cursor-pointer">
-                  Membership Dues
-                </Label>
-              </div>
-            </RadioGroup>
+          {/* Amount */}
+          <div className="space-y-2">
+            <Label htmlFor="charge-amount">Amount</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                id="charge-amount"
+                type="number"
+                min="0.50"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="pl-7"
+              />
+            </div>
           </div>
 
-          {/* Months Selection (for dues only) */}
-          {paymentType !== "enrollment_fee" && (
-            <div className="space-y-3">
-              <Label>Period</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {monthOptions.map((option) => (
-                  <Button
-                    key={option.value}
-                    type="button"
-                    variant={monthsCount === option.value ? "default" : "outline"}
-                    className="flex-col h-auto py-3"
-                    onClick={() => setMonthsCount(option.value)}
-                  >
-                    <span className="font-medium">{option.label}</span>
-                    <span className="text-xs opacity-70">
-                      {formatCurrency(option.price)}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <Separator />
-
-          {/* Billing Impact Preview */}
-          {membership && paymentType !== "enrollment_fee" && (
-            <div className="rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 p-4 space-y-3">
-              <div className="flex items-center gap-2 text-blue-700 font-medium">
-                <TrendingUp className="h-4 w-4" />
-                <span>Impact</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <span className="font-medium">{membership.paidMonths}/60</span>
-                <ArrowRight className="h-4 w-4 text-blue-500" />
-                <span className="font-bold text-blue-700">
-                  {membership.paidMonths + monthsCredited}/60
-                </span>
-                <span className="text-muted-foreground">
-                  (+{monthsCredited} {monthsCredited === 1 ? "month" : "months"})
-                </span>
-              </div>
-              {membership.paidMonths < 60 &&
-                membership.paidMonths + monthsCredited >= 60 && (
-                  <div className="flex items-center gap-2 bg-green-100 text-green-800 rounded-md px-3 py-2">
-                    <Award className="h-5 w-5" />
-                    <span className="font-semibold">
-                      Will become ELIGIBLE!
-                    </span>
-                  </div>
-                )}
-            </div>
-          )}
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="charge-description">
+              Description <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="charge-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. 2025 catch-up dues, Enrollment fee..."
+              rows={2}
+              className="resize-none text-sm"
+            />
+          </div>
 
           {/* Charge Summary */}
-          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                {paymentType === "enrollment_fee" ? "Enrollment Fee" : "Dues Amount"}
-              </span>
-              <span className="font-medium">{formatCurrency(baseAmount)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Processing Fee (2.9% + $0.30)</span>
-              <span className="font-medium">{formatCurrency(stripeFee)}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between">
-              <span className="font-medium">Total to Charge</span>
-              <span className="text-xl font-bold">{formatCurrency(totalCharged)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Organization receives {formatCurrency(baseAmount - platformFee)} after fees
-            </p>
-          </div>
+          {parsedAmount > 0 && (
+            <>
+              <Separator />
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-medium">{formatCurrency(parsedAmount)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Processing Fee (2.9% + $0.30)</span>
+                  <span className="font-medium">{formatCurrency(stripeFee)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between">
+                  <span className="font-medium">Total to Charge</span>
+                  <span className="text-xl font-bold">{formatCurrency(totalCharged)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Processing fees are deducted from the charge
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         <SheetFooter className="mt-6">
@@ -345,7 +252,7 @@ export function ChargeCardSheet({
           </Button>
           <Button
             onClick={handleCharge}
-            disabled={isProcessing}
+            disabled={isProcessing || parsedAmount <= 0 || !description.trim()}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {isProcessing ? (
@@ -356,7 +263,7 @@ export function ChargeCardSheet({
             ) : (
               <>
                 <Zap className="h-4 w-4 mr-2" />
-                Charge {formatCurrency(totalCharged)}
+                {parsedAmount > 0 ? `Charge ${formatCurrency(totalCharged)}` : "Charge"}
               </>
             )}
           </Button>
