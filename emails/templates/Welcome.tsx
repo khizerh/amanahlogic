@@ -67,6 +67,8 @@ const t = {
     manualPaymentReminder: "Payment Reminder:",
     manualPaymentNote:
       "Please arrange your membership payment (cash, check, or other).",
+    manualPaymentDesc: "Please arrange your membership payment (cash, check, or other).",
+    total: "Total",
     contact: "If you have any questions, please contact us.",
   },
   fa: {
@@ -100,6 +102,8 @@ const t = {
     manualPaymentReminder: "یادآوری پرداخت:",
     manualPaymentNote:
       "لطفاً ترتیب پرداخت عضویت خود را بدهید (نقدی، چک یا سایر).",
+    manualPaymentDesc: "لطفاً ترتیب پرداخت عضویت خود را بدهید (نقدی، چک یا سایر).",
+    total: "مجموع",
     contact: "اگر سوالی دارید، لطفاً با ما تماس بگیرید.",
   },
 };
@@ -203,9 +207,13 @@ export function WelcomeEmail(props: WelcomeProps) {
       ) : (
         <>
           {/* Manual payment path */}
+          <Heading as="h2" style={styles.stepHeading}>
+            {l.step2Title}
+          </Heading>
+          <Text style={styles.muted}>{l.manualPaymentDesc}</Text>
           {(planName || duesAmount != null || enrollmentFee) && (
-            <Section style={styles.manualSummaryBox}>
-              <Text style={styles.manualSummaryTitle}>{l.summaryTitle}</Text>
+            <Section style={styles.summaryBox}>
+              <Text style={styles.summaryTitle}>{l.summaryTitle}</Text>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
                   <SummaryRow label={l.plan} value={planName || "Membership"} align={valueAlign} />
@@ -221,11 +229,14 @@ export function WelcomeEmail(props: WelcomeProps) {
                     value={duesAmount != null ? formatCurrency(duesAmount) : "N/A"}
                     align={valueAlign}
                   />
+                  <tr>
+                    <td style={{ padding: "10px 0 0", borderTop: "1px solid #e5e7eb", fontWeight: 600, color: "#1a1a1a" }}>{l.total}</td>
+                    <td style={{ padding: "10px 0 0", borderTop: "1px solid #e5e7eb", textAlign: (valueAlign ?? "right") as React.CSSProperties["textAlign"], fontWeight: 700, color: "#1a1a1a", fontSize: "16px" }}>
+                      {formatCurrency((enrollmentFee || 0) + (duesAmount || 0))}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
-              <Text style={styles.manualPaymentText}>
-                {l.manualPaymentNote}
-              </Text>
             </Section>
           )}
           <Text style={styles.muted}>
