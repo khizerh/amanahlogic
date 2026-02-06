@@ -8,6 +8,7 @@ import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 import { normalizePhoneNumber } from "@/lib/utils";
 import { orchestrateOnboarding } from "@/lib/onboarding/orchestrate-onboarding";
 import type { PlanType, BillingFrequency, CommunicationLanguage } from "@/lib/types";
+import { DEFAULT_BILLING_CONFIG } from "@/lib/types";
 
 /**
  * GET /api/members
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
       children,
       waiveEnrollmentFee,
       paymentMethod,
+      paidMonths: rawPaidMonths,
     } = body as {
       firstName: string;
       lastName: string;
@@ -75,7 +77,11 @@ export async function POST(request: Request) {
       children?: { id: string; name: string; dateOfBirth: string }[];
       waiveEnrollmentFee?: boolean;
       paymentMethod?: "stripe" | "manual";
+      paidMonths?: number;
     };
+
+    // Sanitize paidMonths: must be a non-negative integer
+    const paidMonths = Math.max(0, Math.floor(Number(rawPaidMonths) || 0));
 
     // Validate required fields
     if (!firstName || !lastName || !email) {
@@ -137,6 +143,9 @@ export async function POST(request: Request) {
     const todayInOrgTz = getTodayInOrgTimezone(orgTimezone); // Returns "YYYY-MM-DD"
     const billingAnniversaryDay = Math.min(parseInt(todayInOrgTz.split("-")[2], 10), 28);
 
+    // If member already has enough paid months, mark eligible immediately
+    const isAlreadyEligible = paidMonths >= DEFAULT_BILLING_CONFIG.eligibilityMonths;
+
     let membership;
     try {
       membership = await MembershipsService.create({
@@ -146,10 +155,11 @@ export async function POST(request: Request) {
         status: "pending",
         billingFrequency: billingFrequency || "monthly",
         billingAnniversaryDay,
-        paidMonths: 0,
+        paidMonths,
         enrollmentFeeStatus: waiveEnrollmentFee ? "waived" : "unpaid",
         // joinDate is set when BOTH agreement signed AND first payment completed
         joinDate: null,
+        eligibleDate: isAlreadyEligible ? todayInOrgTz : null,
       });
     } catch (membershipError) {
       // Roll back: delete the orphaned member record

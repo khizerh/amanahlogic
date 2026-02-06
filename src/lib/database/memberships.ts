@@ -26,6 +26,7 @@ export interface CreateMembershipInput {
   enrollmentFeeStatus?: "unpaid" | "paid" | "waived";
   joinDate?: string | null;
   nextPaymentDue?: string | null;
+  eligibleDate?: string | null;
 }
 
 export interface UpdateMembershipInput extends Partial<CreateMembershipInput> {
@@ -232,6 +233,7 @@ export class MembershipsService {
         enrollment_fee_status: input.enrollmentFeeStatus || "unpaid",
         join_date: input.joinDate || null,
         next_payment_due: input.nextPaymentDue || null,
+        eligible_date: input.eligibleDate || null,
       })
       .select()
       .single();

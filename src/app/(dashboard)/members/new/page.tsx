@@ -86,6 +86,7 @@ export default function NewMemberPage() {
   const [children, setChildren] = useState<ChildFormData[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("stripe");
   const [waiveEnrollmentFee, setWaiveEnrollmentFee] = useState(false);
+  const [paidMonths, setPaidMonths] = useState<number>(0);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emergencyPhoneError, setEmergencyPhoneError] = useState<string | null>(null);
 
@@ -175,6 +176,7 @@ export default function NewMemberPage() {
           // Pass if enrollment fee is waived (applies to both payment methods)
           waiveEnrollmentFee,
           paymentMethod,
+          paidMonths,
         }),
       });
 
@@ -529,6 +531,23 @@ export default function NewMemberPage() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Months Already Paid */}
+                    <div className="space-y-2">
+                      <Label htmlFor="paidMonths">Months Already Paid</Label>
+                      <Input
+                        id="paidMonths"
+                        type="number"
+                        min={0}
+                        value={paidMonths || ""}
+                        onChange={(e) => setPaidMonths(Math.max(0, parseInt(e.target.value) || 0))}
+                        placeholder="0"
+                        className="w-full md:w-[200px]"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Number of months this member has already paid outside the system. Leave at 0 for new members.
+                      </p>
                     </div>
 
                     {/* Pricing Summary */}
