@@ -50,7 +50,6 @@ import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet
 import { RecordMemberDuesDialog } from "@/components/payments/record-member-dues-dialog";
 import { CollectPaymentDialog } from "@/components/payments/collect-payment-dialog";
 import { ChargeCardSheet } from "@/components/payments/charge-card-sheet";
-import { SendPaymentLinkDialog } from "@/components/payments/send-payment-link-dialog";
 import { ChangeFrequencySheet } from "@/components/payments/change-frequency-sheet";
 import Link from "next/link";
 import {
@@ -119,7 +118,6 @@ export function MemberDetailClient({
   const [collectPaymentOpen, setCollectPaymentOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [chargeCardOpen, setChargeCardOpen] = useState(false);
-  const [sendLinkOpen, setSendLinkOpen] = useState(false);
 
   // State for email details sheet
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
@@ -1521,7 +1519,6 @@ export function MemberDetailClient({
         onOpenChange={setCollectPaymentOpen}
         onSelectManual={() => setRecordPaymentOpen(true)}
         onSelectChargeCard={() => setChargeCardOpen(true)}
-        onSelectSendLink={() => setSendLinkOpen(true)}
       />
 
       {/* Record Manual Payment Dialog */}
@@ -1540,14 +1537,6 @@ export function MemberDetailClient({
         open={chargeCardOpen}
         onOpenChange={setChargeCardOpen}
         onPaymentRecorded={handlePaymentRecorded}
-      />
-
-      {/* Send Payment Link Dialog */}
-      <SendPaymentLinkDialog
-        member={memberData}
-        plan={plan}
-        open={sendLinkOpen}
-        onOpenChange={setSendLinkOpen}
       />
 
       {/* Change Frequency Sheet */}
