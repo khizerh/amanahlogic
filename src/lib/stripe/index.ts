@@ -250,7 +250,6 @@ export async function createSubscriptionCheckoutSession(params: {
     organizationId,
     successUrl,
     cancelUrl,
-    billingAnchorDay,
     billingFrequency = "monthly",
     planName = "Membership",
     lineItemName,

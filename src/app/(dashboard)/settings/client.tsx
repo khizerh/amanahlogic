@@ -29,7 +29,6 @@ import {
   Eye,
   UploadCloud,
   Loader2,
-  Languages,
   Trash2,
   Mail,
 } from "lucide-react";

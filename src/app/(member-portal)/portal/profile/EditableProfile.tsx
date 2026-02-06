@@ -16,7 +16,7 @@ import {
 import { Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Member } from "@/lib/types";
-import { formatPhoneNumber, normalizePhoneNumber } from "@/lib/utils";
+import { formatPhoneNumber } from "@/lib/utils";
 import { PhoneInput } from "@/components/ui/phone-input";
 
 interface EditableProfileProps {

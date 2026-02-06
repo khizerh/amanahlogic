@@ -32,11 +32,6 @@ interface OrchestrateOnboardingInput {
   includeEnrollmentFee: boolean;
 }
 
-interface StepResult {
-  success: boolean;
-  error?: string;
-}
-
 export interface OrchestrateOnboardingResult {
   welcomeEmailSent: boolean;
   agreementEmailSent: boolean;

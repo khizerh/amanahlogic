@@ -83,7 +83,6 @@ import {
   Shield,
   Edit,
   X,
-  Copy,
   ChevronLeft,
   ChevronRight,
   Plus,

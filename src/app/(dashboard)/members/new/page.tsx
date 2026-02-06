@@ -59,7 +59,7 @@ export default function NewMemberPage() {
         } else {
           toast.error("Failed to load plans");
         }
-      } catch (error) {
+      } catch {
         toast.error("Failed to load plans");
       } finally {
         setPlansLoading(false);
