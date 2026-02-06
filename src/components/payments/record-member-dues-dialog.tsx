@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { toast } from "sonner";
-import { Banknote, FileText, Smartphone, CheckCircle2, AlertTriangle, Info } from "lucide-react";
+import { Banknote, FileText, Smartphone, CheckCircle2, AlertTriangle, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MemberWithMembership, Plan } from "@/lib/types";
 
@@ -329,7 +329,10 @@ export function RecordMemberDuesDialog({
                 </Button>
                 <Button onClick={handleSubmit} disabled={isSubmitting}>
                   {isSubmitting ? (
-                    "Recording..."
+                    <>
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      Recording...
+                    </>
                   ) : (
                     <>
                       <CheckCircle2 className="h-4 w-4 mr-1.5" />

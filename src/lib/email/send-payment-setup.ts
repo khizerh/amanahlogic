@@ -56,25 +56,9 @@ export async function sendPaymentSetupEmail(
       ? language === "fa" ? "هر ۶ ماه" : "every 6 months"
       : language === "fa" ? "سالانه" : "annually";
 
-  // Try DB template first
-  const dbResult = await resolveEmailTemplate(
-    organizationId,
-    "payment_setup",
-    {
-      member_name: memberName,
-      organization_name: orgName,
-      checkout_url: checkoutUrl,
-      plan_name: planName,
-      enrollment_fee: enrollmentFee != null ? `$${enrollmentFee.toFixed(2)}` : "",
-      dues_amount: `$${duesAmount.toFixed(2)}`,
-      billing_frequency: frequencyText,
-    },
-    language,
-    orgName
-  );
-
-  // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? await renderPaymentSetup({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderPaymentSetup({
     memberName,
     checkoutUrl,
     organizationName: orgName,

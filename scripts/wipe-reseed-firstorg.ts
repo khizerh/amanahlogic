@@ -334,7 +334,7 @@ async function seedDatabase(): Promise<void> {
     phone: "(510) 963-5578",
     email: "info@masjidmuhajireen.org",
     timezone: "America/Los_Angeles",
-    platform_fee: 1.0,
+    platform_fee: 2.0,
     pass_fees_to_member: false,
   }, { onConflict: "id" });
   if (orgError) throw new Error(`Organization: ${orgError.message}`);

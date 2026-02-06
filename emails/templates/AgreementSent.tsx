@@ -15,8 +15,8 @@ const t = {
   en: {
     subject: (org: string) => `Action Required: Sign Your ${org} Membership Agreement`,
     greeting: (name: string) => `Assalamu Alaikum ${name},`,
-    body: (org: string) =>
-      `Welcome to ${org}! To complete your membership enrollment, please review and sign your membership agreement.`,
+    body: () =>
+      `To complete your membership enrollment, please review and sign your membership agreement.`,
     cta: "Sign Agreement",
     contact: "If you have any questions, please contact us.",
     fallback: (url: string) =>
@@ -25,8 +25,8 @@ const t = {
   fa: {
     subject: (org: string) => `اقدام لازم: امضای قرارداد عضویت ${org}`,
     greeting: (name: string) => `السلام علیکم ${name} عزیز،`,
-    body: (org: string) =>
-      `به ${org} خوش آمدید! برای تکمیل ثبت نام عضویت خود، لطفاً قرارداد عضویت خود را بررسی و امضا کنید.`,
+    body: () =>
+      `برای تکمیل ثبت نام عضویت خود، لطفاً قرارداد عضویت خود را بررسی و امضا کنید.`,
     cta: "امضای قرارداد",
     contact: "اگر سوالی دارید، لطفاً با ما تماس بگیرید.",
     fallback: () =>
@@ -47,7 +47,7 @@ export function AgreementSentEmail(props: AgreementSentProps) {
       language={language}
       footer={{ organization_name: organizationName }}
     >
-      <Text style={styles.text}>{l.body(organizationName)}</Text>
+      <Text style={styles.text}>{l.body()}</Text>
       <Text style={styles.muted}>{l.contact}</Text>
     </EmailLayout>
   );

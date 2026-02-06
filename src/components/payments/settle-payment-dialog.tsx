@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { PaymentWithDetails } from "@/lib/database/payments";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { toast } from "sonner";
-import { Banknote, FileText, Smartphone, CheckCircle2 } from "lucide-react";
+import { Banknote, FileText, Smartphone, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SettlePaymentDialogProps {
@@ -235,7 +235,10 @@ export function SettlePaymentDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
-              "Saving..."
+              <>
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                Saving...
+              </>
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-1.5" />

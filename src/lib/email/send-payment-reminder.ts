@@ -51,25 +51,9 @@ export async function sendPaymentReminderEmail(
   const org = await OrganizationsService.getById(organizationId);
   const orgName = org?.name ?? "Our Organization";
 
-  // Try DB template first
-  const dbResult = await resolveEmailTemplate(
-    organizationId,
-    "payment_reminder",
-    {
-      member_name: memberName,
-      organization_name: orgName,
-      amount,
-      due_date: dueDate,
-      days_overdue: String(daysOverdue),
-      invoice_number: invoiceNumber,
-      portal_url: portalUrl,
-    },
-    language,
-    orgName
-  );
-
-  // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? await renderPaymentReminder({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderPaymentReminder({
     memberName,
     amount,
     dueDate,

@@ -659,7 +659,14 @@ export default function NewMemberPage() {
                 </Button>
               </Link>
               <Button type="submit" disabled={isSubmitting || plansLoading || plans.length === 0}>
-                {isSubmitting ? "Creating..." : "Create Member"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Member"
+                )}
               </Button>
             </div>
           </form>

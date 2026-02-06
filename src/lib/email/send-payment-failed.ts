@@ -37,23 +37,9 @@ export async function sendPaymentFailedEmail(
   const org = await OrganizationsService.getById(organizationId);
   const orgName = org?.name ?? "Our Organization";
 
-  // Try DB template first
-  const dbResult = await resolveEmailTemplate(
-    organizationId,
-    "payment_failed",
-    {
-      member_name: memberName,
-      organization_name: orgName,
-      amount,
-      failure_reason: failureReason,
-      portal_url: portalUrl,
-    },
-    language,
-    orgName
-  );
-
-  // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? await renderPaymentFailed({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderPaymentFailed({
     memberName,
     amount,
     failureReason,

@@ -35,22 +35,9 @@ export async function sendMemberInviteEmail(
   const org = await OrganizationsService.getById(organizationId);
   const orgName = org?.name ?? "Our Organization";
 
-  // Try DB template first
-  const dbResult = await resolveEmailTemplate(
-    organizationId,
-    "member_invite",
-    {
-      member_name: memberName,
-      organization_name: orgName,
-      invite_url: inviteUrl,
-      expires_at: expiresAt,
-    },
-    language,
-    orgName
-  );
-
-  // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? await renderMemberInvite({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderMemberInvite({
     memberName,
     inviteUrl,
     expiresAt,

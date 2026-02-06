@@ -69,44 +69,9 @@ export async function sendWelcomeEmail(
     { weekday: "long", year: "numeric", month: "long", day: "numeric" }
   );
 
-  // For Stripe payments, try DB template first (it has checkout_url/payment fields).
-  // For manual payments, skip DB template — the hardcoded template has proper
-  // manual-specific content (no checkout link, cash/check/Zelle reminder).
-  let dbResult: { subject: string; html: string; text: string } | null = null;
-  if (paymentMethod === "stripe") {
-    dbResult = await resolveEmailTemplate(
-      organizationId,
-      "welcome",
-      {
-        member_name: memberName,
-        organization_name: orgName,
-        invite_url: inviteUrl,
-        invite_expires_at: formattedExpiry,
-        checkout_url: checkoutUrl ?? "",
-        plan_name: planName ?? "",
-        enrollment_fee: enrollmentFee != null ? `$${enrollmentFee.toFixed(2)}` : "",
-        dues_amount: duesAmount != null ? `$${duesAmount.toFixed(2)}` : "",
-        billing_frequency: frequencyText,
-      },
-      language,
-      orgName
-    );
-
-    // Validate DB template actually contains the checkout URL when one was provided.
-    // If checkoutUrl is missing (session creation failed) or the admin removed
-    // {{checkout_url}} from the template, fall back to the hardcoded template.
-    if (dbResult && checkoutUrl && !dbResult.html.includes(checkoutUrl)) {
-      console.warn("[send-welcome] DB template missing checkout_url, falling back to hardcoded");
-      dbResult = null;
-    }
-    if (dbResult && !checkoutUrl) {
-      console.warn("[send-welcome] No checkout URL available for Stripe payment, falling back to hardcoded");
-      dbResult = null;
-    }
-  }
-
-  // Fall back to hardcoded template (always used for manual payments)
-  const { subject, html, text } = dbResult ?? await renderWelcome({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderWelcome({
     memberName,
     organizationName: orgName,
     inviteUrl,

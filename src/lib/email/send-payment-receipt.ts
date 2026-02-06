@@ -52,25 +52,9 @@ export async function sendPaymentReceiptEmail(
     .single();
   const orgName = org?.name ?? "Our Organization";
 
-  // Try DB template first
-  const dbResult = await resolveEmailTemplate(
-    organizationId,
-    "payment_receipt",
-    {
-      member_name: memberName,
-      organization_name: orgName,
-      amount,
-      payment_date: paymentDate,
-      payment_method: paymentMethod,
-      invoice_number: invoiceNumber || "",
-      period_label: periodLabel || "",
-    },
-    language,
-    orgName
-  );
-
-  // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? await renderPaymentReceipt({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderPaymentReceipt({
     memberName,
     organizationName: orgName,
     amount,

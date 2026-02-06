@@ -23,14 +23,14 @@ export const DEFAULT_EMAIL_TEMPLATES: DefaultEmailTemplate[] = [
     body: {
       en: `Assalamu Alaikum {{member_name}},
 
-Welcome! Your membership account has been created at {{organization_name}}. To get started, please set up your member portal account and complete your payment setup.
+Your membership account has been created at {{organization_name}}, please set up your member portal and complete your payment setup.
 
-Step 1: Create Your Portal Account
+Create Your Portal Account
 Access your membership details, track payments, and manage your profile.
 
 Create your account here: {{invite_url}}
 
-Step 2: Complete Payment Setup
+Complete Payment Setup
 
 Payment Summary:
 Plan: {{plan_name}}
@@ -40,21 +40,21 @@ Recurring Dues ({{billing_frequency}}): {{dues_amount}}
 Complete your payment setup here: {{checkout_url}}
 
 What happens next:
-• Your enrollment fee will be charged immediately
+• Your enrollment fee and first dues payment will be charged immediately
 • Your card will be saved for automatic future payments
 • You'll also receive a separate email to sign your membership agreement
 
 If you have any questions, please contact us.`,
       fa: `السلام علیکم {{member_name}} عزیز،
 
-خوش آمدید! حساب عضویت شما در {{organization_name}} ایجاد شده است. برای شروع، لطفاً حساب پورتال اعضای خود را ایجاد کنید و تنظیمات پرداخت خود را تکمیل کنید.
+حساب عضویت شما در {{organization_name}} ایجاد شده است، لطفاً پورتال اعضای خود را ایجاد کنید و تنظیمات پرداخت خود را تکمیل کنید.
 
-مرحله ۱: ایجاد حساب پورتال
+ایجاد حساب پورتال
 جزئیات عضویت، پیگیری پرداخت‌ها و مدیریت پروفایل خود را مشاهده کنید.
 
 حساب خود را اینجا ایجاد کنید: {{invite_url}}
 
-مرحله ۲: تکمیل تنظیمات پرداخت
+تکمیل تنظیمات پرداخت
 
 خلاصه پرداخت:
 طرح: {{plan_name}}
@@ -64,7 +64,7 @@ If you have any questions, please contact us.`,
 تنظیمات پرداخت خود را اینجا تکمیل کنید: {{checkout_url}}
 
 مراحل بعدی:
-• هزینه ثبت‌نام شما فوراً کسر می‌شود
+• هزینه ثبت‌نام و اولین حق عضویت شما فوراً کسر می‌شود
 • کارت شما برای پرداخت‌های خودکار آینده ذخیره می‌شود
 • همچنین یک ایمیل جداگانه برای امضای قرارداد عضویت دریافت خواهید کرد
 

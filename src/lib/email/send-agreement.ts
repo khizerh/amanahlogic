@@ -35,30 +35,9 @@ export async function sendAgreementEmail(
   const org = await OrganizationsService.getById(organizationId);
   const orgName = org?.name ?? "Our Organization";
 
-  // Try DB template first
-  let dbResult = await resolveEmailTemplate(
-    organizationId,
-    "agreement_sent",
-    {
-      member_name: memberName,
-      organization_name: orgName,
-      sign_url: signUrl,
-      expires_at: expiresAt,
-    },
-    language,
-    orgName
-  );
-
-  // Validate DB template actually contains the sign URL.
-  // If the admin customized the template and removed {{sign_url}},
-  // the link won't appear — fall back to hardcoded template which always includes it.
-  if (dbResult && !dbResult.html.includes(signUrl)) {
-    console.warn("[send-agreement] DB template missing sign_url, falling back to hardcoded");
-    dbResult = null;
-  }
-
-  // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? await renderAgreementSent({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderAgreementSent({
     memberName,
     signUrl,
     expiresAt,

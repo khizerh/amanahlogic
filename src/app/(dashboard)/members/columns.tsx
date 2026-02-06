@@ -87,7 +87,10 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
       // For pending status, show tooltip explaining why
       if (status === "pending") {
         const agreementSigned = !!membership.agreementSignedAt;
-        const hasPaidMonths = (membership.paidMonths || 0) > 0;
+        // Check if payment is set up: auto-pay members need an active subscription,
+        // manual members with pre-credited months are considered set up
+        const paymentSetUp = membership.autoPayEnabled
+          || (!membership.stripeCustomerId && (membership.paidMonths || 0) > 0);
 
         const pendingReasons: { icon: typeof FileSignature; text: string }[] = [];
 
@@ -97,10 +100,10 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
             text: "Awaiting agreement signature",
           });
         }
-        if (!hasPaidMonths) {
+        if (!paymentSetUp) {
           pendingReasons.push({
             icon: CreditCard,
-            text: "Awaiting first payment",
+            text: "Awaiting payment setup",
           });
         }
 

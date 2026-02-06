@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
-import { Banknote, FileText, Smartphone, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Banknote, FileText, Smartphone, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Matches the OutstandingPayment type from outstanding-columns.tsx
@@ -270,7 +270,10 @@ export function RecordOutstandingPaymentDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
-              "Recording..."
+              <>
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                Recording...
+              </>
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-1.5" />

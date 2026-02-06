@@ -127,6 +127,7 @@ export function SettingsPageClient({
   // View/delete template loading state
   const [viewingTemplateId, setViewingTemplateId] = useState<string | null>(null);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const [activatingTemplateId, setActivatingTemplateId] = useState<string | null>(null);
 
   // Handle deleting an agreement template
   const handleDeleteTemplate = async (template: AgreementTemplate) => {
@@ -468,7 +469,9 @@ export function SettingsPageClient({
                                     <Button
                                       variant="outline"
                                       size="sm"
+                                      disabled={activatingTemplateId === t.id}
                                       onClick={async () => {
+                                        setActivatingTemplateId(t.id);
                                         try {
                                           const res = await fetch("/api/agreements/templates/set-active", {
                                             method: "POST",
@@ -492,10 +495,19 @@ export function SettingsPageClient({
                                           toast.success(`Activated ${t.version}`);
                                         } catch (err) {
                                           toast.error(err instanceof Error ? err.message : "Failed to activate");
+                                        } finally {
+                                          setActivatingTemplateId(null);
                                         }
                                       }}
                                     >
-                                      Set Active
+                                      {activatingTemplateId === t.id ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Activating...
+                                        </>
+                                      ) : (
+                                        "Set Active"
+                                      )}
                                     </Button>
                                   )}
                                   <Button

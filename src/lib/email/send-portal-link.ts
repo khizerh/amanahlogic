@@ -34,21 +34,9 @@ export async function sendPortalLinkEmail(
   const org = await OrganizationsService.getById(organizationId);
   const orgName = org?.name ?? "Our Organization";
 
-  // Try DB template first
-  const dbResult = await resolveEmailTemplate(
-    organizationId,
-    "portal_link",
-    {
-      member_name: memberName,
-      organization_name: orgName,
-      portal_url: portalUrl,
-    },
-    language,
-    orgName
-  );
-
-  // Fall back to hardcoded template
-  const { subject, html, text } = dbResult ?? await renderPortalLink({
+  // Always use React email templates for now.
+  // DB template resolution will be enabled when orgs can customize emails.
+  const { subject, html, text } = await renderPortalLink({
     memberName,
     portalUrl,
     organizationName: orgName,

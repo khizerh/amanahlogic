@@ -18,7 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { OnboardingInviteWithMember } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
-import { Banknote, FileText, Smartphone, CheckCircle2 } from "lucide-react";
+import { Banknote, FileText, Smartphone, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RecordOnboardingPaymentDialogProps {
@@ -394,7 +394,10 @@ export function RecordOnboardingPaymentDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
-              "Recording..."
+              <>
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                Recording...
+              </>
             ) : (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-1.5" />

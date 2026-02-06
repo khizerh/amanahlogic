@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Member } from "@/lib/types";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -114,7 +114,7 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
         onClick={() => saveField(field)}
         disabled={saving}
       >
-        <Check className="h-3 w-3" />
+        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
       </Button>
       <Button
         variant="ghost"
