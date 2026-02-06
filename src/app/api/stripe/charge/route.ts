@@ -109,9 +109,9 @@ export async function POST(req: Request) {
     const orgTimezone = org.timezone || "America/Los_Angeles";
     const today = getTodayInOrgTimezone(orgTimezone);
 
-    // Calculate fees
+    // Calculate fees - no platform fee on ad-hoc charges
     const baseAmountCents = Math.round(amount * 100);
-    const fees = calculateFees(baseAmountCents, org.platformFee || 0, org.passFeesToMember);
+    const fees = calculateFees(baseAmountCents, 0, org.passFeesToMember);
 
     // Prepare Connect params if org has a connected account
     let connectParams: ConnectParams | undefined;
