@@ -16,11 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MemberWithMembership, BillingFrequency, Plan } from "@/lib/types";
-import { formatCurrency } from "@/lib/mock-data";
-import {
-  updateBillingFrequency,
-  getMonthsForFrequency,
-} from "@/lib/mock-data/billing-service";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
 import {
   Calendar,
@@ -69,6 +65,15 @@ export function ChangeFrequencySheet({
     { value: "annual", label: "Annual (12 months)", months: 12 },
   ];
 
+  const getMonthsForFrequency = (frequency: BillingFrequency): number => {
+    switch (frequency) {
+      case "monthly": return 1;
+      case "biannual": return 6;
+      case "annual": return 12;
+      default: return 1;
+    }
+  };
+
   // Helper to get amount from the actual plan pricing
   const getAmountForFrequency = (frequency: BillingFrequency): number => {
     switch (frequency) {
@@ -109,15 +114,18 @@ export function ChangeFrequencySheet({
     setIsUpdating(true);
 
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const result = updateBillingFrequency({
-        membershipId: membership.id,
-        newFrequency: selectedFrequency,
+      const res = await fetch("/api/memberships/change-frequency", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          newFrequency: selectedFrequency,
+        }),
       });
 
-      if (!result.success) {
+      const result = await res.json();
+
+      if (!res.ok) {
         throw new Error(result.error || "Failed to update frequency");
       }
 

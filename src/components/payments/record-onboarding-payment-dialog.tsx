@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { OnboardingInviteWithMember } from "@/lib/types";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
 import { Banknote, FileText, Smartphone, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";

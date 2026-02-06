@@ -18,7 +18,7 @@ import {
   Send,
   CheckCircle2,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/mock-data";
+import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { OnboardingInviteWithMember } from "@/lib/types";
 
 // Badge for payment method

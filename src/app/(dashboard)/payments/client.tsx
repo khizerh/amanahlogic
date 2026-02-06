@@ -16,7 +16,7 @@ import { createOutstandingColumns, OutstandingPayment } from "./outstanding-colu
 import { createOnboardingColumns } from "./onboarding-columns";
 import { PaymentWithDetails, OutstandingPaymentInfo } from "@/lib/database/payments";
 import { OnboardingInviteWithMember } from "@/lib/types";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils/formatters";
 import {
   AlertTriangle,
   CreditCard,

@@ -17,7 +17,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Edit2, Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { Plan } from "@/lib/types";
 import { toast } from "sonner";
 

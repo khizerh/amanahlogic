@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MemberWithMembership } from "@/lib/types";
-import { formatStatus, getStatusVariant, formatDate } from "@/lib/mock-data";
+import { formatStatus, getStatusVariant, formatDate } from "@/lib/utils/formatters";
 import { formatPhoneNumber } from "@/lib/utils";
 import { FileSignature, CreditCard, HelpCircle } from "lucide-react";
 

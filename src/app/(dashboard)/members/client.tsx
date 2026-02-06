@@ -3,7 +3,7 @@
 import { DataTable } from "@/components/ui/data-table";
 import { columns } from "./columns";
 import { MemberWithMembership } from "@/lib/types";
-import { formatDate } from "@/lib/mock-data";
+import { formatDate } from "@/lib/utils/formatters";
 
 interface MembersTableProps {
   members: MemberWithMembership[];

@@ -60,7 +60,7 @@ import {
   getStatusVariant,
   getEmailTemplateTypeLabel,
   getEmailStatusVariant,
-} from "@/lib/mock-data";
+} from "@/lib/utils/formatters";
 import { formatPhoneNumber } from "@/lib/utils";
 import { MemberWithMembership, Payment, EmailLog, CommunicationLanguage, Agreement, Child } from "@/lib/types";
 import { PhoneInput } from "@/components/ui/phone-input";

@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { MemberWithMembership, PaymentType, Plan } from "@/lib/types";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {

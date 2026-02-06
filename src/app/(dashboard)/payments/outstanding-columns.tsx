@@ -19,7 +19,7 @@ import {
   CheckCircle2,
   CreditCard,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/mock-data";
+import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
 export interface OutstandingPayment {
   id: string;

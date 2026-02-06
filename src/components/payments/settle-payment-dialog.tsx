@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { PaymentWithDetails } from "@/lib/database/payments";
-import { formatCurrency, formatDate } from "@/lib/mock-data";
+import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { toast } from "sonner";
 import { Banknote, FileText, Smartphone, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";

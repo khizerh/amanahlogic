@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Eye, Mail, CheckCircle2 } from "lucide-react";
 import { PaymentWithDetails } from "@/lib/database/payments";
-import { formatCurrency, formatDate } from "@/lib/mock-data";
+import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
 const getPaymentTypeBadge = (type: string) => {
   switch (type) {

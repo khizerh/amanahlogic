@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
 import { Banknote, FileText, Smartphone, CheckCircle2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";

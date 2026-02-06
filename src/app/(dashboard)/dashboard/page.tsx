@@ -17,7 +17,7 @@ import {
   formatCurrency,
   formatDate,
   formatStatus,
-} from "@/lib/mock-data";
+} from "@/lib/utils/formatters";
 
 export default async function DashboardPage() {
   // Get org context with billing config

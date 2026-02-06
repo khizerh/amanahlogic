@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { toast } from "sonner";
 import { Send, Mail, CheckCircle2, Loader2, Copy, AlertTriangle } from "lucide-react";
 import type { MemberWithMembership, Plan } from "@/lib/types";

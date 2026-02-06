@@ -33,7 +33,7 @@ import {
   Trash2,
   Mail,
 } from "lucide-react";
-import { getEmailTemplateTypeLabel } from "@/lib/mock-data";
+import { getEmailTemplateTypeLabel } from "@/lib/utils/formatters";
 import { Organization, EmailTemplate, AgreementTemplate } from "@/lib/types";
 import { toast } from "sonner";
 
