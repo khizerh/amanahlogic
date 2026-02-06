@@ -1181,7 +1181,6 @@ export function MemberDetailClient({
                     ) : (
                       <div>
                         <p className="font-medium">Manual Payments</p>
-                        <p className="text-xs text-muted-foreground">Cash, Check, or Zelle</p>
                       </div>
                     )}
                   </div>
@@ -1190,8 +1189,7 @@ export function MemberDetailClient({
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Frequency & Amount</p>
                     <div>
-                      <p className="font-medium">{getBillingLabel(membership.billingFrequency)}</p>
-                      <p className="text-sm text-muted-foreground">{formatCurrency(duesAmount)} per cycle</p>
+                      <p className="font-medium">{getBillingLabel(membership.billingFrequency)} - {formatCurrency(duesAmount)}</p>
                     </div>
                   </div>
 
