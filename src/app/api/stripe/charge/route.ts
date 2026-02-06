@@ -15,6 +15,7 @@ import {
   type ConnectParams,
 } from "@/lib/stripe";
 import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
+import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 
 interface ChargeCardBody {
   membershipId: string;
@@ -204,14 +205,32 @@ export async function POST(req: Request) {
     }
 
     // Mark payment as completed
+    const paidAt = new Date().toISOString();
     await supabase
       .from("payments")
       .update({
         status: "completed",
         stripe_payment_intent_id: paymentIntentId,
-        paid_at: new Date().toISOString(),
+        paid_at: paidAt,
       })
       .eq("id", newPayment.id);
+
+    // Send payment receipt email (best-effort)
+    try {
+      await sendPaymentReceiptEmail({
+        to: member.email,
+        memberName: `${member.firstName} ${member.lastName}`,
+        memberId: member.id,
+        organizationId,
+        amount: `$${chargeAmount.toFixed(2)}`,
+        paymentDate: paidAt,
+        paymentMethod: `${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`,
+        periodLabel: description,
+        language: member.preferredLanguage || "en",
+      });
+    } catch (emailError) {
+      console.warn("Failed to send payment receipt email:", emailError);
+    }
 
     return NextResponse.json({
       success: true,
