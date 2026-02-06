@@ -879,7 +879,7 @@ describe("Stripe Integration", () => {
       expect(mockSetupIntentsCreate).toHaveBeenCalledWith({
         customer: "cus_123",
         usage: "off_session",
-        payment_method_types: ["card"],
+        automatic_payment_methods: { enabled: true },
         metadata: {
           membership_id: "membership-1",
           member_id: "member-1",
@@ -1058,7 +1058,6 @@ describe("Stripe Integration", () => {
           mode: "subscription",
           success_url: "https://example.com/success",
           cancel_url: "https://example.com/cancel",
-          payment_method_types: ["card"],
           line_items: [
             expect.objectContaining({
               price_data: expect.objectContaining({

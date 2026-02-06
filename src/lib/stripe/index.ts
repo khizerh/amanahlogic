@@ -152,7 +152,7 @@ export async function createSetupIntent(params: {
   const setupIntent = await stripe.setupIntents.create({
     customer: customerId,
     usage: "off_session",
-    payment_method_types: ["card"],
+    automatic_payment_methods: { enabled: true },
     metadata: {
       membership_id: membershipId,
       member_id: memberId,
@@ -365,7 +365,6 @@ export async function createSubscriptionCheckoutSession(params: {
     },
     success_url: successUrl,
     cancel_url: cancelUrl,
-    payment_method_types: ["card"],
   });
 
   if (!session.url) {
