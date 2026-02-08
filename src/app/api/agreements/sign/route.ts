@@ -118,9 +118,10 @@ export async function POST(req: Request) {
       agreementSignedAt: new Date().toISOString(),
     };
 
-    // If enrollment fee is paid AND paidMonths > 0, member is fully onboarded
+    // If enrollment fee is paid AND a real payment has been made, member is fully onboarded
     // This is the official "join" moment: both agreement signed AND first payment completed
-    if (membership.enrollmentFeeStatus !== "unpaid" && membership.paidMonths > 0 && membership.status === "pending") {
+    // Note: check lastPaymentDate (not paidMonths) because paidMonths may include historical credit
+    if (membership.enrollmentFeeStatus !== "unpaid" && membership.lastPaymentDate && membership.status === "pending") {
       updateData.status = "current";
       updateData.joinDate = new Date().toISOString().split("T")[0];
     }
