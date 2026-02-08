@@ -348,8 +348,14 @@ export async function createSubscriptionCheckoutSession(params: {
       ...(connectParams && {
         transfer_data: {
           destination: connectParams.stripeConnectId,
-          // Note: For subscriptions, we set the fee on invoices via webhook
         },
+        // Set application_fee_percent as belt-and-suspenders protection so the
+        // first invoice has the correct fee even if invoice.created webhook
+        // can't find the membership yet (race condition).
+        ...(connectParams.applicationFeeCents > 0 && priceAmountCents > 0 && {
+          application_fee_percent:
+            Math.ceil((connectParams.applicationFeeCents / priceAmountCents) * 10000) / 100,
+        }),
       }),
     },
     metadata: {

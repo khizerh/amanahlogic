@@ -451,11 +451,27 @@ async function handleInvoiceCreated(
     : invoice.subscription.id;
 
   // Look up membership by subscription ID
-  const { data: membership } = await supabase
+  let membership: { id: string; organization_id: string } | null = null;
+  const { data: membershipBySubId } = await supabase
     .from("memberships")
     .select("id, organization_id")
     .eq("stripe_subscription_id", subscriptionId)
     .single();
+
+  membership = membershipBySubId;
+
+  // Fallback: if the subscription ID hasn't been written to the DB yet
+  // (race condition during setup_intent.succeeded), use subscription metadata
+  if (!membership) {
+    const subMetadata = invoice.subscription_details?.metadata;
+    if (subMetadata?.membership_id && subMetadata?.organization_id) {
+      console.log(`[Webhook] invoice.created - falling back to subscription_details.metadata (membership_id: ${subMetadata.membership_id})`);
+      membership = {
+        id: subMetadata.membership_id,
+        organization_id: subMetadata.organization_id,
+      };
+    }
+  }
 
   if (!membership) {
     console.log(`[Webhook] invoice.created - no membership found for subscription ${subscriptionId}`);
@@ -989,6 +1005,16 @@ async function handleSetupIntentSucceeded(
     subscriptionParams.transfer_data = {
       destination: connectId,
     };
+    // Set application_fee_percent so the first invoice has the correct fee
+    // immediately, avoiding the race condition where invoice.created fires
+    // before stripe_subscription_id is written to the DB.
+    // Math.ceil ensures the platform never loses money (at most 1 cent over).
+    // For subsequent invoices, handleInvoiceCreated sets exact application_fee_amount
+    // which takes precedence per Stripe docs.
+    if (fees.chargeAmountCents > 0) {
+      subscriptionParams.application_fee_percent =
+        Math.ceil((fees.applicationFeeCents / fees.chargeAmountCents) * 10000) / 100;
+    }
   }
 
   // Create the subscription
