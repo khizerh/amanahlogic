@@ -287,12 +287,14 @@ async function handleCheckoutCompleted(
           const pm = await stripe.paymentMethods.retrieve(pmId);
           const pmDetails: Record<string, unknown> = {
             type: pm.type === "us_bank_account" ? "us_bank_account" : "card",
-            last4: pm.card?.last4 || pm.us_bank_account?.last4 || "****",
+            last4: pm.card?.last4 || pm.us_bank_account?.last4 || pm.link?.email?.slice(-4) || "****",
           };
           if (pm.card) {
             pmDetails.brand = pm.card.brand;
             pmDetails.expiryMonth = pm.card.exp_month;
             pmDetails.expiryYear = pm.card.exp_year;
+          } else if (pm.type === "link") {
+            pmDetails.brand = "link";
           }
           if (pm.us_bank_account) {
             pmDetails.bankName = pm.us_bank_account.bank_name;
@@ -911,12 +913,14 @@ async function handleSetupIntentSucceeded(
   const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
   const pmDetails: Record<string, unknown> = {
     type: pm.type === "us_bank_account" ? "us_bank_account" : "card",
-    last4: pm.card?.last4 || pm.us_bank_account?.last4 || "****",
+    last4: pm.card?.last4 || pm.us_bank_account?.last4 || pm.link?.email?.slice(-4) || "****",
   };
   if (pm.card) {
     pmDetails.brand = pm.card.brand;
     pmDetails.expiryMonth = pm.card.exp_month;
     pmDetails.expiryYear = pm.card.exp_year;
+  } else if (pm.type === "link") {
+    pmDetails.brand = "link";
   }
 
   // Parse metadata values
