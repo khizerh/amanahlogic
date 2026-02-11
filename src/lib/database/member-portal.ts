@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClientForContext } from "@/lib/supabase/server";
+import { createClientForContext, createServiceRoleClient } from "@/lib/supabase/server";
 import type {
   Member,
   Membership,
@@ -249,7 +249,10 @@ export class MemberPortalService {
       preferredLanguage?: "en" | "fa";
     }
   ): Promise<Member> {
-    const supabase = await createClientForContext();
+    // Use service role client to bypass RLS — portal members don't have
+    // organization_id in their JWT claims so org-level RLS policies block updates.
+    // Callers (API route & server action) already verify member identity.
+    const supabase = createServiceRoleClient();
 
     const dbUpdates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
