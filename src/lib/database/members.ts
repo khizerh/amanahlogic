@@ -21,7 +21,7 @@ export interface CreateMemberInput {
   organizationId: string;
   firstName: string;
   lastName: string;
-  email?: string | null;
+  email: string;
   phone?: string;
   address: {
     street: string;
@@ -205,7 +205,6 @@ export class MembersService {
     organizationId: string,
     email: string
   ): Promise<Member | null> {
-    if (!email) return null;
     const supabase = await createClientForContext();
 
     const { data, error } = await supabase
@@ -238,7 +237,7 @@ export class MembersService {
         organization_id: input.organizationId,
         first_name: input.firstName,
         last_name: input.lastName,
-        email: input.email || null,
+        email: input.email,
         phone: input.phone || null,
         address: input.address,
         spouse_name: input.spouseName || null,
@@ -369,7 +368,7 @@ interface DbMemberRow {
   organization_id: string;
   first_name: string;
   last_name: string;
-  email: string | null;
+  email: string;
   phone: string | null;
   address: { street: string; city: string; state: string; zip: string };
   spouse_name: string | null;

@@ -29,7 +29,7 @@ export function isStripeConfigured(): boolean {
 export async function getOrCreateStripeCustomer(params: {
   memberId: string;
   membershipId: string;
-  email?: string;
+  email: string;
   name: string;
   organizationId: string;
 }): Promise<string> {

@@ -125,19 +125,17 @@ export default function NewMemberPage() {
     setEmergencyPhoneError(null);
 
     // Basic validation
-    if (!firstName || !lastName || !phone) {
+    if (!firstName || !lastName || !email || !phone) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    // Validate email format only when provided
-    if (email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        setEmailError("Please enter a valid email address");
-        toast.error("Invalid email address");
-        return;
-      }
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address");
+      toast.error("Invalid email address");
+      return;
     }
 
     // Validate phone numbers
@@ -168,7 +166,7 @@ export default function NewMemberPage() {
         body: JSON.stringify({
           firstName,
           lastName,
-          email: email || null,
+          email,
           phone: normalizedPhone,
           street,
           city,
@@ -206,13 +204,9 @@ export default function NewMemberPage() {
           onboarding.agreementEmailSent && "agreement",
         ].filter(Boolean);
 
-        if (emailsSent.length > 0 && email) {
+        if (emailsSent.length > 0) {
           toast.success("Member created successfully", {
             description: `Sent ${emailsSent.join(" & ")} email${emailsSent.length > 1 ? "s" : ""} to ${email}`,
-          });
-        } else if (onboarding.skipped?.length > 0 && !onboarding.errors?.length) {
-          toast.success("Member created successfully", {
-            description: "No email provided — onboarding emails were skipped.",
           });
         } else if (onboarding.errors?.length > 0) {
           toast.success("Member created, but some emails failed to send", {
@@ -298,7 +292,7 @@ export default function NewMemberPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">
-                      Email
+                      Email <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="email"
@@ -307,12 +301,9 @@ export default function NewMemberPage() {
                       onChange={(e) => {
                         setEmail(e.target.value);
                         setEmailError(null);
-                        // Force manual payment when no email
-                        if (!e.target.value) {
-                          setPaymentMethod("manual");
-                        }
                       }}
-                      placeholder="email@example.com (optional)"
+                      placeholder="email@example.com"
+                      required
                       className={emailError ? "border-red-500" : ""}
                     />
                     {emailError && (
@@ -602,13 +593,13 @@ export default function NewMemberPage() {
                         onValueChange={(value) => setPaymentMethod(value as "manual" | "stripe")}
                       >
                         <div className="flex items-start space-x-2">
-                          <RadioGroupItem value="stripe" id="stripe" className="mt-1" disabled={!email} />
+                          <RadioGroupItem value="stripe" id="stripe" className="mt-1" />
                           <div>
-                            <Label htmlFor="stripe" className={`font-normal cursor-pointer ${!email ? "text-muted-foreground" : ""}`}>
+                            <Label htmlFor="stripe" className="font-normal cursor-pointer">
                               Stripe Auto-Pay
                             </Label>
                             <p className="text-xs text-muted-foreground">
-                              {!email ? "Stripe auto-pay requires an email address" : "Set up automatic card payments via email link"}
+                              Set up automatic card payments via email link
                             </p>
                           </div>
                         </div>
@@ -650,43 +641,26 @@ export default function NewMemberPage() {
                           </div>
                         </div>
 
-                        {/* Info Box - No email warning */}
-                        {!email && (
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
-                            <div className="flex items-start gap-2">
-                              <Mail className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                              <div className="text-amber-800">
-                                <p className="font-medium">No email provided</p>
-                                <p className="mt-1 text-amber-700">
-                                  This member will not receive onboarding emails or have portal access. You can add an email later from the member detail page.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
                         {/* Info Box - Onboarding emails */}
-                        {email && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-                            <div className="flex items-start gap-2">
-                              <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                              <div className="text-blue-800">
-                                <p className="font-medium">Two emails will be sent to the member:</p>
-                                <ul className="mt-1 text-blue-700 list-disc list-inside space-y-0.5">
-                                  <li>
-                                    <strong>Welcome email</strong> &mdash; portal invite
-                                    {paymentMethod === "stripe"
-                                      ? !waiveEnrollmentFee
-                                        ? ` + payment setup ($${enrollmentFeeAmount} enrollment fee + $${currentDuesAmount} recurring dues)`
-                                        : ` + payment setup ($${currentDuesAmount} recurring dues)`
-                                      : " + payment reminder (cash, check, or Zelle)"}
-                                  </li>
-                                  <li><strong>Agreement email</strong> &mdash; membership agreement to sign</li>
-                                </ul>
-                              </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+                          <div className="flex items-start gap-2">
+                            <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="text-blue-800">
+                              <p className="font-medium">Two emails will be sent to the member:</p>
+                              <ul className="mt-1 text-blue-700 list-disc list-inside space-y-0.5">
+                                <li>
+                                  <strong>Welcome email</strong> &mdash; portal invite
+                                  {paymentMethod === "stripe"
+                                    ? !waiveEnrollmentFee
+                                      ? ` + payment setup ($${enrollmentFeeAmount} enrollment fee + $${currentDuesAmount} recurring dues)`
+                                      : ` + payment setup ($${currentDuesAmount} recurring dues)`
+                                    : " + payment reminder (cash, check, or Zelle)"}
+                                </li>
+                                <li><strong>Agreement email</strong> &mdash; membership agreement to sign</li>
+                              </ul>
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   </>

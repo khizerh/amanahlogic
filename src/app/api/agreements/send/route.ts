@@ -46,13 +46,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    if (sendEmail && !member.email) {
-      return NextResponse.json(
-        { error: "Cannot send agreement: member has no email address" },
-        { status: 400 }
-      );
-    }
-
     const memberLanguage = language || member.preferredLanguage || "en";
     const now = new Date();
     // No expiry — links remain valid until used
@@ -100,7 +93,7 @@ export async function POST(req: Request) {
     let emailResult = null;
     if (sendEmail) {
       emailResult = await sendAgreementEmail({
-        to: member.email!,
+        to: member.email,
         memberName: `${member.firstName} ${member.lastName}`,
         memberId: member.id,
         organizationId,

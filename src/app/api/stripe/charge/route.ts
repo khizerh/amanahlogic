@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       customerId = await getOrCreateStripeCustomer({
         memberId: member.id,
         membershipId: membership.id,
-        email: member.email || undefined,
+        email: member.email,
         name: `${member.firstName} ${member.lastName}`,
         organizationId,
       });
@@ -215,23 +215,21 @@ export async function POST(req: Request) {
       })
       .eq("id", newPayment.id);
 
-    // Send payment receipt email (best-effort, skip if no email)
-    if (member.email) {
-      try {
-        await sendPaymentReceiptEmail({
-          to: member.email,
-          memberName: `${member.firstName} ${member.lastName}`,
-          memberId: member.id,
-          organizationId,
-          amount: `$${chargeAmount.toFixed(2)}`,
-          paymentDate: paidAt,
-          paymentMethod: `${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`,
-          periodLabel: description,
-          language: member.preferredLanguage || "en",
-        });
-      } catch (emailError) {
-        console.warn("Failed to send payment receipt email:", emailError);
-      }
+    // Send payment receipt email (best-effort)
+    try {
+      await sendPaymentReceiptEmail({
+        to: member.email,
+        memberName: `${member.firstName} ${member.lastName}`,
+        memberId: member.id,
+        organizationId,
+        amount: `$${chargeAmount.toFixed(2)}`,
+        paymentDate: paidAt,
+        paymentMethod: `${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`,
+        periodLabel: description,
+        language: member.preferredLanguage || "en",
+      });
+    } catch (emailError) {
+      console.warn("Failed to send payment receipt email:", emailError);
     }
 
     return NextResponse.json({

@@ -68,6 +68,7 @@ interface ImportMembersDialogProps {
 const REQUIRED_COLUMNS = [
   { key: "first_name", label: "First Name" },
   { key: "last_name", label: "Last Name" },
+  { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "street", label: "Street" },
   { key: "city", label: "City" },
@@ -80,7 +81,6 @@ const REQUIRED_COLUMNS = [
 ];
 
 const OPTIONAL_COLUMNS = [
-  { key: "email", label: "Email" },
   { key: "spouse_name", label: "Spouse Name" },
   { key: "preferred_language", label: "Preferred Language" },
   { key: "waive_enrollment_fee", label: "Waive Enrollment Fee" },
@@ -196,7 +196,8 @@ export function ImportMembersDialog({ trigger }: ImportMembersDialogProps) {
 
       if (!row.first_name) rowErrors.push({ row: i, field: "first_name", message: "First name is required" });
       if (!row.last_name) rowErrors.push({ row: i, field: "last_name", message: "Last name is required" });
-      if (row.email && !row.email.includes("@")) rowErrors.push({ row: i, field: "email", message: "Invalid email format" });
+      if (!row.email) rowErrors.push({ row: i, field: "email", message: "Email is required" });
+      if (!row.email?.includes("@")) rowErrors.push({ row: i, field: "email", message: "Invalid email format" });
       if (!row.phone) rowErrors.push({ row: i, field: "phone", message: "Phone is required" });
       if (!row.street) rowErrors.push({ row: i, field: "street", message: "Street is required" });
       if (!row.city) rowErrors.push({ row: i, field: "city", message: "City is required" });
@@ -520,7 +521,7 @@ export function ImportMembersDialog({ trigger }: ImportMembersDialogProps) {
                               {member.firstName} {member.lastName}
                             </TableCell>
                             <TableCell className="text-muted-foreground">
-                              {member.email || <span className="italic">No email</span>}
+                              {member.email}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="capitalize">

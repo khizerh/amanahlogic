@@ -1100,7 +1100,7 @@ async function handleSetupIntentSucceeded(
               .eq("id", memberId)
               .single();
 
-            if (member && member.email) {
+            if (member) {
               const pmType = pm.type === "us_bank_account" ? "Bank Account" : "Credit Card";
               await sendPaymentReceiptEmail({
                 to: member.email,

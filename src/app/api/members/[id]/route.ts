@@ -77,14 +77,6 @@ export async function PUT(
       children,
     } = body;
 
-    // Block clearing email when member has portal access
-    if (!email && email !== undefined && existing.userId) {
-      return NextResponse.json(
-        { error: "Cannot remove email from a member with portal access. Revoke portal access first." },
-        { status: 400 }
-      );
-    }
-
     // Normalize phone numbers to E.164 before storage
     const normalizedPhone = phone ? normalizePhoneNumber(phone) : undefined;
     const normalizedEmergencyContact = emergencyContact
@@ -98,7 +90,7 @@ export async function PUT(
 
     const updatedMember = await MembersService.update({
       id: memberId,
-      ...(email !== undefined && { email: email || null }),
+      ...(email !== undefined && { email }),
       ...(normalizedPhone !== undefined && { phone: normalizedPhone }),
       ...(address !== undefined && { address }),
       ...(preferredLanguage !== undefined && { preferredLanguage }),

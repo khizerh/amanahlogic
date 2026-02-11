@@ -45,14 +45,14 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
       </Link>
     ),
     filterFn: (row, id, filterValue) => {
-      const searchableText = `${row.original.firstName} ${row.original.lastName} ${row.original.email || ""} ${row.original.phone}`.toLowerCase();
+      const searchableText = `${row.original.firstName} ${row.original.lastName} ${row.original.email} ${row.original.phone}`.toLowerCase();
       return searchableText.includes(filterValue.toLowerCase());
     },
   },
   {
     accessorKey: "email",
     header: "Email",
-    cell: ({ row }) => <span>{row.original.email || "—"}</span>,
+    cell: ({ row }) => <span>{row.original.email}</span>,
   },
   {
     accessorKey: "phone",

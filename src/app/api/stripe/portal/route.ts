@@ -58,13 +58,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    if (!member.email) {
-      return NextResponse.json(
-        { error: "Cannot create portal session: member has no email address" },
-        { status: 400 }
-      );
-    }
-
     // Get or create Stripe customer
     let customerId = membership.stripeCustomerId;
 
@@ -73,7 +66,7 @@ export async function POST(req: Request) {
       customerId = await getOrCreateStripeCustomer({
         memberId: member.id,
         membershipId: membership.id,
-        email: member.email || undefined,
+        email: member.email,
         name: `${member.firstName} ${member.lastName}`,
         organizationId,
       });

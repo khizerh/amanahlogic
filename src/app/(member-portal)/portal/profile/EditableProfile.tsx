@@ -146,9 +146,7 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
             {/* Email - Not editable */}
             <div>
               <p className="text-sm text-muted-foreground">Email</p>
-              <p className={`font-medium ${!member.email ? "text-muted-foreground italic" : ""}`}>
-                {member.email || "No email on file"}
-              </p>
+              <p className="font-medium">{member.email}</p>
             </div>
 
             {/* Phone - Editable */}

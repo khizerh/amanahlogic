@@ -119,7 +119,7 @@ export function PaymentDetailsSheet({
                 >
                   {payment.member.firstName} {payment.member.lastName}
                 </Link>
-                <div className="text-sm text-muted-foreground">{payment.member.email || "No email"}</div>
+                <div className="text-sm text-muted-foreground">{payment.member.email}</div>
               </div>
             ) : (
               <span className="text-muted-foreground">Unknown member</span>

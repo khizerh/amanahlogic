@@ -546,7 +546,7 @@ interface DbMemberJoinRow {
   organization_id: string;
   first_name: string;
   last_name: string;
-  email: string | null;
+  email: string;
   phone: string | null;
   address: { street: string; city: string; state: string; zip: string };
   spouse_name: string | null;

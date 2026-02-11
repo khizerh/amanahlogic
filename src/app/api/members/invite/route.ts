@@ -26,13 +26,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    if (!member.email) {
-      return NextResponse.json(
-        { error: "Cannot send invite: member has no email address" },
-        { status: 400 }
-      );
-    }
-
     // Check if already linked
     if (member.user_id) {
       return NextResponse.json({ error: "Member already has portal access" }, { status: 400 });

@@ -114,7 +114,7 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
       return (
         member.firstName.toLowerCase().includes(searchValue) ||
         member.lastName.toLowerCase().includes(searchValue) ||
-        (member.email || "").toLowerCase().includes(searchValue)
+        member.email.toLowerCase().includes(searchValue)
       );
     },
   },

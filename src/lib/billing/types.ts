@@ -244,7 +244,7 @@ export interface UpdatePaymentInput {
 export interface BillingReminderData {
   membershipId: string;
   memberId: string;
-  memberEmail: string | null;
+  memberEmail: string;
   memberName: string;
   amount: number;
   dueDate: string;

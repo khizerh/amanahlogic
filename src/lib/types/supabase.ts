@@ -373,7 +373,7 @@ export type Database = {
           address: Json
           children: Json | null
           created_at: string | null
-          email: string | null
+          email: string
           emergency_contact: Json
           first_name: string
           id: string
@@ -389,7 +389,7 @@ export type Database = {
           address?: Json
           children?: Json | null
           created_at?: string | null
-          email?: string | null
+          email: string
           emergency_contact?: Json
           first_name: string
           id?: string

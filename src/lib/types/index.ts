@@ -81,7 +81,7 @@ export interface Member {
   // Primary contact
   firstName: string;
   lastName: string;
-  email: string | null;
+  email: string;
   phone: string;
   address: Address;
 
@@ -403,7 +403,7 @@ export interface EmailLog {
   organizationId: string;
   memberId: string;
   memberName: string;
-  memberEmail: string | null;
+  memberEmail: string;
   templateType: EmailTemplateType | 'custom';
 
   to: string;
@@ -492,7 +492,7 @@ export interface OverduePaymentInfo {
 
   // Member info
   memberName: string;
-  memberEmail: string | null;
+  memberEmail: string;
   planName: string;
 
   // Payment info

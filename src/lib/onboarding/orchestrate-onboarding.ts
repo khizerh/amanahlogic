@@ -40,7 +40,6 @@ export interface OrchestrateOnboardingResult {
   stripeSessionCreated: boolean;
   agreementCreated: boolean;
   errors: string[];
-  skipped: string[];
 }
 
 // =============================================================================
@@ -66,7 +65,6 @@ export async function orchestrateOnboarding(
     stripeSessionCreated: false,
     agreementCreated: false,
     errors: [],
-    skipped: [],
   };
 
   const memberName = `${member.firstName} ${member.lastName}`;
@@ -90,40 +88,36 @@ export async function orchestrateOnboarding(
   // -------------------------------------------------------------------------
   let inviteUrl: string | undefined;
   let inviteExpiresAt: string | undefined;
-  if (member.email) {
-    try {
-      const supabase = createServiceRoleClient();
+  try {
+    const supabase = createServiceRoleClient();
 
-      // Cancel any existing pending invites
-      await supabase
-        .from("member_invites")
-        .update({ status: "expired" })
-        .eq("member_id", member.id)
-        .eq("status", "pending");
+    // Cancel any existing pending invites
+    await supabase
+      .from("member_invites")
+      .update({ status: "expired" })
+      .eq("member_id", member.id)
+      .eq("status", "pending");
 
-      // Create new invite
-      const { data: invite, error: inviteError } = await supabase
-        .from("member_invites")
-        .insert({
-          organization_id: organizationId,
-          member_id: member.id,
-          email: member.email,
-        })
-        .select()
-        .single();
+    // Create new invite
+    const { data: invite, error: inviteError } = await supabase
+      .from("member_invites")
+      .insert({
+        organization_id: organizationId,
+        member_id: member.id,
+        email: member.email,
+      })
+      .select()
+      .single();
 
-      if (inviteError) throw inviteError;
+    if (inviteError) throw inviteError;
 
-      inviteUrl = `${baseUrl}/portal/accept-invite?token=${invite.token}`;
-      inviteExpiresAt = invite.expires_at;
-      result.inviteCreated = true;
-    } catch (err) {
-      const msg = `Failed to create portal invite: ${err instanceof Error ? err.message : String(err)}`;
-      console.error("[onboarding]", msg);
-      result.errors.push(msg);
-    }
-  } else {
-    result.skipped.push("Portal invite: no email address");
+    inviteUrl = `${baseUrl}/portal/accept-invite?token=${invite.token}`;
+    inviteExpiresAt = invite.expires_at;
+    result.inviteCreated = true;
+  } catch (err) {
+    const msg = `Failed to create portal invite: ${err instanceof Error ? err.message : String(err)}`;
+    console.error("[onboarding]", msg);
+    result.errors.push(msg);
   }
 
   // -------------------------------------------------------------------------
@@ -156,7 +150,7 @@ export async function orchestrateOnboarding(
       const customerId = await getOrCreateStripeCustomer({
         memberId: member.id,
         membershipId: membership.id,
-        email: member.email || undefined,
+        email: member.email,
         name: memberName,
         organizationId,
       });
@@ -305,9 +299,7 @@ export async function orchestrateOnboarding(
   // -------------------------------------------------------------------------
   // Step 5: Send welcome email (Email 1)
   // -------------------------------------------------------------------------
-  if (!member.email) {
-    result.skipped.push("Welcome email: no email address");
-  } else if (inviteUrl && inviteExpiresAt) {
+  if (inviteUrl && inviteExpiresAt) {
     try {
       const emailResult = await sendWelcomeEmail({
         to: member.email,
@@ -341,9 +333,7 @@ export async function orchestrateOnboarding(
   // -------------------------------------------------------------------------
   // Step 6: Send agreement email (Email 2)
   // -------------------------------------------------------------------------
-  if (!member.email) {
-    result.skipped.push("Agreement email: no email address");
-  } else if (signUrl && agreementExpiresAt) {
+  if (signUrl && agreementExpiresAt) {
     try {
       const emailResult = await sendAgreementEmail({
         to: member.email,

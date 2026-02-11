@@ -181,7 +181,7 @@ export function PaymentsPageClient({
         if (!res.ok || !result.success) {
           throw new Error(result.error || "Failed to send email");
         }
-        toast.success(`Payment setup email sent to ${invite.member.email || invite.member.firstName}`);
+        toast.success(`Payment setup email sent to ${invite.member.email}`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to resend email");
       }
@@ -191,7 +191,7 @@ export function PaymentsPageClient({
   };
 
   const handleSendNewOnboardingLink = (invite: OnboardingInviteWithMember) => {
-    toast.success(`New payment setup link sent to ${invite.member.email || invite.member.firstName}`);
+    toast.success(`New payment setup link sent to ${invite.member.email}`);
   };
 
   const handleRecordOnboardingPayment = (invite: OnboardingInviteWithMember) => {
