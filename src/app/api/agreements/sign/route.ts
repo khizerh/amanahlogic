@@ -134,8 +134,8 @@ export async function POST(req: Request) {
     // Create onboarding invite so it shows in Onboarding tab
     // Admin can then record payment using "Mark as Paid"
     try {
-      // Check if onboarding invite already exists for this membership
-      const existingInvite = await OnboardingInvitesService.getPendingForMembership(membership.id, serviceClient);
+      // Check if onboarding invite already exists for this membership (pending or completed)
+      const existingInvite = await OnboardingInvitesService.getActiveForMembership(membership.id, serviceClient);
 
       if (!existingInvite) {
         const plan = await PlansService.getById(membership.planId, serviceClient);

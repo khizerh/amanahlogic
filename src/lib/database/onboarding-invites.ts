@@ -227,6 +227,33 @@ export class OnboardingInvitesService {
   }
 
   /**
+   * Get any active (pending or completed) invite for a membership.
+   * Used to prevent creating duplicate invites.
+   */
+  static async getActiveForMembership(
+    membershipId: string,
+    client?: SupabaseClient
+  ): Promise<OnboardingInvite | null> {
+    const supabase = client ?? (await createClientForContext());
+
+    const { data, error } = await supabase
+      .from("onboarding_invites")
+      .select("*")
+      .eq("membership_id", membershipId)
+      .in("status", ["pending", "completed"])
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+
+    return transformInvite(data);
+  }
+
+  /**
    * Create a new onboarding invite
    */
   static async create(
