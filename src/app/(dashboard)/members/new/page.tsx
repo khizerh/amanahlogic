@@ -84,7 +84,7 @@ export default function NewMemberPage() {
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>("monthly");
   const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
   const [children, setChildren] = useState<ChildFormData[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
   const [waiveEnrollmentFee, setWaiveEnrollmentFee] = useState(false);
   const [paidMonths, setPaidMonths] = useState<number>(0);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -307,9 +307,11 @@ export default function NewMemberPage() {
                       onChange={(e) => {
                         setEmail(e.target.value);
                         setEmailError(null);
-                        // Force manual payment when no email
+                        // Auto-switch payment method based on email presence
                         if (!e.target.value) {
                           setPaymentMethod("manual");
+                        } else if (paymentMethod === "manual") {
+                          setPaymentMethod("stripe");
                         }
                       }}
                       placeholder="email@example.com (optional)"
