@@ -61,6 +61,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
+    if (!member.email) {
+      return NextResponse.json(
+        { error: "Cannot send payment setup: member has no email address" },
+        { status: 400 }
+      );
+    }
+
     if (!org) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
@@ -80,7 +87,7 @@ export async function POST(req: Request) {
     const customerId = await getOrCreateStripeCustomer({
       memberId: member.id,
       membershipId: membership.id,
-      email: member.email,
+      email: member.email || undefined,
       name: `${member.firstName} ${member.lastName}`,
       organizationId,
     });

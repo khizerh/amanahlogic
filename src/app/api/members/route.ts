@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     } = body as {
       firstName: string;
       lastName: string;
-      email: string;
+      email?: string;
       phone: string;
       street: string;
       city: string;
@@ -84,20 +84,22 @@ export async function POST(request: Request) {
     const paidMonths = Math.max(0, Math.floor(Number(rawPaidMonths) || 0));
 
     // Validate required fields
-    if (!firstName || !lastName || !email) {
+    if (!firstName || !lastName) {
       return NextResponse.json(
-        { error: "First name, last name, and email are required" },
+        { error: "First name and last name are required" },
         { status: 400 }
       );
     }
 
-    // Check if member with this email already exists
-    const existingMember = await MembersService.getByEmail(organizationId, email);
-    if (existingMember) {
-      return NextResponse.json(
-        { error: "A member with this email already exists" },
-        { status: 400 }
-      );
+    // Check if member with this email already exists (only when email provided)
+    if (email) {
+      const existingMember = await MembersService.getByEmail(organizationId, email);
+      if (existingMember) {
+        return NextResponse.json(
+          { error: "A member with this email already exists" },
+          { status: 400 }
+        );
+      }
     }
 
     // Look up the plan by type
@@ -118,7 +120,7 @@ export async function POST(request: Request) {
       organizationId,
       firstName,
       lastName,
-      email,
+      email: email || null,
       phone: normalizedPhone || undefined,
       address: {
         street: street || "",
@@ -190,6 +192,7 @@ export async function POST(request: Request) {
         stripeSessionCreated: false,
         agreementCreated: false,
         errors: [err instanceof Error ? err.message : "Onboarding orchestration failed"],
+        skipped: [],
       };
     }
 

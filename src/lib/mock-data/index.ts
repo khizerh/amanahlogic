@@ -601,7 +601,7 @@ export function getMembers(filters?: MemberFilters): MemberWithMembership[] {
     results = results.filter(m =>
       m.firstName.toLowerCase().includes(search) ||
       m.lastName.toLowerCase().includes(search) ||
-      m.email.toLowerCase().includes(search) ||
+      (m.email || "").toLowerCase().includes(search) ||
       m.phone.includes(search)
     );
   }
@@ -692,7 +692,7 @@ export function getPayments(filters?: PaymentFilters): PaymentWithDetails[] {
       return member && (
         member.firstName.toLowerCase().includes(search) ||
         member.lastName.toLowerCase().includes(search) ||
-        member.email.toLowerCase().includes(search)
+        (member.email || "").toLowerCase().includes(search)
       );
     });
   }
@@ -1343,7 +1343,7 @@ function generateEmailLogs(): EmailLog[] {
         memberName: `${member.firstName} ${member.lastName}`,
         memberEmail: member.email,
         templateType,
-        to: member.email,
+        to: member.email || "",
         subject: template.subject[lang].replace('{{organization_name}}', 'Masjid Muhajireen').replace('{{amount}}', '$20.00').replace('{{due_date}}', 'Dec 15, 2024'),
         bodyPreview: template.body[lang].substring(0, 150) + '...',
         language: lang,

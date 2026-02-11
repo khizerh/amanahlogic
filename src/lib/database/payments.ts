@@ -111,7 +111,7 @@ export interface PaymentWithDetails {
     id: string;
     firstName: string;
     lastName: string;
-    email: string;
+    email: string | null;
   } | null;
   membership: {
     id: string;
@@ -155,7 +155,7 @@ export interface OverduePaymentInfo {
   member: {
     firstName: string;
     lastName: string;
-    email: string;
+    email: string | null;
   } | null;
   membership: {
     status: MembershipStatus;
@@ -174,7 +174,7 @@ export interface OutstandingPaymentInfo {
   memberId: string;
   membershipId: string;
   memberName: string;
-  memberEmail: string;
+  memberEmail: string | null;
   planName: string;
   amountDue: number;
   dueDate: string;

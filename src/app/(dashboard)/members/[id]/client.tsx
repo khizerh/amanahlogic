@@ -184,7 +184,7 @@ export function MemberDetailClient({
     emergencyName: string;
     emergencyPhone: string;
   }>({
-    email: memberData.email,
+    email: memberData.email || "",
     phone: memberData.phone,
     street: memberData.address.street,
     city: memberData.address.city,
@@ -497,7 +497,7 @@ export function MemberDetailClient({
 
   const handleStartEdit = () => {
     setEditForm({
-      email: memberData.email,
+      email: memberData.email || "",
       phone: formatPhoneNumber(memberData.phone),
       street: memberData.address.street,
       city: memberData.address.city,
@@ -521,7 +521,7 @@ export function MemberDetailClient({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: editForm.email,
+          email: editForm.email || null,
           phone: editForm.phone,
           address: {
             street: editForm.street,
@@ -872,7 +872,7 @@ export function MemberDetailClient({
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleSendAgreement}
-                                disabled={isSendingAgreement}
+                                disabled={isSendingAgreement || !memberData.email}
                                 className="h-7 text-xs"
                               >
                                 {isSendingAgreement ? (
@@ -884,6 +884,7 @@ export function MemberDetailClient({
                                   "Resend Link"
                                 )}
                               </Button>
+                              {!memberData.email && <p className="text-xs text-amber-600">Requires email address</p>}
                               {currentSignUrl && (
                                 <Button
                                   variant="ghost"
@@ -918,7 +919,7 @@ export function MemberDetailClient({
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleSendPortalInvite}
-                                disabled={isSendingPortalInvite}
+                                disabled={isSendingPortalInvite || !memberData.email}
                                 className="h-7 text-xs"
                               >
                                 {isSendingPortalInvite ? (
@@ -930,6 +931,7 @@ export function MemberDetailClient({
                                   "Send Invite"
                                 )}
                               </Button>
+                              {!memberData.email && <p className="text-xs text-amber-600">Requires email address</p>}
                               {portalInviteUrl && (
                                 <Button
                                   variant="ghost"
@@ -1025,7 +1027,9 @@ export function MemberDetailClient({
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium">{memberData.email}</p>
+                        <p className={`font-medium ${!memberData.email ? "text-muted-foreground italic" : ""}`}>
+                          {memberData.email || "No email on file"}
+                        </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Phone</p>
@@ -1066,6 +1070,7 @@ export function MemberDetailClient({
                           type="email"
                           value={editForm.email}
                           onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                          placeholder="email@example.com (optional)"
                         />
                       </div>
                       <div className="space-y-2">
@@ -1387,24 +1392,27 @@ export function MemberDetailClient({
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleSetupAutopay}
-                      disabled={isSettingUpAutopay}
-                    >
-                      {isSettingUpAutopay ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Setting up...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Set Up Auto-Pay
-                        </>
-                      )}
-                    </Button>
+                    <div>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleSetupAutopay}
+                        disabled={isSettingUpAutopay || !memberData.email}
+                      >
+                        {isSettingUpAutopay ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Setting up...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Set Up Auto-Pay
+                          </>
+                        )}
+                      </Button>
+                      {!memberData.email && <p className="text-xs text-amber-600 mt-1">Requires email address</p>}
+                    </div>
                   )}
                   <Button
                     variant="outline"

@@ -31,7 +31,7 @@ export function MembersTable({ members }: MembersTableProps) {
       return [
         member.firstName,
         member.lastName,
-        member.email,
+        member.email || "",
         member.phone || "",
         member.plan?.name || "",
         member.membership?.status || "",

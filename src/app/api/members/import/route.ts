@@ -16,7 +16,7 @@ interface ImportChild {
 interface ImportMember {
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone: string;
   street: string;
   city: string;
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     // Get existing emails to check for duplicates
     const existingMembers = await MembersService.getAllWithMembership(organizationId);
-    const existingEmails = new Set(existingMembers.map(m => m.email.toLowerCase()));
+    const existingEmails = new Set(existingMembers.filter(m => m.email).map(m => m.email!.toLowerCase()));
 
     const results = {
       imported: 0,
@@ -84,8 +84,8 @@ export async function POST(request: Request) {
       const rowNum = i + 2; // +2 because row 1 is header, and we're 0-indexed
 
       try {
-        // Validate email uniqueness
-        if (existingEmails.has(member.email.toLowerCase())) {
+        // Validate email uniqueness (only when email provided)
+        if (member.email && existingEmails.has(member.email.toLowerCase())) {
           results.failed++;
           results.errors.push(`Row ${rowNum}: Email ${member.email} already exists`);
           continue;
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
           organizationId,
           firstName: member.firstName,
           lastName: member.lastName,
-          email: member.email,
+          email: member.email || null,
           phone: normalizedPhone || undefined,
           address: {
             street: member.street || "",
@@ -147,7 +147,9 @@ export async function POST(request: Request) {
         });
 
         // Add to existing emails set to prevent duplicates within same batch
-        existingEmails.add(member.email.toLowerCase());
+        if (member.email) {
+          existingEmails.add(member.email.toLowerCase());
+        }
         results.imported++;
       } catch (error) {
         results.failed++;
