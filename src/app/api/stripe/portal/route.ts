@@ -129,9 +129,21 @@ export async function POST(req: Request) {
     // Send email if requested
     let emailResult = null;
     if (sendEmail) {
+      // If membership has a payer, send the portal link to the payer's email instead
+      let recipientEmail = member.email;
+      let recipientName = `${member.firstName} ${member.lastName}`;
+
+      if (membership.payerMemberId) {
+        const payerMember = await MembersService.getById(membership.payerMemberId);
+        if (payerMember?.email) {
+          recipientEmail = payerMember.email;
+          recipientName = `${payerMember.firstName} ${payerMember.lastName}`;
+        }
+      }
+
       emailResult = await sendPortalLinkEmail({
-        to: member.email,
-        memberName: `${member.firstName} ${member.lastName}`,
+        to: recipientEmail,
+        memberName: recipientName,
         memberId: member.id,
         organizationId,
         portalUrl: portalSession.url,

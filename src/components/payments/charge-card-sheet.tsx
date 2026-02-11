@@ -34,6 +34,7 @@ interface ChargeCardSheetProps {
   onOpenChange: (open: boolean) => void;
   onPaymentRecorded?: () => void;
   passFeesToMember: boolean;
+  payerMemberName?: string | null;
 }
 
 export function ChargeCardSheet({
@@ -43,6 +44,7 @@ export function ChargeCardSheet({
   onOpenChange,
   onPaymentRecorded,
   passFeesToMember,
+  payerMemberName,
 }: ChargeCardSheetProps) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
@@ -151,7 +153,9 @@ export function ChargeCardSheet({
             Charge Card
           </SheetTitle>
           <SheetDescription>
-            Charge {member.firstName} {member.lastName}&apos;s payment method
+            {payerMemberName
+              ? `Charge ${payerMemberName}'s card for ${member.firstName} ${member.lastName}'s membership`
+              : `Charge ${member.firstName} ${member.lastName}'s payment method`}
           </SheetDescription>
         </SheetHeader>
 
@@ -182,9 +186,17 @@ export function ChargeCardSheet({
               </p>
             </div>
             <p className="mt-4 text-sm font-medium">
-              {member.firstName} {member.lastName}
+              {payerMemberName || `${member.firstName} ${member.lastName}`}
             </p>
           </div>
+
+          {payerMemberName && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+              <p className="text-blue-800">
+                This card belongs to <span className="font-medium">{payerMemberName}</span>, who is paying for {member.firstName} {member.lastName}&apos;s membership.
+              </p>
+            </div>
+          )}
 
           <Separator />
 

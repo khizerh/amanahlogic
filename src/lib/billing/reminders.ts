@@ -250,18 +250,45 @@ export async function processOrganizationReminders(
             .eq("id", payment.member_id)
             .single();
 
-          if (member?.email) {
+          let recipientEmail = member?.email;
+          let recipientName = member ? `${member.first_name} ${member.last_name}` : "";
+          let recipientLanguage: "en" | "fa" = (member?.preferred_language as "en" | "fa") || "en";
+
+          // Payer email fallback: if beneficiary has no email but membership has a payer, use payer's email
+          if (!recipientEmail) {
+            const { data: membership } = await supabase
+              .from("memberships")
+              .select("payer_member_id")
+              .eq("id", payment.membership_id)
+              .single();
+
+            if (membership?.payer_member_id) {
+              const { data: payerMember } = await supabase
+                .from("members")
+                .select("id, email, first_name, last_name, preferred_language")
+                .eq("id", membership.payer_member_id)
+                .single();
+
+              if (payerMember?.email) {
+                recipientEmail = payerMember.email;
+                recipientName = `${payerMember.first_name} ${payerMember.last_name}`;
+                recipientLanguage = (payerMember.preferred_language as "en" | "fa") || "en";
+              }
+            }
+          }
+
+          if (recipientEmail) {
             const emailResult = await sendPaymentReminderEmail({
-              to: member.email,
-              memberName: `${member.first_name} ${member.last_name}`,
-              memberId: member.id,
+              to: recipientEmail,
+              memberName: recipientName,
+              memberId: member?.id || payment.member_id,
               organizationId,
               amount: payment.amount.toFixed(2),
               dueDate: payment.due_date,
               daysOverdue,
               reminderNumber: newReminderCount,
               invoiceNumber: payment.invoice_number || "N/A",
-              language: (member.preferred_language as "en" | "fa") || "en",
+              language: recipientLanguage,
             });
 
             if (!emailResult.success) {
@@ -271,7 +298,7 @@ export async function processOrganizationReminders(
               });
             }
           } else {
-            logger.warn("No email address for member, skipping reminder email", {
+            logger.warn("No email address for member or payer, skipping reminder email", {
               paymentId: payment.id,
               memberId: payment.member_id,
             });
@@ -393,18 +420,45 @@ export async function sendPaymentReminder(
         .eq("id", payment.member_id)
         .single();
 
-      if (member?.email) {
+      let recipientEmail = member?.email;
+      let recipientName = member ? `${member.first_name} ${member.last_name}` : "";
+      let recipientLanguage: "en" | "fa" = (member?.preferred_language as "en" | "fa") || "en";
+
+      // Payer email fallback: if beneficiary has no email but membership has a payer, use payer's email
+      if (!recipientEmail) {
+        const { data: membershipData } = await supabase
+          .from("memberships")
+          .select("payer_member_id")
+          .eq("id", payment.membership_id)
+          .single();
+
+        if (membershipData?.payer_member_id) {
+          const { data: payerMember } = await supabase
+            .from("members")
+            .select("id, email, first_name, last_name, preferred_language")
+            .eq("id", membershipData.payer_member_id)
+            .single();
+
+          if (payerMember?.email) {
+            recipientEmail = payerMember.email;
+            recipientName = `${payerMember.first_name} ${payerMember.last_name}`;
+            recipientLanguage = (payerMember.preferred_language as "en" | "fa") || "en";
+          }
+        }
+      }
+
+      if (recipientEmail) {
         const emailResult = await sendPaymentReminderEmail({
-          to: member.email,
-          memberName: `${member.first_name} ${member.last_name}`,
-          memberId: member.id,
+          to: recipientEmail,
+          memberName: recipientName,
+          memberId: member?.id || payment.member_id,
           organizationId: payment.organization_id,
           amount: payment.amount.toFixed(2),
           dueDate: payment.due_date,
           daysOverdue: Math.max(daysOverdue, 0),
           reminderNumber: Math.min(newReminderCount, billingConfig.maxReminders),
           invoiceNumber: payment.invoice_number || "N/A",
-          language: (member.preferred_language as "en" | "fa") || "en",
+          language: recipientLanguage,
         });
 
         if (!emailResult.success) {
@@ -414,7 +468,7 @@ export async function sendPaymentReminder(
           });
         }
       } else {
-        logger.warn("No email address for member, skipping reminder email", {
+        logger.warn("No email address for member or payer, skipping reminder email", {
           paymentId: payment.id,
           memberId: payment.member_id,
         });

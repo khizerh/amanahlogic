@@ -357,7 +357,7 @@ export async function handlePaymentIntentFailed(
   try {
     const { data: membership } = await supabase
       .from("memberships")
-      .select("member_id")
+      .select("member_id, payer_member_id")
       .eq("id", metadata.membership_id)
       .single();
 
@@ -368,16 +368,35 @@ export async function handlePaymentIntentFailed(
         .eq("id", membership.member_id)
         .single();
 
-      if (member?.email) {
+      let recipientEmail = member?.email;
+      let recipientName = member ? `${member.first_name} ${member.last_name}` : "";
+      let recipientLanguage: "en" | "fa" = (member?.preferred_language as "en" | "fa") || "en";
+
+      // Payer email fallback: if beneficiary has no email but membership has a payer, use payer's email
+      if (!recipientEmail && membership.payer_member_id) {
+        const { data: payerMember } = await supabase
+          .from("members")
+          .select("id, email, first_name, last_name, preferred_language")
+          .eq("id", membership.payer_member_id)
+          .single();
+
+        if (payerMember?.email) {
+          recipientEmail = payerMember.email;
+          recipientName = `${payerMember.first_name} ${payerMember.last_name}`;
+          recipientLanguage = (payerMember.preferred_language as "en" | "fa") || "en";
+        }
+      }
+
+      if (recipientEmail) {
         const amount = paymentIntent.amount ? (paymentIntent.amount / 100).toFixed(2) : "0.00";
         await sendPaymentFailedEmail({
-          to: member.email,
-          memberName: `${member.first_name} ${member.last_name}`,
-          memberId: member.id,
+          to: recipientEmail,
+          memberName: recipientName,
+          memberId: member?.id || membership.member_id,
           organizationId: ctx.organization_id,
           amount,
           failureReason: errorMessage,
-          language: (member.preferred_language as "en" | "fa") || "en",
+          language: recipientLanguage,
         });
       }
     }

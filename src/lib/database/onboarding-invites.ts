@@ -580,6 +580,7 @@ interface DbMembershipJoinRow {
   stripe_customer_id: string | null;
   subscription_status: SubscriptionStatus | null;
   payment_method: PaymentMethodDetails | null;
+  payer_member_id: string | null;
   created_at: string;
   updated_at: string;
   plan?: DbPlanJoinRow | DbPlanJoinRow[];
@@ -693,6 +694,7 @@ function transformInvitesWithDetails(
             stripeCustomerId: membership.stripe_customer_id,
             subscriptionStatus: membership.subscription_status,
             paymentMethod: membership.payment_method,
+            payerMemberId: membership.payer_member_id || null,
             createdAt: membership.created_at,
             updatedAt: membership.updated_at,
           }

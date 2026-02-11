@@ -445,6 +445,7 @@ export type Database = {
           next_payment_due: string | null
           organization_id: string
           paid_months: number | null
+          payer_member_id: string | null
           payment_method: Json | null
           plan_id: string | null
           status: string
@@ -470,6 +471,7 @@ export type Database = {
           next_payment_due?: string | null
           organization_id: string
           paid_months?: number | null
+          payer_member_id?: string | null
           payment_method?: Json | null
           plan_id?: string | null
           status?: string
@@ -495,6 +497,7 @@ export type Database = {
           next_payment_due?: string | null
           organization_id?: string
           paid_months?: number | null
+          payer_member_id?: string | null
           payment_method?: Json | null
           plan_id?: string | null
           status?: string

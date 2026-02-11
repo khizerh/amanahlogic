@@ -357,6 +357,7 @@ function generateMemberships(members: Member[]): Membership[] {
       stripeCustomerId: autoPayEnabled ? seededId('cus') : null,
       subscriptionStatus,
       paymentMethod,
+      payerMemberId: null,
       createdAt,
       updatedAt: randomDate(new Date('2024-06-01'), new Date('2024-12-01')),
     };

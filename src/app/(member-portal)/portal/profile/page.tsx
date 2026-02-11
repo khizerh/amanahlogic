@@ -6,8 +6,9 @@ export const metadata: Metadata = {
 };
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Users } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
+import { MembersService } from "@/lib/database/members";
 import { StripePortalButton } from "./StripePortalButton";
 import { EditableProfile } from "./EditableProfile";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -64,6 +65,15 @@ export default async function MemberProfilePage() {
 
   const { member, membership, plan, organization } = portalData;
   const hasPaymentMethod = membership?.autoPayEnabled && membership?.paymentMethod;
+
+  // Fetch payer name if this member has a payer
+  let payerMemberName: string | null = null;
+  if (membership?.payerMemberId) {
+    const payer = await MembersService.getById(membership.payerMemberId);
+    if (payer) {
+      payerMemberName = `${payer.firstName} ${payer.lastName}`;
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -150,7 +160,17 @@ export default async function MemberProfilePage() {
             <CardTitle className="text-lg">Payment Settings</CardTitle>
           </CardHeader>
           <CardContent>
-            {hasPaymentMethod && membership.paymentMethod ? (
+            {membership.payerMemberId && payerMemberName ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium">Paid by {payerMemberName}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Your dues are being paid by another member. Contact {organization.name} for details.
+                </p>
+              </div>
+            ) : hasPaymentMethod && membership.paymentMethod ? (
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Payment Method</p>

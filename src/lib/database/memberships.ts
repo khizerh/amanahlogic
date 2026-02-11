@@ -48,6 +48,7 @@ export interface UpdateMembershipInput extends Partial<CreateMembershipInput> {
   stripeCustomerId?: string | null;
   subscriptionStatus?: SubscriptionStatus | null;
   paymentMethod?: PaymentMethodDetails | null;
+  payerMemberId?: string | null;
 }
 
 // =============================================================================
@@ -196,26 +197,62 @@ export class MembershipsService {
   }
 
   /**
-   * Get membership by Stripe customer ID
+   * Get all memberships by Stripe customer ID.
+   * Returns an array because one payer's customer ID may appear on multiple memberships.
    */
-  static async getByStripeCustomerId(
+  static async getAllByStripeCustomerId(
     stripeCustomerId: string,
     supabase?: SupabaseClient
-  ): Promise<Membership | null> {
+  ): Promise<Membership[]> {
     const client = supabase ?? (await createClientForContext());
 
     const { data, error } = await client
       .from("memberships")
       .select("*")
-      .eq("stripe_customer_id", stripeCustomerId)
-      .single();
+      .eq("stripe_customer_id", stripeCustomerId);
 
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
+    if (error) throw error;
+    return transformMemberships(data || []);
+  }
 
-    return transformMembership(data);
+  /**
+   * Get memberships where this member is the payer (the "paying for" list)
+   */
+  static async getByPayerMemberId(
+    payerMemberId: string,
+    organizationId: string,
+    supabase?: SupabaseClient
+  ): Promise<Array<{
+    membershipId: string;
+    memberId: string;
+    firstName: string;
+    lastName: string;
+    planName: string;
+  }>> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { data, error } = await client
+      .from("memberships")
+      .select(`
+        id,
+        member:members(id, first_name, last_name),
+        plan:plans(name)
+      `)
+      .eq("payer_member_id", payerMemberId)
+      .eq("organization_id", organizationId);
+
+    if (error) throw error;
+    return (data || []).map((row: Record<string, unknown>) => {
+      const member = Array.isArray(row.member) ? row.member[0] : row.member;
+      const plan = Array.isArray(row.plan) ? row.plan[0] : row.plan;
+      return {
+        membershipId: row.id as string,
+        memberId: (member as Record<string, unknown>)?.id as string,
+        firstName: (member as Record<string, unknown>)?.first_name as string,
+        lastName: (member as Record<string, unknown>)?.last_name as string,
+        planName: (plan as Record<string, unknown>)?.name as string || "Unknown Plan",
+      };
+    });
   }
 
   /**
@@ -296,6 +333,8 @@ export class MembershipsService {
       dbUpdates.subscription_status = updates.subscriptionStatus;
     if (updates.paymentMethod !== undefined)
       dbUpdates.payment_method = updates.paymentMethod;
+    if (updates.payerMemberId !== undefined)
+      dbUpdates.payer_member_id = updates.payerMemberId;
 
     const { data, error } = await client
       .from("memberships")
@@ -470,6 +509,7 @@ interface DbMembershipRow {
   stripe_customer_id: string | null;
   subscription_status: SubscriptionStatus | null;
   payment_method: PaymentMethodDetails | null;
+  payer_member_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -570,6 +610,7 @@ function transformMembership(dbMembership: DbMembershipRow): Membership {
     stripeCustomerId: dbMembership.stripe_customer_id,
     subscriptionStatus: dbMembership.subscription_status,
     paymentMethod: dbMembership.payment_method,
+    payerMemberId: dbMembership.payer_member_id,
     createdAt: dbMembership.created_at,
     updatedAt: dbMembership.updated_at,
   };

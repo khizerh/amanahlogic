@@ -26,6 +26,7 @@ interface RecordMemberDuesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPaymentRecorded?: () => void;
+  overrideActiveSubscription?: boolean;
 }
 
 type ManualPaymentMethod = "cash" | "check" | "zelle";
@@ -36,6 +37,7 @@ export function RecordMemberDuesDialog({
   open,
   onOpenChange,
   onPaymentRecorded,
+  overrideActiveSubscription,
 }: RecordMemberDuesDialogProps) {
   const [paymentMethod, setPaymentMethod] = useState<ManualPaymentMethod>("cash");
   const [checkNumber, setCheckNumber] = useState("");
@@ -105,6 +107,7 @@ export function RecordMemberDuesDialog({
           checkNumber: checkNumber || undefined,
           zelleTransactionId: zelleTransactionId || undefined,
           notes: notes || undefined,
+          ...(overrideActiveSubscription && { overrideActiveSubscription: true }),
         }),
       });
 

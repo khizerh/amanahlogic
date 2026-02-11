@@ -14,6 +14,7 @@ import {
   Banknote,
   CreditCard,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 
 interface CollectPaymentDialogProps {
@@ -23,6 +24,7 @@ interface CollectPaymentDialogProps {
   onOpenChange: (open: boolean) => void;
   onSelectManual: () => void;
   onSelectChargeCard: () => void;
+  payerMemberName?: string | null;
 }
 
 export function CollectPaymentDialog({
@@ -32,6 +34,7 @@ export function CollectPaymentDialog({
   onOpenChange,
   onSelectManual,
   onSelectChargeCard,
+  payerMemberName,
 }: CollectPaymentDialogProps) {
   if (!member || !plan) return null;
 
@@ -98,8 +101,18 @@ export function CollectPaymentDialog({
 
         {/* Payment Options */}
         <div className="space-y-3 pt-2">
-          {/* Record Manual Payment - only for members without active subscription */}
-          {!hasActiveSubscription && (
+          {/* Payer-funded warning when recording manual payment on active subscription */}
+          {hasActiveSubscription && payerMemberName && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-amber-800">
+                This member has an active subscription paid by <span className="font-medium">{payerMemberName}</span>. Recording a manual payment is for catch-ups or corrections only.
+              </p>
+            </div>
+          )}
+
+          {/* Record Manual Payment - for members without active subscription, or payer-funded catch-ups */}
+          {(!hasActiveSubscription || payerMemberName) && (
             <button
               onClick={() => {
                 onOpenChange(false);

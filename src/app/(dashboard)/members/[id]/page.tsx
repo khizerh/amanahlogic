@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { MembersService } from "@/lib/database/members";
+import { MembershipsService } from "@/lib/database/memberships";
 
 export const metadata: Metadata = {
   title: "Member Details",
@@ -42,6 +43,20 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
 
   // Get the most recent agreement (first in array since it's sorted by created_at desc)
   const agreement = agreements.length > 0 ? agreements[0] : null;
+
+  // Fetch payer info if this member has a payer
+  let payerMember: { id: string; firstName: string; lastName: string } | null = null;
+  if (memberData?.membership?.payerMemberId) {
+    const payer = await MembersService.getById(memberData.membership.payerMemberId);
+    if (payer) {
+      payerMember = { id: payer.id, firstName: payer.firstName, lastName: payer.lastName };
+    }
+  }
+
+  // Fetch "paying for" list if this member pays for others
+  const payingFor = memberData
+    ? await MembershipsService.getByPayerMemberId(id, organizationId)
+    : [];
 
   if (!memberData) {
     return (
@@ -112,6 +127,8 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
       onboardingInvite={onboardingInvite}
       portalInviteUrl={portalInviteUrl}
       passFeesToMember={org?.passFeesToMember ?? false}
+      payerMember={payerMember}
+      payingFor={payingFor}
     />
   );
 }

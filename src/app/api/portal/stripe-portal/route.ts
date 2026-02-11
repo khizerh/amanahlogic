@@ -45,10 +45,17 @@ export async function POST() {
     // Get membership with Stripe customer ID
     const { data: membership } = await supabase
       .from("memberships")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, payer_member_id")
       .eq("member_id", member.id)
       .eq("organization_id", member.organization_id)
       .single();
+
+    if (membership?.payer_member_id) {
+      return NextResponse.json(
+        { error: "Your dues are managed by another member. Contact your organization for billing questions." },
+        { status: 403 }
+      );
+    }
 
     if (!membership?.stripe_customer_id) {
       return NextResponse.json(

@@ -18,6 +18,8 @@ interface SetupAutopayBody {
   memberId: string;
   /** If true, skip enrollment fee even if not paid (for special cases) */
   skipEnrollmentFee?: boolean;
+  /** Optional: ID of the member who will pay (third-party payer) */
+  payerMemberId?: string;
 }
 
 /**
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { membershipId, memberId, skipEnrollmentFee }: SetupAutopayBody = await req.json();
+    const { membershipId, memberId, skipEnrollmentFee, payerMemberId }: SetupAutopayBody = await req.json();
 
     if (!membershipId || !memberId) {
       return NextResponse.json(
@@ -66,11 +68,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    if (!member.email) {
+    // For payer scenarios, skip the member email check (payer has their own email)
+    if (!payerMemberId && !member.email) {
       return NextResponse.json(
         { error: "Cannot set up auto-pay: member has no email address" },
         { status: 400 }
       );
+    }
+
+    // If payer scenario, fetch and validate payer
+    let payerMember: Awaited<ReturnType<typeof MembersService.getById>> = null;
+    let payerForMemberName: string | undefined;
+    if (payerMemberId) {
+      payerMember = await MembersService.getById(payerMemberId);
+      if (!payerMember) {
+        return NextResponse.json({ error: "Payer member not found" }, { status: 404 });
+      }
+      if (!payerMember.email) {
+        return NextResponse.json(
+          { error: "Payer has no email address" },
+          { status: 400 }
+        );
+      }
+      payerForMemberName = `${member.firstName} ${member.lastName}`;
     }
 
     // Get plan for pricing
@@ -85,12 +105,16 @@ export async function POST(req: Request) {
       : false;
     const nextPaymentDue = memberIsCurrent ? membership.nextPaymentDue : undefined;
 
-    // Get or create Stripe customer
+    // Get or create Stripe customer — use PAYER's details when payer is set (Risk #1)
+    const customerMember = payerMember || member;
+    const customerMembershipId = payerMember
+      ? (await MembershipsService.getByMemberId(payerMember.id))?.id || membership.id
+      : membership.id;
     const customerId = await getOrCreateStripeCustomer({
-      memberId: member.id,
-      membershipId: membership.id,
-      email: member.email || undefined,
-      name: `${member.firstName} ${member.lastName}`,
+      memberId: customerMember.id,
+      membershipId: customerMembershipId,
+      email: customerMember.email || undefined,
+      name: `${customerMember.firstName} ${customerMember.lastName}`,
       organizationId,
     });
 
@@ -138,12 +162,15 @@ export async function POST(req: Request) {
       stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
       memberIsCurrent,
       nextPaymentDue: nextPaymentDue || undefined,
+      payerMemberId,
+      payerForMemberName,
     });
 
     // Update membership with customer ID (subscription ID will be set by webhook)
     await MembershipsService.update({
       id: membershipId,
       stripeCustomerId: customerId,
+      ...(payerMemberId && { payerMemberId }),
     });
 
     // Cancel any pending onboarding invite (e.g. manual payment invite being replaced by Stripe)

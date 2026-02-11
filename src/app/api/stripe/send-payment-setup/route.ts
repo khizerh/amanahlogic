@@ -19,6 +19,8 @@ interface SendPaymentSetupBody {
   memberId: string;
   /** If true, include enrollment fee in checkout (default: true if not paid) */
   includeEnrollmentFee?: boolean;
+  /** Optional: ID of the member who will pay (third-party payer) */
+  payerMemberId?: string;
 }
 
 /**
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
     }
 
     const body: SendPaymentSetupBody = await req.json();
-    const { membershipId, memberId, includeEnrollmentFee } = body;
+    const { membershipId, memberId, includeEnrollmentFee, payerMemberId } = body;
 
     if (!membershipId || !memberId) {
       return NextResponse.json(
@@ -61,7 +63,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    if (!member.email) {
+    // For payer scenarios, skip the member email check
+    if (!payerMemberId && !member.email) {
       return NextResponse.json(
         { error: "Cannot send payment setup: member has no email address" },
         { status: 400 }
@@ -70,6 +73,23 @@ export async function POST(req: Request) {
 
     if (!org) {
       return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    }
+
+    // If payer scenario, fetch and validate payer
+    let payerMember: Awaited<ReturnType<typeof MembersService.getById>> = null;
+    let payerForMemberName: string | undefined;
+    if (payerMemberId) {
+      payerMember = await MembersService.getById(payerMemberId);
+      if (!payerMember) {
+        return NextResponse.json({ error: "Payer member not found" }, { status: 404 });
+      }
+      if (!payerMember.email) {
+        return NextResponse.json(
+          { error: "Payer has no email address" },
+          { status: 400 }
+        );
+      }
+      payerForMemberName = `${member.firstName} ${member.lastName}`;
     }
 
     const plan = await PlansService.getById(membership.planId);
@@ -83,12 +103,13 @@ export async function POST(req: Request) {
       : false;
     const nextPaymentDue = memberIsCurrent ? membership.nextPaymentDue : undefined;
 
-    // Get or create Stripe customer
+    // Get or create Stripe customer — use PAYER's details when payer is set (Risk #1)
+    const customerMember = payerMember || member;
     const customerId = await getOrCreateStripeCustomer({
-      memberId: member.id,
+      memberId: customerMember.id,
       membershipId: membership.id,
-      email: member.email || undefined,
-      name: `${member.firstName} ${member.lastName}`,
+      email: customerMember.email || undefined,
+      name: `${customerMember.firstName} ${customerMember.lastName}`,
       organizationId,
     });
 
@@ -149,12 +170,15 @@ export async function POST(req: Request) {
       stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
       memberIsCurrent,
       nextPaymentDue: nextPaymentDue || undefined,
+      payerMemberId,
+      payerForMemberName,
     });
 
     // Update membership with customer ID
     await MembershipsService.update({
       id: membershipId,
       stripeCustomerId: customerId,
+      ...(payerMemberId && { payerMemberId }),
     });
 
     // Create onboarding invite record
@@ -184,19 +208,21 @@ export async function POST(req: Request) {
       });
     }
 
-    // Send email to member with payment setup link
+    // Send email to payer (if set) or member
+    const emailRecipient = payerMember || member;
     const emailResult = await sendPaymentSetupEmail({
-      to: member.email,
-      memberName: member.firstName,
-      memberId: member.id,
+      to: emailRecipient.email!,
+      memberName: emailRecipient.firstName,
+      memberId: emailRecipient.id,
       organizationId,
       checkoutUrl: setupResult.url,
       planName: plan.name,
       enrollmentFee: enrollmentFeeForEmail,
       duesAmount: fees.chargeAmountCents / 100,
       billingFrequency,
-      language: member.preferredLanguage || "en",
+      language: emailRecipient.preferredLanguage || "en",
       firstChargeDate,
+      payingForName: payerMember ? `${member.firstName} ${member.lastName}` : undefined,
     });
 
     if (!emailResult.success) {

@@ -110,6 +110,132 @@ export async function createCustomerPortalSession(params: {
 }
 
 /**
+ * Create a Stripe subscription for membership dues.
+ *
+ * Shared helper used by both:
+ * 1. The setup_intent.succeeded webhook (after member/payer completes payment setup)
+ * 2. The payer assignment route (when payer already has a card on file)
+ *
+ * Handles: fee calculation, interval mapping, price creation, Connect transfer_data,
+ * application_fee_percent, trial_end, and metadata.
+ */
+export async function createMembershipSubscription(params: {
+  customerId: string;
+  paymentMethodId: string;
+  membershipId: string;
+  memberId: string;
+  organizationId: string;
+  planName: string;
+  duesAmountCents: number;
+  billingFrequency: StripeBillingFrequency;
+  passFeesToMember: boolean;
+  platformFeeDollars: number;
+  stripeConnectAccountId?: string;
+  stripeConnectOnboarded?: boolean;
+  trialEnd?: number;
+  payerMemberId?: string;
+  payerForMemberName?: string;
+}): Promise<{ subscription: Stripe.Subscription; price: Stripe.Price; fees: FeeCalculation }> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const {
+    customerId,
+    paymentMethodId,
+    membershipId,
+    memberId,
+    organizationId,
+    planName,
+    duesAmountCents,
+    billingFrequency,
+    passFeesToMember,
+    platformFeeDollars,
+    stripeConnectAccountId,
+    stripeConnectOnboarded,
+    trialEnd,
+    payerMemberId,
+    payerForMemberName,
+  } = params;
+
+  // Calculate fees
+  const fees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
+
+  // Determine Stripe interval
+  let interval: "month" | "year" = "month";
+  let intervalCount = 1;
+  switch (billingFrequency) {
+    case "monthly":
+      interval = "month";
+      intervalCount = 1;
+      break;
+    case "biannual":
+      interval = "month";
+      intervalCount = 6;
+      break;
+    case "annual":
+      interval = "year";
+      intervalCount = 1;
+      break;
+  }
+
+  // Product name includes beneficiary name when payer scenario
+  const productName = payerForMemberName
+    ? `${planName || "Membership"} Dues - ${payerForMemberName}`
+    : `${planName || "Membership"} Dues`;
+
+  // Create price
+  const price = await stripe.prices.create({
+    currency: "usd",
+    unit_amount: fees.chargeAmountCents,
+    recurring: {
+      interval,
+      interval_count: intervalCount,
+    },
+    product_data: {
+      name: productName,
+    },
+  });
+
+  // Build subscription parameters
+  const subscriptionParams: Stripe.SubscriptionCreateParams = {
+    customer: customerId,
+    default_payment_method: paymentMethodId,
+    items: [{ price: price.id }],
+    metadata: {
+      membership_id: membershipId,
+      member_id: memberId,
+      organization_id: organizationId,
+      billing_frequency: billingFrequency,
+      ...(payerMemberId && { payer_member_id: payerMemberId }),
+    },
+  };
+
+  // Defer first charge if trial_end specified
+  if (trialEnd) {
+    const minTrialEnd = Math.floor(Date.now() / 1000) + 48 * 3600;
+    if (trialEnd > minTrialEnd) {
+      subscriptionParams.trial_end = trialEnd;
+    }
+  }
+
+  // Add Connect transfer_data if org has a connected account
+  if (stripeConnectAccountId && stripeConnectOnboarded !== false) {
+    subscriptionParams.transfer_data = {
+      destination: stripeConnectAccountId,
+    };
+    if (fees.chargeAmountCents > 0) {
+      subscriptionParams.application_fee_percent =
+        Math.ceil((fees.applicationFeeCents / fees.chargeAmountCents) * 10000) / 100;
+    }
+  }
+
+  const subscription = await stripe.subscriptions.create(subscriptionParams);
+
+  return { subscription, price, fees };
+}
+
+/**
  * Create a Stripe SetupIntent for collecting a payment method.
  *
  * Unlike Checkout Sessions, SetupIntents have NO expiration. The returned proxy
@@ -129,6 +255,8 @@ export async function createSetupIntent(params: {
   stripeConnectAccountId?: string;
   memberIsCurrent?: boolean;
   nextPaymentDue?: string;
+  payerMemberId?: string;
+  payerForMemberName?: string;
 }): Promise<{ setupIntentId: string; clientSecret: string; url: string }> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
@@ -147,6 +275,8 @@ export async function createSetupIntent(params: {
     stripeConnectAccountId,
     memberIsCurrent,
     nextPaymentDue,
+    payerMemberId,
+    payerForMemberName,
   } = params;
 
   const setupIntent = await stripe.setupIntents.create({
@@ -165,6 +295,8 @@ export async function createSetupIntent(params: {
       ...(stripeConnectAccountId && { stripe_connect_account_id: stripeConnectAccountId }),
       ...(memberIsCurrent && { member_is_current: "true" }),
       ...(nextPaymentDue && { next_payment_due: nextPaymentDue }),
+      ...(payerMemberId && { payer_member_id: payerMemberId }),
+      ...(payerForMemberName && { payer_for_member_name: payerForMemberName }),
     },
   });
 

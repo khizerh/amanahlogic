@@ -42,6 +42,7 @@ export interface MemberDashboardData {
     nextPaymentDue: string | null;
     lastPaymentDate: string | null;
     memberSince: string | null;
+    payerMemberName: string | null;
   };
 }
 
@@ -158,6 +159,20 @@ export class MemberPortalService {
     const monthsRemaining = Math.max(0, eligibilityMonths - paidMonths);
     const isEligible = paidMonths >= eligibilityMonths && membership?.status !== "cancelled";
 
+    // If membership has a payer, look up payer's name
+    let payerMemberName: string | null = null;
+    if (membership?.payerMemberId) {
+      const supabase = await createClientForContext();
+      const { data: payer } = await supabase
+        .from("members")
+        .select("first_name, last_name")
+        .eq("id", membership.payerMemberId)
+        .single();
+      if (payer) {
+        payerMemberName = `${payer.first_name} ${payer.last_name}`;
+      }
+    }
+
     return {
       member,
       membership,
@@ -178,6 +193,7 @@ export class MemberPortalService {
         nextPaymentDue: membership?.nextPaymentDue || null,
         lastPaymentDate: membership?.lastPaymentDate || null,
         memberSince: membership?.joinDate || null,
+        payerMemberName,
       },
     };
   }
@@ -355,6 +371,7 @@ interface DbMembershipRow {
   stripe_customer_id: string | null;
   subscription_status: string | null;
   payment_method: { type: string; last4: string; brand?: string; bankName?: string; expiryMonth?: number; expiryYear?: number } | null;
+  payer_member_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -463,6 +480,7 @@ function transformMembership(db: DbMembershipRow): Membership {
     stripeCustomerId: db.stripe_customer_id,
     subscriptionStatus: db.subscription_status as Membership["subscriptionStatus"],
     paymentMethod: db.payment_method as Membership["paymentMethod"],
+    payerMemberId: db.payer_member_id || null,
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };

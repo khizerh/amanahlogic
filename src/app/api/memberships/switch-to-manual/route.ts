@@ -101,6 +101,7 @@ export async function POST(req: Request) {
       stripeCustomerId: null,
       subscriptionStatus: null,
       paymentMethod: null,
+      payerMemberId: null,
     });
 
     return NextResponse.json({

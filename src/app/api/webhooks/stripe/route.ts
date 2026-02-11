@@ -7,7 +7,7 @@ import {
   generateAdHocInvoiceMetadata,
   getTodayInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
-import { calculateFees, reverseCalculateBaseAmount } from "@/lib/stripe";
+import { calculateFees, reverseCalculateBaseAmount, createMembershipSubscription } from "@/lib/stripe";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import type { BillingFrequency, PaymentMethod } from "@/lib/types";
@@ -942,88 +942,46 @@ async function handleSetupIntentSucceeded(
 
   const platformFeeDollars = org?.platform_fee || 0;
 
-  // Calculate fees for subscription price
+  // Calculate fees for enrollment fee (subscription fees handled by shared helper)
   const fees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
 
-  // Determine Stripe interval
-  let interval: "month" | "year" = "month";
-  let intervalCount = 1;
-  switch (freq) {
-    case "monthly":
-      interval = "month";
-      intervalCount = 1;
-      break;
-    case "biannual":
-      interval = "month";
-      intervalCount = 6;
-      break;
-    case "annual":
-      interval = "year";
-      intervalCount = 1;
-      break;
-  }
-
-  // Create an ad-hoc Price for the subscription (subscriptions don't support
-  // inline product_data the way Checkout does, so we create the price first)
-  const price = await stripe.prices.create({
-    currency: "usd",
-    unit_amount: fees.chargeAmountCents,
-    recurring: {
-      interval,
-      interval_count: intervalCount,
-    },
-    product_data: {
-      name: `${planName || "Membership"} Dues`,
-    },
-  });
-
-  // Build subscription parameters
-  const subscriptionParams: Stripe.SubscriptionCreateParams = {
-    customer: customerId,
-    default_payment_method: paymentMethodId,
-    items: [{ price: price.id }],
-    metadata: {
-      membership_id: membershipId,
-      member_id: memberId,
-      organization_id: organizationId,
-      billing_frequency: freq,
-    },
-  };
-
-  // If member is current, defer first charge until next_payment_due using trial_end
+  // Determine trial_end if member is current
+  let trialEnd: number | undefined;
   if (memberIsCurrent && nextPaymentDueStr) {
-    const trialEnd = Math.floor(new Date(nextPaymentDueStr + "T00:00:00").getTime() / 1000);
-    // Stripe requires trial_end to be at least 48 hours in the future
+    const te = Math.floor(new Date(nextPaymentDueStr + "T00:00:00").getTime() / 1000);
     const minTrialEnd = Math.floor(Date.now() / 1000) + 48 * 3600;
-    if (trialEnd > minTrialEnd) {
-      subscriptionParams.trial_end = trialEnd;
-      console.log(`[Webhook] Member is current - deferring first charge to ${nextPaymentDueStr} (trial_end: ${trialEnd})`);
+    if (te > minTrialEnd) {
+      trialEnd = te;
+      console.log(`[Webhook] Member is current - deferring first charge to ${nextPaymentDueStr} (trial_end: ${te})`);
     } else {
       console.log(`[Webhook] Member is current but next_payment_due (${nextPaymentDueStr}) is too soon for trial, charging immediately`);
     }
   }
 
-  // Add Connect transfer_data if org has a connected account
-  if (stripeConnectAccountId || (org?.stripe_connect_id && org.stripe_onboarded)) {
-    const connectId = stripeConnectAccountId || org!.stripe_connect_id;
-    subscriptionParams.transfer_data = {
-      destination: connectId,
-    };
-    // Set application_fee_percent so the first invoice has the correct fee
-    // immediately, avoiding the race condition where invoice.created fires
-    // before stripe_subscription_id is written to the DB.
-    // Math.ceil ensures the platform never loses money (at most 1 cent over).
-    // For subsequent invoices, handleInvoiceCreated sets exact application_fee_amount
-    // which takes precedence per Stripe docs.
-    if (fees.chargeAmountCents > 0) {
-      subscriptionParams.application_fee_percent =
-        Math.ceil((fees.applicationFeeCents / fees.chargeAmountCents) * 10000) / 100;
-    }
-  }
+  // Payer metadata from SetupIntent
+  const payerMemberId = metadata.payer_member_id;
+  const payerForMemberName = metadata.payer_for_member_name;
 
-  // Create the subscription
+  // Create subscription using shared helper
   console.log(`[Webhook] Creating subscription for membership ${membershipId}`);
-  const subscription = await stripe.subscriptions.create(subscriptionParams);
+  const connectId = stripeConnectAccountId || org?.stripe_connect_id;
+  const { subscription } = await createMembershipSubscription({
+    customerId,
+    paymentMethodId,
+    membershipId,
+    memberId,
+    organizationId,
+    planName: planName || "Membership",
+    duesAmountCents,
+    billingFrequency: freq,
+    passFeesToMember,
+    platformFeeDollars,
+    stripeConnectAccountId: connectId && org?.stripe_onboarded ? connectId : undefined,
+    stripeConnectOnboarded: org?.stripe_onboarded ?? false,
+    trialEnd,
+    payerMemberId,
+    payerForMemberName,
+  });
   console.log(`[Webhook] Created subscription ${subscription.id} (status: ${subscription.status}) for membership ${membershipId}`);
 
   // Build membership update
@@ -1100,22 +1058,44 @@ async function handleSetupIntentSucceeded(
               .eq("id", memberId)
               .single();
 
+            const pmType = pm.type === "us_bank_account" ? "Bank Account" : "Credit Card";
+            const receiptData = {
+              memberId,
+              organizationId,
+              amount: `$${(enrollmentFees.breakdown.chargeAmount).toFixed(2)}`,
+              paymentDate: new Date().toLocaleDateString("en-US", {
+                year: "numeric", month: "long", day: "numeric",
+              }),
+              paymentMethod: pmType,
+              periodLabel: "Enrollment Fee",
+            };
+
             if (member && member.email) {
-              const pmType = pm.type === "us_bank_account" ? "Bank Account" : "Credit Card";
               await sendPaymentReceiptEmail({
+                ...receiptData,
                 to: member.email,
                 memberName: `${member.first_name} ${member.last_name}`,
-                memberId,
-                organizationId,
-                amount: `$${(enrollmentFees.breakdown.chargeAmount).toFixed(2)}`,
-                paymentDate: new Date().toLocaleDateString("en-US", {
-                  year: "numeric", month: "long", day: "numeric",
-                }),
-                paymentMethod: pmType,
-                periodLabel: "Enrollment Fee",
                 language: (member.preferred_language as "en" | "fa") || "en",
               });
               console.log(`[Webhook] Sent enrollment fee receipt email to ${member.email}`);
+            } else if (payerMemberId) {
+              // Fallback: send receipt to payer when beneficiary has no email
+              const { data: payer } = await supabase
+                .from("members")
+                .select("first_name, last_name, email, preferred_language")
+                .eq("id", payerMemberId)
+                .single();
+              if (payer?.email) {
+                const beneficiaryName = member ? `${member.first_name} ${member.last_name}` : "member";
+                await sendPaymentReceiptEmail({
+                  ...receiptData,
+                  to: payer.email,
+                  memberName: `${payer.first_name} ${payer.last_name}`,
+                  language: (payer.preferred_language as "en" | "fa") || "en",
+                  payingForName: beneficiaryName,
+                });
+                console.log(`[Webhook] Sent enrollment fee receipt email to payer ${payer.email}`);
+              }
             }
           } catch (emailErr) {
             console.error("[Webhook] Failed to send enrollment fee receipt:", emailErr);

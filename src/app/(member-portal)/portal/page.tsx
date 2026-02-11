@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, PauseCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, PauseCircle, Users } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -377,7 +377,17 @@ export default async function MemberDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {membership.autoPayEnabled && membership.paymentMethod ? (
+            {membership.payerMemberId && stats.payerMemberName ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium">Paid by {stats.payerMemberName}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Your dues are being paid by another member. Contact {organization.name} for details.
+                </p>
+              </div>
+            ) : membership.autoPayEnabled && membership.paymentMethod ? (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div>

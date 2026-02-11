@@ -52,6 +52,7 @@ import { RecordOnboardingPaymentDialog } from "@/components/payments/record-onbo
 import { CollectPaymentDialog } from "@/components/payments/collect-payment-dialog";
 import { ChargeCardSheet } from "@/components/payments/charge-card-sheet";
 import { ChangeFrequencySheet } from "@/components/payments/change-frequency-sheet";
+import { AssignPayerDialog } from "@/components/members/assign-payer-dialog";
 import Link from "next/link";
 import {
   formatCurrency,
@@ -87,6 +88,9 @@ import {
   ChevronRight,
   Plus,
   Trash2,
+  Users,
+  UserMinus,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -100,6 +104,8 @@ interface MemberDetailClientProps {
   onboardingInvite: OnboardingInviteWithMember | null;
   portalInviteUrl: string | null;
   passFeesToMember: boolean;
+  payerMember: { id: string; firstName: string; lastName: string } | null;
+  payingFor: Array<{ membershipId: string; memberId: string; firstName: string; lastName: string; planName: string }>;
 }
 
 export function MemberDetailClient({
@@ -112,6 +118,8 @@ export function MemberDetailClient({
   onboardingInvite,
   portalInviteUrl: initialPortalInviteUrl,
   passFeesToMember,
+  payerMember,
+  payingFor,
 }: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
@@ -156,6 +164,10 @@ export function MemberDetailClient({
 
   // State for pausing/resuming subscription
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+
+  // State for payer management
+  const [assignPayerOpen, setAssignPayerOpen] = useState(false);
+  const [isRemovingPayer, setIsRemovingPayer] = useState(false);
 
   // State for sending portal invite
   const [isSendingPortalInvite, setIsSendingPortalInvite] = useState(false);
@@ -492,6 +504,35 @@ export function MemberDetailClient({
       toast.error(err instanceof Error ? err.message : `Failed to ${action} subscription`);
     } finally {
       setIsManagingSubscription(false);
+    }
+  }, [membership, router]);
+
+  // Remove payer
+  const handleRemovePayer = useCallback(async () => {
+    if (!membership) return;
+
+    setIsRemovingPayer(true);
+    try {
+      const response = await fetch("/api/memberships/payer", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipId: membership.id }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to remove payer");
+      }
+
+      toast.success("Payer removed", {
+        description: "Subscription cancelled. Member is now on manual payments.",
+      });
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove payer");
+    } finally {
+      setIsRemovingPayer(false);
     }
   }, [membership, router]);
 
@@ -1179,6 +1220,34 @@ export function MemberDetailClient({
                   <p className="text-sm font-medium mt-2">{membership.paidMonths}/60 months</p>
                 </div>
 
+                {/* Payer Indicator */}
+                {membership.payerMemberId && payerMember && (
+                  <div className="mb-6 pb-6 border-b">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm text-muted-foreground">Paid By</span>
+                      <a href={`/members/${payerMember.id}`} className="font-medium text-blue-600 hover:underline">
+                        {payerMember.firstName} {payerMember.lastName}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payer Awaiting Setup */}
+                {membership.payerMemberId && !membership.autoPayEnabled && payerMember && (
+                  <div className="mb-6 pb-6 border-b">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-800 rounded-md">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm">
+                        Awaiting payment setup from{" "}
+                        <a href={`/members/${payerMember.id}`} className="font-medium underline">
+                          {payerMember.firstName} {payerMember.lastName}
+                        </a>
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   {/* Payment Method */}
                   <div className="space-y-2">
@@ -1333,6 +1402,26 @@ export function MemberDetailClient({
                           )}
                         </Button>
                       ) : null}
+                      {membership.payerMemberId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRemovePayer}
+                          disabled={isRemovingPayer}
+                        >
+                          {isRemovingPayer ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Removing...
+                            </>
+                          ) : (
+                            <>
+                              <UserMinus className="h-4 w-4 mr-2" />
+                              Remove Payer
+                            </>
+                          )}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -1391,28 +1480,77 @@ export function MemberDetailClient({
                         )}
                       </Button>
                     </>
-                  ) : (
-                    <div>
+                  ) : membership.payerMemberId && !membership.autoPayEnabled ? (
+                    <>
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
-                        onClick={handleSetupAutopay}
-                        disabled={isSettingUpAutopay || !memberData.email}
+                        onClick={handleResendPaymentLink}
+                        disabled={isResendingPaymentLink}
                       >
-                        {isSettingUpAutopay ? (
+                        {isResendingPaymentLink ? (
                           <>
                             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Setting up...
+                            Sending...
                           </>
                         ) : (
                           <>
-                            <CreditCard className="h-4 w-4 mr-2" />
-                            Set Up Auto-Pay
+                            <Send className="h-4 w-4 mr-2" />
+                            Resend Payment Link to Payer
                           </>
                         )}
                       </Button>
-                      {!memberData.email && <p className="text-xs text-amber-600 mt-1">Requires email address</p>}
-                    </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRemovePayer}
+                        disabled={isRemovingPayer}
+                      >
+                        {isRemovingPayer ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Removing...
+                          </>
+                        ) : (
+                          <>
+                            <UserMinus className="h-4 w-4 mr-2" />
+                            Remove Payer
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleSetupAutopay}
+                          disabled={isSettingUpAutopay || !memberData.email}
+                        >
+                          {isSettingUpAutopay ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Setting up...
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Set Up Auto-Pay
+                            </>
+                          )}
+                        </Button>
+                        {!memberData.email && <p className="text-xs text-amber-600 mt-1">Requires email address</p>}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAssignPayerOpen(true)}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Assign Payer
+                      </Button>
+                    </>
                   )}
                   <Button
                     variant="outline"
@@ -1422,6 +1560,30 @@ export function MemberDetailClient({
                     <Calendar className="h-4 w-4 mr-2" />
                     Change Frequency
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Paying For */}
+          {payingFor.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Paying For
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {payingFor.map((item) => (
+                    <div key={item.membershipId} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                      <a href={`/members/${item.memberId}`} className="text-blue-600 hover:underline font-medium">
+                        {item.firstName} {item.lastName}
+                      </a>
+                      <span className="text-sm text-muted-foreground">{item.planName}</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -1574,6 +1736,7 @@ export function MemberDetailClient({
         onOpenChange={setCollectPaymentOpen}
         onSelectManual={() => setRecordPaymentOpen(true)}
         onSelectChargeCard={() => setChargeCardOpen(true)}
+        payerMemberName={payerMember ? `${payerMember.firstName} ${payerMember.lastName}` : null}
       />
 
       {/* Record Onboarding Payment Dialog (enrollment fee + first dues) */}
@@ -1591,6 +1754,7 @@ export function MemberDetailClient({
         open={recordPaymentOpen}
         onOpenChange={setRecordPaymentOpen}
         onPaymentRecorded={handlePaymentRecorded}
+        overrideActiveSubscription={!!memberData.membership?.payerMemberId}
       />
 
       {/* Charge Card Sheet */}
@@ -1601,6 +1765,7 @@ export function MemberDetailClient({
         onOpenChange={setChargeCardOpen}
         onPaymentRecorded={handlePaymentRecorded}
         passFeesToMember={passFeesToMember}
+        payerMemberName={payerMember ? `${payerMember.firstName} ${payerMember.lastName}` : null}
       />
 
       {/* Change Frequency Sheet */}
@@ -1913,6 +2078,20 @@ export function MemberDetailClient({
           </div>
         </DialogContent>
       </Dialog>
+      {/* Assign Payer Dialog */}
+      {membership && (
+        <AssignPayerDialog
+          open={assignPayerOpen}
+          onOpenChange={setAssignPayerOpen}
+          membershipId={membership.id}
+          currentMemberId={memberData.id}
+          organizationId={membership.organizationId}
+          onPayerAssigned={() => {
+            setAssignPayerOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
     </>
   );
 }

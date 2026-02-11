@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       notes?: string;
       recordedBy?: string;
       pendingPaymentId?: string;
+      overrideActiveSubscription?: boolean;
     };
 
     // Validate required fields
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
         stripe_customer_id,
         stripe_subscription_id,
         subscription_status,
+        payer_member_id,
         plan:plans(pricing)
       `)
       .eq("id", membershipId)
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: Block manual payments for members with active Stripe subscriptions
     // Recording manual payment while Stripe subscription is active = double charge
+    // EXCEPTION: Allow for payer-funded memberships (admin may record cash catch-ups)
     if (membershipWithPlan?.auto_pay_enabled) {
       const hasActiveSubscription =
         membershipWithPlan.stripe_subscription_id &&
@@ -90,15 +93,26 @@ export async function POST(request: NextRequest) {
          membershipWithPlan.subscription_status === "past_due");
 
       if (hasActiveSubscription) {
-        return NextResponse.json(
-          {
-            error: "Cannot record manual payment for autopay member",
-            details: "This member has an active Stripe subscription. Recording a manual payment would cause double billing. Please cancel their Stripe subscription first, or use 'Switch to Manual' to disable autopay before recording manual payments.",
-            subscriptionId: membershipWithPlan.stripe_subscription_id,
-            subscriptionStatus: membershipWithPlan.subscription_status,
-          },
-          { status: 409 } // Conflict
-        );
+        const hasPayer = membershipWithPlan.payer_member_id != null;
+        const overrideActiveSubscription = body.overrideActiveSubscription === true;
+
+        // Allow override ONLY for payer-funded memberships (Risk #13)
+        if (!hasPayer || !overrideActiveSubscription) {
+          return NextResponse.json(
+            {
+              error: "Cannot record manual payment for autopay member",
+              details: hasPayer
+                ? "This member has an active subscription paid by another member. Pass overrideActiveSubscription: true to record a manual catch-up payment."
+                : "This member has an active Stripe subscription. Recording a manual payment would cause double billing. Please cancel their Stripe subscription first, or use 'Switch to Manual' to disable autopay before recording manual payments.",
+              subscriptionId: membershipWithPlan.stripe_subscription_id,
+              subscriptionStatus: membershipWithPlan.subscription_status,
+              hasPayer,
+            },
+            { status: 409 } // Conflict
+          );
+        }
+        // Payer-funded membership with override — allow through
+        console.log(`[Manual Payment] Override active subscription for payer-funded membership ${membershipId}`);
       }
 
       // Recurring payment enabled but no active subscription - warn but allow

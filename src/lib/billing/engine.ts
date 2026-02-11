@@ -1156,7 +1156,7 @@ export async function settlePayment(
           .eq("id", options.paymentId)
           .single();
 
-        if (member?.email && fullPayment) {
+        if (fullPayment) {
           const displayAmount = fullPayment.total_charged ?? fullPayment.amount;
           const methodLabel =
             options.method === "stripe" ? "Credit Card" :
@@ -1165,7 +1165,6 @@ export async function settlePayment(
             options.method === "cash" ? "Cash" :
             options.method || "Other";
 
-          const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
           const receiptDate = new Intl.DateTimeFormat("en-US", {
             year: "numeric",
             month: "long",
@@ -1173,9 +1172,7 @@ export async function settlePayment(
             timeZone: orgTimezone,
           }).format(new Date(fullPayment.paid_at || paidAt));
 
-          await sendPaymentReceiptEmail({
-            to: member.email,
-            memberName: fullName,
+          const receiptData = {
             memberId: payment.member_id,
             organizationId: payment.organization_id,
             amount: `$${Number(displayAmount).toFixed(2)}`,
@@ -1183,8 +1180,43 @@ export async function settlePayment(
             paymentMethod: methodLabel,
             invoiceNumber: fullPayment.invoice_number || undefined,
             periodLabel: fullPayment.period_label || undefined,
-            language: (member.preferred_language as "en" | "fa") || "en",
-          });
+          };
+
+          if (member?.email) {
+            const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
+            await sendPaymentReceiptEmail({
+              ...receiptData,
+              to: member.email,
+              memberName: fullName,
+              language: (member.preferred_language as "en" | "fa") || "en",
+            });
+          } else {
+            // Beneficiary has no email — check if membership has a payer, send to payer's email
+            const { data: msData } = await supabase
+              .from("memberships")
+              .select("payer_member_id")
+              .eq("id", payment.membership_id)
+              .single();
+            if (msData?.payer_member_id) {
+              const { data: payer } = await supabase
+                .from("members")
+                .select("email, first_name, last_name, preferred_language")
+                .eq("id", msData.payer_member_id)
+                .single();
+              if (payer?.email) {
+                const beneficiaryName = member
+                  ? [member.first_name, member.last_name].filter(Boolean).join(" ")
+                  : "member";
+                await sendPaymentReceiptEmail({
+                  ...receiptData,
+                  to: payer.email,
+                  memberName: `${payer.first_name} ${payer.last_name}`,
+                  language: (payer.preferred_language as "en" | "fa") || "en",
+                  payingForName: beneficiaryName,
+                });
+              }
+            }
+          }
         }
       }
     } catch (emailErr) {

@@ -15,6 +15,8 @@ interface SendPaymentReceiptEmailParams {
   invoiceNumber?: string;
   periodLabel?: string;
   language: "en" | "fa";
+  /** When sending to a payer, the name of the member they're paying for */
+  payingForName?: string;
 }
 
 interface SendPaymentReceiptEmailResult {
@@ -41,6 +43,7 @@ export async function sendPaymentReceiptEmail(
     invoiceNumber,
     periodLabel,
     language,
+    payingForName,
   } = params;
 
   // Fetch org using service role (this may be called from webhooks with no auth context)
@@ -63,6 +66,7 @@ export async function sendPaymentReceiptEmail(
     invoiceNumber,
     periodLabel,
     language,
+    payingForName,
   });
 
   // Create email log entry

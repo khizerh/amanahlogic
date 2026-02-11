@@ -13,6 +13,8 @@ interface PaymentSetupProps {
   billingFrequency: string;
   language?: "en" | "fa";
   firstChargeDate?: string;
+  /** When a payer is paying for another member, the beneficiary's name */
+  payingForName?: string;
 }
 
 function formatCurrency(amount: number): string {
@@ -96,6 +98,7 @@ export function PaymentSetupEmail(props: PaymentSetupProps) {
     billingFrequency,
     language = "en",
     firstChargeDate,
+    payingForName,
   } = props;
   const l = t[language];
   const freqText = getFrequencyText(billingFrequency, language);
@@ -112,6 +115,13 @@ export function PaymentSetupEmail(props: PaymentSetupProps) {
       language={language}
       footer={{ organization_name: organizationName }}
     >
+      {payingForName && (
+        <Text style={styles.text}>
+          {language === "fa"
+            ? `شما پرداخت عضویت ${payingForName} را انجام می‌دهید.`
+            : `You are setting up payment for ${payingForName}'s membership.`}
+        </Text>
+      )}
       <Text style={styles.text}>{l.body}</Text>
       <Section style={styles.summaryBox}>
         <Text style={styles.summaryTitle}>{l.summaryTitle}</Text>

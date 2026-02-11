@@ -182,6 +182,9 @@ export interface Membership {
   subscriptionStatus: SubscriptionStatus | null;
   paymentMethod: PaymentMethodDetails | null;
 
+  // Third-party payer (another member pays for this membership)
+  payerMemberId: string | null;
+
   createdAt: string;
   updatedAt: string;
 }

@@ -143,10 +143,14 @@ export async function getStripePortalUrl(): Promise<{
     const supabase = createServiceRoleClient();
     const { data: membership } = await supabase
       .from("memberships")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, payer_member_id")
       .eq("member_id", context.memberId)
       .eq("organization_id", context.organizationId)
       .single();
+
+    if (membership?.payer_member_id) {
+      return { success: false, error: "Your dues are managed by another member. Contact your organization for billing questions." };
+    }
 
     if (!membership?.stripe_customer_id) {
       return { success: false, error: "No payment method on file. Contact your organization to set up payments." };

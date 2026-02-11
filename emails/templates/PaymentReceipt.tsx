@@ -12,6 +12,8 @@ interface PaymentReceiptProps {
   invoiceNumber?: string;
   periodLabel?: string;
   language?: "en" | "fa";
+  /** When sending to a payer, the name of the member they're paying for */
+  payingForName?: string;
 }
 
 const t = {
@@ -78,6 +80,7 @@ export function PaymentReceiptEmail(props: PaymentReceiptProps) {
     invoiceNumber,
     periodLabel,
     language = "en",
+    payingForName,
   } = props;
   const l = t[language];
   const valueAlign = language === "fa" ? "left" : "right";
@@ -91,6 +94,13 @@ export function PaymentReceiptEmail(props: PaymentReceiptProps) {
       language={language}
       footer={{ organization_name: organizationName }}
     >
+      {payingForName && (
+        <Text style={styles.text}>
+          {language === "fa"
+            ? `این پرداخت برای عضویت ${payingForName} ثبت شده است.`
+            : `This payment was made for ${payingForName}'s membership.`}
+        </Text>
+      )}
       <Text style={styles.text}>{l.body}</Text>
       <Section style={styles.detailsBox}>
         <Text style={styles.detailsTitle}>{l.detailsTitle}</Text>
