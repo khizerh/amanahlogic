@@ -26,7 +26,7 @@ interface OutstandingPayment {
   memberId: string;
   membershipId: string;
   memberName: string;
-  memberEmail: string;
+  memberEmail: string | null;
   planName: string;
   amountDue: number;
   dueDate: string;

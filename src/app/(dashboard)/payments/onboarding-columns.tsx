@@ -90,7 +90,7 @@ export const createOnboardingColumns = (
       const member = row.original.member;
       return (
         `${member.firstName} ${member.lastName}`.toLowerCase().includes(searchValue) ||
-        member.email.toLowerCase().includes(searchValue)
+        (member.email || "").toLowerCase().includes(searchValue)
       );
     },
   },

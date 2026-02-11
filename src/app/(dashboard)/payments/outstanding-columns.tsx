@@ -26,7 +26,7 @@ export interface OutstandingPayment {
   memberId: string;
   membershipId: string;
   memberName: string;
-  memberEmail: string;
+  memberEmail: string | null;
   planName: string;
   amountDue: number;
   dueDate: string;
@@ -99,7 +99,7 @@ export const createOutstandingColumns = (
       const searchValue = value.toLowerCase();
       return (
         row.original.memberName.toLowerCase().includes(searchValue) ||
-        row.original.memberEmail.toLowerCase().includes(searchValue)
+        (row.original.memberEmail || "").toLowerCase().includes(searchValue)
       );
     },
   },
