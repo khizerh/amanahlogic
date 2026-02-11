@@ -548,7 +548,7 @@ export class PaymentsService {
         paid_months,
         billing_frequency,
         next_payment_due,
-        member:members(id, first_name, last_name, email),
+        member:members!memberships_member_id_fkey(id, first_name, last_name, email),
         plan:plans(id, name, pricing)
       `
       )
@@ -642,7 +642,7 @@ export class PaymentsService {
         billing_frequency,
         next_payment_due,
         auto_pay_enabled,
-        member:members(id, first_name, last_name, email),
+        member:members!memberships_member_id_fkey(id, first_name, last_name, email),
         plan:plans(id, name, pricing)
       `
       )

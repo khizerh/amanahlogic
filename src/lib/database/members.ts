@@ -78,7 +78,7 @@ export class MembersService {
       .select(
         `
         *,
-        membership:memberships(
+        membership:memberships!memberships_member_id_fkey(
           *,
           plan:plans(*)
         )
@@ -175,7 +175,7 @@ export class MembersService {
       .select(
         `
         *,
-        membership:memberships(
+        membership:memberships!memberships_member_id_fkey(
           *,
           plan:plans(*)
         )

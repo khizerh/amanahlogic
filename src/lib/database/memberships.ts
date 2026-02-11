@@ -86,7 +86,7 @@ export class MembershipsService {
       .select(
         `
         *,
-        member:members(*),
+        member:members!memberships_member_id_fkey(*),
         plan:plans(*),
         recentPayments:payments(*)
       `
@@ -137,7 +137,7 @@ export class MembershipsService {
       .select(
         `
         *,
-        member:members(*),
+        member:members!memberships_member_id_fkey(*),
         plan:plans(*),
         recentPayments:payments(*)
       `
@@ -235,7 +235,7 @@ export class MembershipsService {
       .from("memberships")
       .select(`
         id,
-        member:members(id, first_name, last_name),
+        member:members!memberships_member_id_fkey(id, first_name, last_name),
         plan:plans(name)
       `)
       .eq("payer_member_id", payerMemberId)
@@ -384,7 +384,7 @@ export class MembershipsService {
       .select(
         `
         *,
-        member:members(*),
+        member:members!memberships_member_id_fkey(*),
         plan:plans(*),
         recentPayments:payments(*)
       `
@@ -417,7 +417,7 @@ export class MembershipsService {
       .select(
         `
         *,
-        member:members(*),
+        member:members!memberships_member_id_fkey(*),
         plan:plans(*),
         recentPayments:payments(*)
       `
@@ -444,7 +444,7 @@ export class MembershipsService {
       .select(
         `
         *,
-        member:members(*),
+        member:members!memberships_member_id_fkey(*),
         plan:plans(*),
         recentPayments:payments(*)
       `
@@ -469,7 +469,7 @@ export class MembershipsService {
       .select(
         `
         *,
-        member:members(*),
+        member:members!memberships_member_id_fkey(*),
         plan:plans(*),
         recentPayments:payments(*)
       `

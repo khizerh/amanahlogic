@@ -413,7 +413,7 @@ export async function processRecurringBilling(
         updated_at,
         stripe_subscription_id,
         stripe_subscription_status,
-        member:members(
+        member:members!memberships_member_id_fkey(
           first_name,
           last_name,
           email

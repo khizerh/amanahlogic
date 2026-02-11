@@ -94,7 +94,7 @@ export class MemberPortalService {
       .from("members")
       .select(`
         *,
-        membership:memberships(
+        membership:memberships!memberships_member_id_fkey(
           *,
           plan:plans(*)
         )
