@@ -602,7 +602,7 @@ async function handleInvoicePaid(
   console.log(`[Webhook] Invoice paid: $${amount} for membership ${membershipId}`);
 
   // Check if payment already exists for this invoice (idempotency at payment level)
-  const { data: existingPayment } = await supabase
+  const { data: existingCompleted } = await supabase
     .from("payments")
     .select("id")
     .or(`stripe_payment_intent_id.eq.${paymentIntentId}`)
@@ -610,9 +610,40 @@ async function handleInvoicePaid(
     .eq("status", "completed")
     .maybeSingle();
 
-  if (existingPayment) {
-    console.log(`[Webhook] Payment already exists for this invoice (payment_id: ${existingPayment.id})`);
+  if (existingCompleted) {
+    console.log(`[Webhook] Payment already exists for this invoice (payment_id: ${existingCompleted.id})`);
     return;
+  }
+
+  // Check if a pending payment was pre-created (e.g. ACH in transit from setup_intent.succeeded).
+  // If so, settle it instead of creating a duplicate.
+  if (paymentIntentId) {
+    const { data: pendingPayment } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("stripe_payment_intent_id", paymentIntentId)
+      .eq("membership_id", membershipId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (pendingPayment) {
+      console.log(`[Webhook] Found pending payment ${pendingPayment.id} for intent ${paymentIntentId}, settling`);
+      const result = await settlePayment({
+        paymentId: pendingPayment.id,
+        method: "stripe",
+        paidAt: new Date().toISOString(),
+        stripePaymentIntentId: paymentIntentId,
+        supabase,
+      });
+
+      if (!result.success) {
+        console.error("[Webhook] Failed to settle pending payment:", result.error);
+        throw new Error(result.error || "Settlement failed");
+      }
+
+      console.log(`[Webhook] Payment settled: ${pendingPayment.id}, new paid_months: ${result.newPaidMonths}, status: ${result.newStatus}`);
+      return;
+    }
   }
 
   // Get membership details for months calculation
@@ -1221,6 +1252,78 @@ async function handleSetupIntentSucceeded(
         }
       } else {
         console.log(`[Webhook] First dues payment already exists (${existingPayment.id}), skipping`);
+      }
+    } else if (firstInvoice && firstInvoice.status === "open" && firstInvoice.amount_due > 0) {
+      // ACH: Invoice is open (bank debit in transit). Create a pending payment record
+      // so it shows in payment history. invoice.paid will settle it when ACH clears.
+      const piId = typeof firstInvoice.payment_intent === "string"
+        ? firstInvoice.payment_intent
+        : firstInvoice.payment_intent?.id;
+
+      const { data: existingPending } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("membership_id", membershipId)
+        .eq("type", "dues")
+        .in("status", ["pending", "completed"])
+        .maybeSingle();
+
+      if (!existingPending) {
+        const { data: orgForTz } = await supabase
+          .from("organizations")
+          .select("timezone")
+          .eq("id", organizationId)
+          .single();
+        const orgTimezone = orgForTz?.timezone || "America/Los_Angeles";
+        const today = getTodayInOrgTimezone(orgTimezone);
+
+        let monthsCredited = 1;
+        switch (freq) {
+          case "biannual": monthsCredited = 6; break;
+          case "annual": monthsCredited = 12; break;
+        }
+
+        const invoiceMetadata = await generateAdHocInvoiceMetadata(
+          organizationId, today, monthsCredited, orgTimezone, supabase
+        );
+
+        const invoiceAmountCents = firstInvoice.amount_due;
+        const baseAmountCents = reverseCalculateBaseAmount(invoiceAmountCents, platformFeeDollars, passFeesToMember);
+        const invoiceFees = calculateFees(baseAmountCents, platformFeeDollars, passFeesToMember);
+
+        const { data: pendingPayment, error: pendingError } = await supabase
+          .from("payments")
+          .insert({
+            organization_id: organizationId,
+            membership_id: membershipId,
+            member_id: memberId,
+            type: "dues",
+            method: "stripe",
+            status: "pending",
+            amount: baseAmountCents / 100,
+            stripe_fee: invoiceFees.breakdown.stripeFee,
+            platform_fee: invoiceFees.breakdown.platformFee,
+            total_charged: invoiceFees.breakdown.chargeAmount,
+            net_amount: invoiceFees.netAmountCents / 100,
+            months_credited: monthsCredited,
+            invoice_number: invoiceMetadata.invoiceNumber,
+            due_date: invoiceMetadata.dueDate,
+            period_start: invoiceMetadata.periodStart,
+            period_end: invoiceMetadata.periodEnd,
+            period_label: invoiceMetadata.periodLabel,
+            stripe_payment_intent_id: piId,
+            notes: `First subscription payment - Invoice ${firstInvoice.number || firstInvoice.id} (ACH processing)`,
+          })
+          .select()
+          .single();
+
+        if (pendingError || !pendingPayment) {
+          console.error("[Webhook] Failed to create pending ACH payment record:", pendingError);
+        } else {
+          console.log(`[Webhook] Created pending payment ${pendingPayment.id} for ACH in transit (invoice ${firstInvoice.id})`);
+        }
+      } else {
+        console.log(`[Webhook] Payment already exists for first invoice (${existingPending.id}), skipping`);
       }
     }
   } catch (err) {
