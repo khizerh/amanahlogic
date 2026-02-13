@@ -967,7 +967,7 @@ async function handleSetupIntentSucceeded(
   // Get org for fee calculation
   const { data: org } = await supabase
     .from("organizations")
-    .select("platform_fee, stripe_connect_id, stripe_onboarded, pass_fees_to_member")
+    .select("timezone, platform_fee, stripe_connect_id, stripe_onboarded, pass_fees_to_member")
     .eq("id", organizationId)
     .single();
 
@@ -1017,11 +1017,20 @@ async function handleSetupIntentSucceeded(
 
   // Build membership update
   const isTrialing = subscription.status === "trialing";
+  // Anchor billing day to subscription creation date (not when payment clears).
+  // This keeps ACH members on a predictable cycle regardless of bank processing time.
+  const subscriptionCreatedDate = new Date(subscription.created * 1000);
+  const orgTimezoneForBilling = org?.timezone || "America/Los_Angeles";
+  const subscriptionDay = Math.min(
+    parseInt(subscriptionCreatedDate.toLocaleDateString("en-US", { day: "numeric", timeZone: orgTimezoneForBilling })),
+    28
+  );
   const membershipUpdate: Record<string, unknown> = {
     stripe_subscription_id: subscription.id,
     auto_pay_enabled: true,
     subscription_status: isTrialing ? "trialing" : "active",
     payment_method: pmDetails,
+    billing_anniversary_day: subscriptionDay,
     updated_at: new Date().toISOString(),
   };
 

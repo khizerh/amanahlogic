@@ -1022,15 +1022,19 @@ export async function settlePayment(
         // Use existing next_payment_due as base
         currentDueDate = parseDateInOrgTimezone(membership.next_payment_due, orgTimezone);
       } else {
-        // First payment: anchor to today's date (the day the member actually pays).
-        // This sets the billing cycle to match when they started paying, not when admin created them.
-        // addMonthsPreserveDay will advance by monthsCredited from here.
+        // First payment: determine billing anchor day.
+        // If billing_anniversary_day is already set (e.g. from subscription creation),
+        // use that so the cycle is predictable regardless of when payment clears (ACH delay).
+        // Otherwise fall back to today's date.
         const todayDate = parseDateInOrgTimezone(today, orgTimezone);
-        const billingDay = Math.min(todayDate.getDate(), 28);
+        const billingDay = membership.billing_anniversary_day
+          || Math.min(todayDate.getDate(), 28);
 
         currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), billingDay);
         // Persist the billing anniversary day so future cycles use this anchor
-        newBillingAnniversaryDay = billingDay;
+        if (!membership.billing_anniversary_day) {
+          newBillingAnniversaryDay = billingDay;
+        }
       }
 
       const billingAnniversaryDay = newBillingAnniversaryDay || membership.billing_anniversary_day || currentDueDate.getDate();
