@@ -1256,8 +1256,8 @@ export function MemberDetailClient({
                       <div>
                         <p className="font-medium">
                           {membership.paymentMethod.type === 'card'
-                            ? `${membership.paymentMethod.brand?.toUpperCase()} **** ${membership.paymentMethod.last4}`
-                            : `${membership.paymentMethod.bankName} **** ${membership.paymentMethod.last4}`}
+                            ? `${membership.paymentMethod.brand?.toUpperCase() || 'Card'} **** ${membership.paymentMethod.last4}`
+                            : `${membership.paymentMethod.bankName || 'Bank Account'} **** ${membership.paymentMethod.last4}`}
                         </p>
                         {membership.paymentMethod.type === 'card' && membership.paymentMethod.expiryMonth && (
                           <p className="text-xs text-muted-foreground">

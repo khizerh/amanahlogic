@@ -149,8 +149,8 @@ export function CollectPaymentDialog({
                 <p className="font-medium">Charge Card on File</p>
                 <p className="text-sm text-muted-foreground">
                   {membership.paymentMethod.type === "card"
-                    ? `${membership.paymentMethod.brand?.toUpperCase()} •••• ${membership.paymentMethod.last4}`
-                    : `${membership.paymentMethod.bankName} •••• ${membership.paymentMethod.last4}`}
+                    ? `${membership.paymentMethod.brand?.toUpperCase() || 'Card'} •••• ${membership.paymentMethod.last4}`
+                    : `${membership.paymentMethod.bankName || 'Bank Account'} •••• ${membership.paymentMethod.last4}`}
                 </p>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />

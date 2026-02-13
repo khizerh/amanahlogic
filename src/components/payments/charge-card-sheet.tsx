@@ -181,8 +181,8 @@ export function ChargeCardSheet({
               </p>
               <p className="text-sm opacity-70">
                 {paymentMethod.type === "card"
-                  ? `${paymentMethod.brand?.toUpperCase()} ${paymentMethod.expiryMonth}/${paymentMethod.expiryYear}`
-                  : paymentMethod.bankName}
+                  ? `${paymentMethod.brand?.toUpperCase() || 'Card'} ${paymentMethod.expiryMonth}/${paymentMethod.expiryYear}`
+                  : paymentMethod.bankName || 'Bank Account'}
               </p>
             </div>
             <p className="mt-4 text-sm font-medium">
