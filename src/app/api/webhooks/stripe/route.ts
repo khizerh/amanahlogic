@@ -1228,6 +1228,48 @@ async function handleSetupIntentSucceeded(
     console.error("[Webhook] Failed to settle first invoice:", err);
   }
 
+  // ACH FIX: For bank account payments, the first invoice won't be "paid" yet (ACH takes
+  // 3-5 business days). The member has completed onboarding (agreement signed + subscription
+  // active) so transition pending → current now. settlePayment() will credit months later
+  // when invoice.paid fires after the ACH clears.
+  try {
+    const { data: currentMembership } = await supabase
+      .from("memberships")
+      .select("status, agreement_signed_at")
+      .eq("id", membershipId)
+      .single();
+
+    if (
+      currentMembership?.status === "pending" &&
+      currentMembership.agreement_signed_at
+    ) {
+      const { data: orgForTz } = await supabase
+        .from("organizations")
+        .select("timezone")
+        .eq("id", organizationId)
+        .single();
+      const tz = orgForTz?.timezone || "America/Los_Angeles";
+      const todayStr = getTodayInOrgTimezone(tz);
+
+      const { error: transitionError } = await supabase
+        .from("memberships")
+        .update({
+          status: "current",
+          join_date: todayStr,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", membershipId);
+
+      if (!transitionError) {
+        console.log(`[Webhook] Transitioned membership ${membershipId} from pending → current (subscription active, agreement signed)`);
+      } else {
+        console.error("[Webhook] Failed to transition membership to current:", transitionError);
+      }
+    }
+  } catch (err) {
+    console.error("[Webhook] Failed to check/transition pending membership:", err);
+  }
+
   // Mark onboarding invite as completed
   if (existingInvite) {
     try {

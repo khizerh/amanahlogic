@@ -393,7 +393,9 @@ export default async function MemberDashboardPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="capitalize">
-                        {membership.paymentMethod.brand || membership.paymentMethod.type}
+                        {membership.paymentMethod.type === "card"
+                          ? membership.paymentMethod.brand || "Card"
+                          : membership.paymentMethod.bankName || "Bank Account"}
                       </Badge>
                       <span className="text-sm font-medium">
                         ending in {membership.paymentMethod.last4}
