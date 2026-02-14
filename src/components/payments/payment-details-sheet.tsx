@@ -117,7 +117,7 @@ export function PaymentDetailsSheet({
                   className="font-medium hover:underline"
                   onClick={() => onOpenChange(false)}
                 >
-                  {payment.member.firstName} {payment.member.lastName}
+                  {payment.member.firstName} {payment.member.middleName ? `${payment.member.middleName} ` : ''}{payment.member.lastName}
                 </Link>
                 <div className="text-sm text-muted-foreground">{payment.member.email || "No email"}</div>
               </div>

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     // Get member details
     const { data: member, error: memberError } = await supabase
       .from("members")
-      .select("id, email, first_name, last_name, user_id")
+      .select("id, email, first_name, middle_name, last_name, user_id")
       .eq("id", memberId)
       .eq("organization_id", organizationId)
       .single();
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     // Send invite email to the member
     const emailResult = await sendMemberInviteEmail({
       to: member.email,
-      memberName: `${member.first_name} ${member.last_name}`,
+      memberName: `${member.first_name} ${member.middle_name ? `${member.middle_name} ` : ''}${member.last_name}`,
       memberId: member.id,
       organizationId,
       inviteUrl,
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       emailSent: emailResult.success,
       message: emailResult.success
         ? `Invite sent to ${member.email}`
-        : `Invite created for ${member.first_name} ${member.last_name} (email delivery failed)`,
+        : `Invite created for ${member.first_name} ${member.middle_name ? `${member.middle_name} ` : ''}${member.last_name} (email delivery failed)`,
     });
   } catch (error) {
     console.error("Error sending invite:", error);

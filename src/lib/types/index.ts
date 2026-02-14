@@ -80,6 +80,7 @@ export interface Member {
 
   // Primary contact
   firstName: string;
+  middleName: string | null;
   lastName: string;
   email: string | null;
   phone: string;

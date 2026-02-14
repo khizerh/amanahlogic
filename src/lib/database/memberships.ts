@@ -518,6 +518,7 @@ interface DbMemberJoinRow {
   id: string;
   organization_id: string;
   first_name: string;
+  middle_name: string | null;
   last_name: string;
   email: string | null;
   phone: string | null;
@@ -638,6 +639,7 @@ function transformMembershipWithDetails(
           id: member.id,
           organizationId: member.organization_id,
           firstName: member.first_name,
+          middleName: member.middle_name || null,
           lastName: member.last_name,
           email: member.email,
           phone: member.phone || "",

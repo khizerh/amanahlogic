@@ -35,17 +35,17 @@ export const columns: ColumnDef<MemberWithMembership>[] = [
   {
     accessorKey: "name",
     header: "Name",
-    accessorFn: (row) => `${row.firstName} ${row.lastName}`,
+    accessorFn: (row) => `${row.firstName} ${row.middleName ? `${row.middleName} ` : ''}${row.lastName}`,
     cell: ({ row }) => (
       <Link
         href={`/members/${row.original.id}`}
         className="font-medium hover:underline text-brand-teal"
       >
-        {row.original.firstName} {row.original.lastName}
+        {row.original.firstName} {row.original.middleName ? `${row.original.middleName} ` : ''}{row.original.lastName}
       </Link>
     ),
     filterFn: (row, id, filterValue) => {
-      const searchableText = `${row.original.firstName} ${row.original.lastName} ${row.original.email || ""} ${row.original.phone}`.toLowerCase();
+      const searchableText = `${row.original.firstName} ${row.original.middleName || ''} ${row.original.lastName} ${row.original.email || ""} ${row.original.phone}`.toLowerCase();
       return searchableText.includes(filterValue.toLowerCase());
     },
   },

@@ -339,6 +339,7 @@ interface DbMemberRow {
   id: string;
   organization_id: string;
   first_name: string;
+  middle_name: string | null;
   last_name: string;
   email: string | null;
   phone: string | null;
@@ -446,6 +447,7 @@ function transformMember(db: DbMemberRow): Member {
     id: db.id,
     organizationId: db.organization_id,
     firstName: db.first_name,
+    middleName: db.middle_name,
     lastName: db.last_name,
     email: db.email,
     phone: db.phone || "",

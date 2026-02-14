@@ -46,12 +46,12 @@ export function MemberNavigation() {
       if (user?.id) {
         const { data: member } = await supabase
           .from("members")
-          .select("first_name, last_name")
+          .select("first_name, middle_name, last_name")
           .eq("user_id", user.id)
           .limit(1)
           .maybeSingle();
         if (member) {
-          setUserDisplay(`${member.first_name} ${member.last_name}`.trim());
+          setUserDisplay(`${member.first_name} ${member.middle_name ? `${member.middle_name} ` : ''}${member.last_name}`.trim());
           return;
         }
       }

@@ -1094,7 +1094,7 @@ async function handleSetupIntentSucceeded(
           try {
             const { data: member } = await supabase
               .from("members")
-              .select("first_name, last_name, email, preferred_language")
+              .select("first_name, middle_name, last_name, email, preferred_language")
               .eq("id", memberId)
               .single();
 
@@ -1114,7 +1114,7 @@ async function handleSetupIntentSucceeded(
               await sendPaymentReceiptEmail({
                 ...receiptData,
                 to: member.email,
-                memberName: `${member.first_name} ${member.last_name}`,
+                memberName: `${member.first_name} ${member.middle_name ? `${member.middle_name} ` : ''}${member.last_name}`,
                 language: (member.preferred_language as "en" | "fa") || "en",
               });
               console.log(`[Webhook] Sent enrollment fee receipt email to ${member.email}`);
@@ -1122,15 +1122,15 @@ async function handleSetupIntentSucceeded(
               // Fallback: send receipt to payer when beneficiary has no email
               const { data: payer } = await supabase
                 .from("members")
-                .select("first_name, last_name, email, preferred_language")
+                .select("first_name, middle_name, last_name, email, preferred_language")
                 .eq("id", payerMemberId)
                 .single();
               if (payer?.email) {
-                const beneficiaryName = member ? `${member.first_name} ${member.last_name}` : "member";
+                const beneficiaryName = member ? `${member.first_name} ${member.middle_name ? `${member.middle_name} ` : ''}${member.last_name}` : "member";
                 await sendPaymentReceiptEmail({
                   ...receiptData,
                   to: payer.email,
-                  memberName: `${payer.first_name} ${payer.last_name}`,
+                  memberName: `${payer.first_name} ${payer.middle_name ? `${payer.middle_name} ` : ''}${payer.last_name}`,
                   language: (payer.preferred_language as "en" | "fa") || "en",
                   payingForName: beneficiaryName,
                 });

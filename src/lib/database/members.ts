@@ -20,6 +20,7 @@ import type {
 export interface CreateMemberInput {
   organizationId: string;
   firstName: string;
+  middleName?: string | null;
   lastName: string;
   email?: string | null;
   phone?: string;
@@ -90,7 +91,7 @@ export class MembersService {
     if (filters?.search) {
       const search = `%${filters.search}%`;
       query = query.or(
-        `first_name.ilike.${search},last_name.ilike.${search},email.ilike.${search},phone.ilike.${search}`
+        `first_name.ilike.${search},middle_name.ilike.${search},last_name.ilike.${search},email.ilike.${search},phone.ilike.${search}`
       );
     }
 
@@ -237,6 +238,7 @@ export class MembersService {
       .insert({
         organization_id: input.organizationId,
         first_name: input.firstName,
+        middle_name: input.middleName || null,
         last_name: input.lastName,
         email: input.email || null,
         phone: input.phone || null,
@@ -268,6 +270,8 @@ export class MembersService {
       dbUpdates.organization_id = updates.organizationId;
     if (updates.firstName !== undefined)
       dbUpdates.first_name = updates.firstName;
+    if (updates.middleName !== undefined)
+      dbUpdates.middle_name = updates.middleName;
     if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName;
     if (updates.email !== undefined) dbUpdates.email = updates.email;
     if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
@@ -351,7 +355,7 @@ export class MembersService {
       .select("*")
       .eq("organization_id", organizationId)
       .or(
-        `first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`
+        `first_name.ilike.%${query}%,middle_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`
       )
       .limit(limit);
 
@@ -368,6 +372,7 @@ interface DbMemberRow {
   id: string;
   organization_id: string;
   first_name: string;
+  middle_name: string | null;
   last_name: string;
   email: string | null;
   phone: string | null;
@@ -435,6 +440,7 @@ function transformMember(dbMember: DbMemberRow): Member {
     id: dbMember.id,
     organizationId: dbMember.organization_id,
     firstName: dbMember.first_name,
+    middleName: dbMember.middle_name,
     lastName: dbMember.last_name,
     email: dbMember.email,
     phone: dbMember.phone || "",

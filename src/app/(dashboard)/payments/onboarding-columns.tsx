@@ -81,7 +81,7 @@ export const createOnboardingColumns = (
           href={`/members/${invite.memberId}`}
           className="font-medium text-brand-teal hover:underline"
         >
-          {invite.member.firstName} {invite.member.lastName}
+          {invite.member.firstName} {invite.member.middleName ? `${invite.member.middleName} ` : ''}{invite.member.lastName}
         </Link>
       );
     },
@@ -89,7 +89,7 @@ export const createOnboardingColumns = (
       const searchValue = value.toLowerCase();
       const member = row.original.member;
       return (
-        `${member.firstName} ${member.lastName}`.toLowerCase().includes(searchValue) ||
+        `${member.firstName} ${member.middleName || ''} ${member.lastName}`.toLowerCase().includes(searchValue) ||
         (member.email || "").toLowerCase().includes(searchValue)
       );
     },

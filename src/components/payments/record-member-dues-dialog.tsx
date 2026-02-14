@@ -118,7 +118,7 @@ export function RecordMemberDuesDialog({
       }
 
       toast.success(
-        `Payment of ${formatCurrency(duesAmount)} recorded for ${member.firstName} ${member.lastName}`
+        `Payment of ${formatCurrency(duesAmount)} recorded for ${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`
       );
       onOpenChange(false);
       onPaymentRecorded?.();

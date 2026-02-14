@@ -42,6 +42,7 @@ export async function POST(request: Request) {
 
     const {
       firstName,
+      middleName,
       lastName,
       email,
       phone,
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       paidMonths: rawPaidMonths,
     } = body as {
       firstName: string;
+      middleName?: string;
       lastName: string;
       email?: string;
       phone: string;
@@ -119,6 +121,7 @@ export async function POST(request: Request) {
     const member = await MembersService.create({
       organizationId,
       firstName,
+      middleName: middleName || null,
       lastName,
       email: email || null,
       phone: normalizedPhone || undefined,

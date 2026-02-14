@@ -15,6 +15,7 @@ interface ImportChild {
 
 interface ImportMember {
   firstName: string;
+  middleName?: string;
   lastName: string;
   email?: string;
   phone: string;
@@ -114,6 +115,7 @@ export async function POST(request: Request) {
         const createdMember = await MembersService.create({
           organizationId,
           firstName: member.firstName,
+          middleName: member.middleName || null,
           lastName: member.lastName,
           email: member.email || null,
           phone: normalizedPhone || undefined,

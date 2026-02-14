@@ -246,12 +246,12 @@ export async function processOrganizationReminders(
         try {
           const { data: member } = await supabase
             .from("members")
-            .select("id, email, first_name, last_name, preferred_language")
+            .select("id, email, first_name, middle_name, last_name, preferred_language")
             .eq("id", payment.member_id)
             .single();
 
           let recipientEmail = member?.email;
-          let recipientName = member ? `${member.first_name} ${member.last_name}` : "";
+          let recipientName = member ? `${member.first_name} ${member.middle_name ? `${member.middle_name} ` : ''}${member.last_name}` : "";
           let recipientLanguage: "en" | "fa" = (member?.preferred_language as "en" | "fa") || "en";
 
           // Payer email fallback: if beneficiary has no email but membership has a payer, use payer's email
@@ -265,13 +265,13 @@ export async function processOrganizationReminders(
             if (membership?.payer_member_id) {
               const { data: payerMember } = await supabase
                 .from("members")
-                .select("id, email, first_name, last_name, preferred_language")
+                .select("id, email, first_name, middle_name, last_name, preferred_language")
                 .eq("id", membership.payer_member_id)
                 .single();
 
               if (payerMember?.email) {
                 recipientEmail = payerMember.email;
-                recipientName = `${payerMember.first_name} ${payerMember.last_name}`;
+                recipientName = `${payerMember.first_name} ${payerMember.middle_name ? `${payerMember.middle_name} ` : ''}${payerMember.last_name}`;
                 recipientLanguage = (payerMember.preferred_language as "en" | "fa") || "en";
               }
             }
@@ -416,12 +416,12 @@ export async function sendPaymentReminder(
     try {
       const { data: member } = await supabase
         .from("members")
-        .select("id, email, first_name, last_name, preferred_language")
+        .select("id, email, first_name, middle_name, last_name, preferred_language")
         .eq("id", payment.member_id)
         .single();
 
       let recipientEmail = member?.email;
-      let recipientName = member ? `${member.first_name} ${member.last_name}` : "";
+      let recipientName = member ? `${member.first_name} ${member.middle_name ? `${member.middle_name} ` : ''}${member.last_name}` : "";
       let recipientLanguage: "en" | "fa" = (member?.preferred_language as "en" | "fa") || "en";
 
       // Payer email fallback: if beneficiary has no email but membership has a payer, use payer's email
@@ -435,13 +435,13 @@ export async function sendPaymentReminder(
         if (membershipData?.payer_member_id) {
           const { data: payerMember } = await supabase
             .from("members")
-            .select("id, email, first_name, last_name, preferred_language")
+            .select("id, email, first_name, middle_name, last_name, preferred_language")
             .eq("id", membershipData.payer_member_id)
             .single();
 
           if (payerMember?.email) {
             recipientEmail = payerMember.email;
-            recipientName = `${payerMember.first_name} ${payerMember.last_name}`;
+            recipientName = `${payerMember.first_name} ${payerMember.middle_name ? `${payerMember.middle_name} ` : ''}${payerMember.last_name}`;
             recipientLanguage = (payerMember.preferred_language as "en" | "fa") || "en";
           }
         }

@@ -56,7 +56,7 @@ export function CollectPaymentDialog({
         <DialogHeader>
           <DialogTitle>Collect Payment</DialogTitle>
           <DialogDescription>
-            Choose how to collect payment from {member.firstName} {member.lastName}
+            Choose how to collect payment from {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}
           </DialogDescription>
         </DialogHeader>
 
@@ -65,7 +65,7 @@ export function CollectPaymentDialog({
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">
-                {member.firstName} {member.lastName}
+                {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}
               </p>
               <p className="text-sm text-muted-foreground">{plan.name} Plan</p>
             </div>

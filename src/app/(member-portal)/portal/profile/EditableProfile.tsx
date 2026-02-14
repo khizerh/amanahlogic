@@ -140,7 +140,7 @@ export function EditableProfile({ member: initialMember }: EditableProfileProps)
             {/* Name - Not editable */}
             <div>
               <p className="text-sm text-muted-foreground">Full Name</p>
-              <p className="font-medium">{member.firstName} {member.lastName}</p>
+              <p className="font-medium">{member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}</p>
             </div>
 
             {/* Email - Not editable */}

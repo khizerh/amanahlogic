@@ -70,6 +70,7 @@ export async function PUT(
     const {
       email,
       phone,
+      middleName,
       address,
       preferredLanguage,
       emergencyContact,
@@ -99,6 +100,7 @@ export async function PUT(
     const updatedMember = await MembersService.update({
       id: memberId,
       ...(email !== undefined && { email: email || null }),
+      ...(middleName !== undefined && { middleName: middleName || null }),
       ...(normalizedPhone !== undefined && { phone: normalizedPhone }),
       ...(address !== undefined && { address }),
       ...(preferredLanguage !== undefined && { preferredLanguage }),

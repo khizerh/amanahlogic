@@ -38,6 +38,7 @@ interface ParsedChild {
 
 interface ParsedMember {
   firstName: string;
+  middleName?: string;
   lastName: string;
   email: string;
   phone: string;
@@ -81,6 +82,7 @@ const REQUIRED_COLUMNS = [
 
 const OPTIONAL_COLUMNS = [
   { key: "email", label: "Email" },
+  { key: "middle_name", label: "Middle Name" },
   { key: "spouse_name", label: "Spouse Name" },
   { key: "preferred_language", label: "Preferred Language" },
   { key: "waive_enrollment_fee", label: "Waive Enrollment Fee" },
@@ -139,6 +141,7 @@ export function ImportMembersDialog({ trigger }: ImportMembersDialogProps) {
       "married",
       "monthly",
       "Sarah Doe",
+      "Ali",
       "en",
       "no",
       "Ahmed Doe",
@@ -244,6 +247,7 @@ export function ImportMembersDialog({ trigger }: ImportMembersDialogProps) {
 
         data.push({
           firstName: row.first_name,
+          middleName: row.middle_name || undefined,
           lastName: row.last_name,
           email: row.email,
           phone: row.phone,
@@ -517,7 +521,7 @@ export function ImportMembersDialog({ trigger }: ImportMembersDialogProps) {
                         {parsedData.slice(0, 10).map((member, i) => (
                           <TableRow key={i}>
                             <TableCell className="font-medium">
-                              {member.firstName} {member.lastName}
+                              {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}
                             </TableCell>
                             <TableCell className="text-muted-foreground">
                               {member.email || <span className="italic">No email</span>}

@@ -69,7 +69,7 @@ export async function orchestrateOnboarding(
     skipped: [],
   };
 
-  const memberName = `${member.firstName} ${member.lastName}`;
+  const memberName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`;
   const language = member.preferredLanguage || "en";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 

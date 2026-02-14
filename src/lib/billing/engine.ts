@@ -131,6 +131,7 @@ interface MembershipToBill {
   // Joined data
   member?: {
     first_name: string;
+    middle_name: string | null;
     last_name: string;
     email: string;
   };
@@ -415,6 +416,7 @@ export async function processRecurringBilling(
         stripe_subscription_status,
         member:members!memberships_member_id_fkey(
           first_name,
+          middle_name,
           last_name,
           email
         ),
@@ -524,7 +526,7 @@ export async function processRecurringBilling(
           // Dry run mode: just log what would be created
           logger.debug("dry_run_would_create_payment", {
             membership_id: membership.id,
-            member_name: `${membership.member?.first_name} ${membership.member?.last_name}`,
+            member_name: `${membership.member?.first_name} ${membership.member?.middle_name ? `${membership.member.middle_name} ` : ''}${membership.member?.last_name}`,
             plan_name: membership.plan?.name,
             billing_frequency: membership.billing_frequency,
             next_payment_due: nextPaymentDueStr,
@@ -639,7 +641,7 @@ export async function processRecurringBilling(
           logger.error("payment_creation_failed", {
             membership_id: membership.id,
             member_name: membership.member
-              ? `${membership.member.first_name} ${membership.member.last_name}`
+              ? `${membership.member.first_name} ${membership.member.middle_name ? `${membership.member.middle_name} ` : ''}${membership.member.last_name}`
               : "Unknown",
             error: errorMessage,
             errorDetails: error,
@@ -1149,7 +1151,7 @@ export async function settlePayment(
         // Fetch member details for the email
         const { data: member } = await supabase
           .from("members")
-          .select("email, first_name, last_name, preferred_language")
+          .select("email, first_name, middle_name, last_name, preferred_language")
           .eq("id", payment.member_id)
           .single();
 
@@ -1187,7 +1189,7 @@ export async function settlePayment(
           };
 
           if (member?.email) {
-            const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
+            const fullName = [member.first_name, member.middle_name, member.last_name].filter(Boolean).join(" ");
             await sendPaymentReceiptEmail({
               ...receiptData,
               to: member.email,
@@ -1204,17 +1206,17 @@ export async function settlePayment(
             if (msData?.payer_member_id) {
               const { data: payer } = await supabase
                 .from("members")
-                .select("email, first_name, last_name, preferred_language")
+                .select("email, first_name, middle_name, last_name, preferred_language")
                 .eq("id", msData.payer_member_id)
                 .single();
               if (payer?.email) {
                 const beneficiaryName = member
-                  ? [member.first_name, member.last_name].filter(Boolean).join(" ")
+                  ? [member.first_name, member.middle_name, member.last_name].filter(Boolean).join(" ")
                   : "member";
                 await sendPaymentReceiptEmail({
                   ...receiptData,
                   to: payer.email,
-                  memberName: `${payer.first_name} ${payer.last_name}`,
+                  memberName: [payer.first_name, payer.middle_name, payer.last_name].filter(Boolean).join(" "),
                   language: (payer.preferred_language as "en" | "fa") || "en",
                   payingForName: beneficiaryName,
                 });

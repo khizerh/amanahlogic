@@ -110,6 +110,7 @@ export interface PaymentWithDetails {
   member: {
     id: string;
     firstName: string;
+    middleName: string | null;
     lastName: string;
     email: string | null;
   } | null;
@@ -154,6 +155,7 @@ export interface OverduePaymentInfo {
   daysPastDue: number;
   member: {
     firstName: string;
+    middleName: string | null;
     lastName: string;
     email: string | null;
   } | null;
@@ -219,7 +221,7 @@ export class PaymentsService {
       .select(
         `
         *,
-        member:members(id, first_name, last_name, email),
+        member:members(id, first_name, middle_name, last_name, email),
         membership:memberships(
           id,
           status,
@@ -342,7 +344,7 @@ export class PaymentsService {
       .select(
         `
         *,
-        member:members(id, first_name, last_name, email),
+        member:members(id, first_name, middle_name, last_name, email),
         membership:memberships(
           id,
           status,
@@ -548,7 +550,7 @@ export class PaymentsService {
         paid_months,
         billing_frequency,
         next_payment_due,
-        member:members!memberships_member_id_fkey(id, first_name, last_name, email),
+        member:members!memberships_member_id_fkey(id, first_name, middle_name, last_name, email),
         plan:plans(id, name, pricing)
       `
       )
@@ -600,6 +602,7 @@ export class PaymentsService {
         member: member
           ? {
               firstName: member.first_name,
+              middleName: member.middle_name || null,
               lastName: member.last_name,
               email: member.email,
             }
@@ -642,7 +645,7 @@ export class PaymentsService {
         billing_frequency,
         next_payment_due,
         auto_pay_enabled,
-        member:members!memberships_member_id_fkey(id, first_name, last_name, email),
+        member:members!memberships_member_id_fkey(id, first_name, middle_name, last_name, email),
         plan:plans(id, name, pricing)
       `
       )
@@ -715,7 +718,7 @@ export class PaymentsService {
         reminder_count,
         reminders_paused,
         notes,
-        member:members(id, first_name, last_name, email),
+        member:members(id, first_name, middle_name, last_name, email),
         membership:memberships(
           id,
           plan:plans(id, name)
@@ -838,7 +841,7 @@ export class PaymentsService {
       .select(
         `
         *,
-        member:members(id, first_name, last_name, email),
+        member:members(id, first_name, middle_name, last_name, email),
         membership:memberships(
           id,
           status,
@@ -931,6 +934,7 @@ interface DbPaymentRow {
 interface DbPaymentMemberJoinRow {
   id: string;
   first_name: string;
+  middle_name: string | null;
   last_name: string;
   email: string;
 }
@@ -957,6 +961,7 @@ interface DbPaymentWithDetailsRow extends DbPaymentRow {
 interface DbOverdueMemberJoinRow {
   id: string;
   first_name: string;
+  middle_name: string | null;
   last_name: string;
   email: string;
 }
@@ -1082,6 +1087,7 @@ function transformPaymentsWithDetails(dbPayments: DbPaymentWithDetailsRow[]): Pa
         ? {
             id: member.id,
             firstName: member.first_name,
+            middleName: member.middle_name || null,
             lastName: member.last_name,
             email: member.email,
           }

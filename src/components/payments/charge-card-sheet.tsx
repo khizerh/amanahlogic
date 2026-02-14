@@ -154,8 +154,8 @@ export function ChargeCardSheet({
           </SheetTitle>
           <SheetDescription>
             {payerMemberName
-              ? `Charge ${payerMemberName}'s card for ${member.firstName} ${member.lastName}'s membership`
-              : `Charge ${member.firstName} ${member.lastName}'s payment method`}
+              ? `Charge ${payerMemberName}'s card for ${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}'s membership`
+              : `Charge ${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}'s payment method`}
           </SheetDescription>
         </SheetHeader>
 
@@ -186,14 +186,14 @@ export function ChargeCardSheet({
               </p>
             </div>
             <p className="mt-4 text-sm font-medium">
-              {payerMemberName || `${member.firstName} ${member.lastName}`}
+              {payerMemberName || `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`}
             </p>
           </div>
 
           {payerMemberName && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
               <p className="text-blue-800">
-                This card belongs to <span className="font-medium">{payerMemberName}</span>, who is paying for {member.firstName} {member.lastName}&apos;s membership.
+                This card belongs to <span className="font-medium">{payerMemberName}</span>, who is paying for {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}&apos;s membership.
               </p>
             </div>
           )}

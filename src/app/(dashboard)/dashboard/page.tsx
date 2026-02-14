@@ -59,7 +59,7 @@ export default async function DashboardPage() {
       id: `signup-${member.id}`,
       type: 'signup' as const,
       date: member.createdAt,
-      memberName: `${member.firstName} ${member.lastName}`,
+      memberName: `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`,
       memberId: member.id,
       detail: 'New member signup',
     }));
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
     id: `payment-${payment.id}`,
     type: 'payment' as const,
     date: payment.paidAt || payment.createdAt,
-    memberName: payment.member ? `${payment.member.firstName} ${payment.member.lastName}` : 'Unknown',
+    memberName: payment.member ? `${payment.member.firstName} ${payment.member.middleName ? `${payment.member.middleName} ` : ''}${payment.member.lastName}` : 'Unknown',
     memberId: payment.memberId,
     detail: payment.type === 'enrollment_fee' ? 'Enrollment fee' : `${payment.monthsCredited} month${payment.monthsCredited > 1 ? 's' : ''} dues`,
     amount: payment.amount,

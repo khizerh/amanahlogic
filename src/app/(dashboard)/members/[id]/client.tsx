@@ -186,6 +186,7 @@ export function MemberDetailClient({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState<{
+    middleName: string;
     email: string;
     phone: string;
     street: string;
@@ -196,6 +197,7 @@ export function MemberDetailClient({
     emergencyName: string;
     emergencyPhone: string;
   }>({
+    middleName: memberData.middleName || "",
     email: memberData.email || "",
     phone: memberData.phone,
     street: memberData.address.street,
@@ -538,6 +540,7 @@ export function MemberDetailClient({
 
   const handleStartEdit = () => {
     setEditForm({
+      middleName: memberData.middleName || "",
       email: memberData.email || "",
       phone: formatPhoneNumber(memberData.phone),
       street: memberData.address.street,
@@ -563,6 +566,7 @@ export function MemberDetailClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: editForm.email || null,
+          middleName: editForm.middleName || null,
           phone: editForm.phone,
           address: {
             street: editForm.street,
@@ -654,6 +658,7 @@ export function MemberDetailClient({
       member: {
         id: memberData.id,
         firstName: memberData.firstName,
+        middleName: memberData.middleName,
         lastName: memberData.lastName,
         email: memberData.email,
       },
@@ -797,7 +802,7 @@ export function MemberDetailClient({
               <BreadcrumbSeparator />
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {memberData.firstName} {memberData.lastName}
+                  {memberData.firstName} {memberData.middleName ? `${memberData.middleName} ` : ''}{memberData.lastName}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
@@ -808,7 +813,7 @@ export function MemberDetailClient({
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-3xl font-bold">
-                  {memberData.firstName} {memberData.lastName}
+                  {memberData.firstName} {memberData.middleName ? `${memberData.middleName} ` : ''}{memberData.lastName}
                 </h1>
                 {membership && (
                   <Badge
@@ -1104,6 +1109,15 @@ export function MemberDetailClient({
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-2">
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="middleName">Middle Name</Label>
+                        <Input
+                          id="middleName"
+                          value={editForm.middleName}
+                          onChange={(e) => setEditForm({ ...editForm, middleName: e.target.value })}
+                          placeholder="Optional"
+                        />
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
                         <Input
@@ -1987,7 +2001,7 @@ export function MemberDetailClient({
             </DialogTitle>
             <DialogDescription>
               {membership?.agreementSignedAt
-                ? `Signed by ${memberData.firstName} ${memberData.lastName}`
+                ? `Signed by ${memberData.firstName} ${memberData.middleName ? `${memberData.middleName} ` : ''}${memberData.lastName}`
                 : "Agreement details"}
             </DialogDescription>
           </DialogHeader>

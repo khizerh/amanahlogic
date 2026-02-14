@@ -70,6 +70,7 @@ export default function NewMemberPage() {
 
   // Form state
   const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -167,6 +168,7 @@ export default function NewMemberPage() {
         },
         body: JSON.stringify({
           firstName,
+          middleName: middleName || null,
           lastName,
           email: email || null,
           phone: normalizedPhone,
@@ -269,7 +271,7 @@ export default function NewMemberPage() {
                 <CardTitle>Personal Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">
                       First Name <span className="text-red-500">*</span>
@@ -280,6 +282,17 @@ export default function NewMemberPage() {
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="Enter first name"
                       required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middleName">
+                      Middle Name
+                    </Label>
+                    <Input
+                      id="middleName"
+                      value={middleName}
+                      onChange={(e) => setMiddleName(e.target.value)}
+                      placeholder="Optional"
                     />
                   </div>
                   <div className="space-y-2">

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 interface Member {
   id: string;
   firstName: string;
+  middleName: string | null;
   lastName: string;
   email: string | null;
   membership?: {
@@ -180,7 +181,7 @@ export function AssignPayerDialog({
                   >
                     <div>
                       <p className="font-medium text-sm">
-                        {member.firstName} {member.lastName}
+                        {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}
                         {selectedMember?.id === member.id && (
                           <Check className="inline h-4 w-4 ml-1 text-blue-600" />
                         )}

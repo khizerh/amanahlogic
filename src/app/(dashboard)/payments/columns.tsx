@@ -103,7 +103,7 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
           href={`/members/${member.id}`}
           className="font-medium text-brand-teal hover:underline"
         >
-          {member.firstName} {member.lastName}
+          {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}
         </Link>
       );
     },
@@ -113,6 +113,7 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
       const searchValue = value.toLowerCase();
       return (
         member.firstName.toLowerCase().includes(searchValue) ||
+        (member.middleName || "").toLowerCase().includes(searchValue) ||
         member.lastName.toLowerCase().includes(searchValue) ||
         (member.email || "").toLowerCase().includes(searchValue)
       );
