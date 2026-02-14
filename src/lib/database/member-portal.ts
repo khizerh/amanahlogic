@@ -165,11 +165,11 @@ export class MemberPortalService {
       const supabase = await createClientForContext();
       const { data: payer } = await supabase
         .from("members")
-        .select("first_name, last_name")
+        .select("first_name, middle_name, last_name")
         .eq("id", membership.payerMemberId)
         .single();
       if (payer) {
-        payerMemberName = `${payer.first_name} ${payer.last_name}`;
+        payerMemberName = [payer.first_name, payer.middle_name, payer.last_name].filter(Boolean).join(" ");
       }
     }
 

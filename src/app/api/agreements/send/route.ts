@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     if (sendEmail) {
       emailResult = await sendAgreementEmail({
         to: member.email!,
-        memberName: `${member.firstName} ${member.lastName}`,
+        memberName: `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`,
         memberId: member.id,
         organizationId,
         signUrl,

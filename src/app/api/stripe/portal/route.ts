@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         memberId: member.id,
         membershipId: membership.id,
         email: member.email || undefined,
-        name: `${member.firstName} ${member.lastName}`,
+        name: `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`,
         organizationId,
       });
 
@@ -131,13 +131,13 @@ export async function POST(req: Request) {
     if (sendEmail) {
       // If membership has a payer, send the portal link to the payer's email instead
       let recipientEmail = member.email;
-      let recipientName = `${member.firstName} ${member.lastName}`;
+      let recipientName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`;
 
       if (membership.payerMemberId) {
         const payerMember = await MembersService.getById(membership.payerMemberId);
         if (payerMember?.email) {
           recipientEmail = payerMember.email;
-          recipientName = `${payerMember.firstName} ${payerMember.lastName}`;
+          recipientName = `${payerMember.firstName} ${payerMember.middleName ? `${payerMember.middleName} ` : ''}${payerMember.lastName}`;
         }
       }
 

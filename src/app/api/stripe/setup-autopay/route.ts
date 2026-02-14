@@ -90,7 +90,7 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      payerForMemberName = `${member.firstName} ${member.lastName}`;
+      payerForMemberName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`;
     }
 
     // Get plan for pricing
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
       memberId: customerMember.id,
       membershipId: customerMembershipId,
       email: customerMember.email || undefined,
-      name: `${customerMember.firstName} ${customerMember.lastName}`,
+      name: `${customerMember.firstName} ${customerMember.middleName ? `${customerMember.middleName} ` : ''}${customerMember.lastName}`,
       organizationId,
     });
 

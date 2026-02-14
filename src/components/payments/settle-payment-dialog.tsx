@@ -103,7 +103,7 @@ export function SettlePaymentDialog({
   };
 
   const memberName = payment.member
-    ? `${payment.member.firstName} ${payment.member.lastName}`
+    ? `${payment.member.firstName} ${payment.member.middleName ? `${payment.member.middleName} ` : ''}${payment.member.lastName}`
     : "Unknown Member";
 
   const paymentTypeLabel =

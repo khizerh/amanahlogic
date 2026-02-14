@@ -134,8 +134,8 @@ export async function POST(req: Request) {
     }
     const duesAmountCents = Math.round(priceAmount * 100);
 
-    const beneficiaryName = `${beneficiary.firstName} ${beneficiary.lastName}`;
-    const payerName = `${payer.firstName} ${payer.lastName}`;
+    const beneficiaryName = `${beneficiary.firstName} ${beneficiary.middleName ? `${beneficiary.middleName} ` : ''}${beneficiary.lastName}`;
+    const payerName = `${payer.firstName} ${payer.middleName ? `${payer.middleName} ` : ''}${payer.lastName}`;
 
     // Check if payer has a card on file
     const payerHasCard = payerMembership?.autoPayEnabled && payerMembership?.paymentMethod && payerMembership?.stripeCustomerId;

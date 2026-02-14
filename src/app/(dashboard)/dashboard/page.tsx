@@ -207,7 +207,7 @@ export default async function DashboardPage() {
                       <div key={membership.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                         <div className="flex-1">
                           <Link href={`/members/${membership.member.id}`} className="font-medium hover:underline">
-                            {membership.member.firstName} {membership.member.lastName}
+                            {membership.member.firstName} {membership.member.middleName ? `${membership.member.middleName} ` : ''}{membership.member.lastName}
                           </Link>
                           <div className="text-sm text-muted-foreground">
                             {membership.lastPaymentDate ? `Last payment: ${formatDate(membership.lastPaymentDate)}` : 'No payments yet'}

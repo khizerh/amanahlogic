@@ -81,7 +81,7 @@ export async function POST(req: Request) {
         memberId: member.id,
         membershipId: membership.id,
         email: member.email || undefined,
-        name: `${member.firstName} ${member.lastName}`,
+        name: `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`,
         organizationId,
       });
 
@@ -220,7 +220,7 @@ export async function POST(req: Request) {
       try {
         await sendPaymentReceiptEmail({
           to: member.email,
-          memberName: `${member.firstName} ${member.lastName}`,
+          memberName: `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`,
           memberId: member.id,
           organizationId,
           amount: `$${chargeAmount.toFixed(2)}`,

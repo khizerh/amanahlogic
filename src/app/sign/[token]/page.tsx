@@ -74,7 +74,7 @@ export default async function SignPage({ params }: SignPageProps) {
   return (
     <SignClient
       token={token}
-      memberName={`${member.firstName} ${member.lastName}`}
+      memberName={`${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`}
       organizationId={agreement.organizationId}
       templateVersion={agreement.templateVersion}
       language={language}

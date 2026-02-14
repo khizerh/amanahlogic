@@ -104,8 +104,8 @@ interface MemberDetailClientProps {
   onboardingInvite: OnboardingInviteWithMember | null;
   portalInviteUrl: string | null;
   passFeesToMember: boolean;
-  payerMember: { id: string; firstName: string; lastName: string } | null;
-  payingFor: Array<{ membershipId: string; memberId: string; firstName: string; lastName: string; planName: string }>;
+  payerMember: { id: string; firstName: string; middleName: string | null; lastName: string } | null;
+  payingFor: Array<{ membershipId: string; memberId: string; firstName: string; middleName: string | null; lastName: string; planName: string }>;
 }
 
 export function MemberDetailClient({
@@ -1241,7 +1241,7 @@ export function MemberDetailClient({
                       <Users className="h-4 w-4 text-blue-600" />
                       <span className="text-sm text-muted-foreground">Paid By</span>
                       <a href={`/members/${payerMember.id}`} className="font-medium text-blue-600 hover:underline">
-                        {payerMember.firstName} {payerMember.lastName}
+                        {payerMember.firstName} {payerMember.middleName ? `${payerMember.middleName} ` : ''}{payerMember.lastName}
                       </a>
                     </div>
                   </div>
@@ -1255,7 +1255,7 @@ export function MemberDetailClient({
                       <span className="text-sm">
                         Awaiting payment setup from{" "}
                         <a href={`/members/${payerMember.id}`} className="font-medium underline">
-                          {payerMember.firstName} {payerMember.lastName}
+                          {payerMember.firstName} {payerMember.middleName ? `${payerMember.middleName} ` : ''}{payerMember.lastName}
                         </a>
                       </span>
                     </div>
@@ -1593,7 +1593,7 @@ export function MemberDetailClient({
                   {payingFor.map((item) => (
                     <div key={item.membershipId} className="flex items-center justify-between py-2 border-b last:border-b-0">
                       <a href={`/members/${item.memberId}`} className="text-blue-600 hover:underline font-medium">
-                        {item.firstName} {item.lastName}
+                        {item.firstName} {item.middleName ? `${item.middleName} ` : ''}{item.lastName}
                       </a>
                       <span className="text-sm text-muted-foreground">{item.planName}</span>
                     </div>
@@ -1750,7 +1750,7 @@ export function MemberDetailClient({
         onOpenChange={setCollectPaymentOpen}
         onSelectManual={() => setRecordPaymentOpen(true)}
         onSelectChargeCard={() => setChargeCardOpen(true)}
-        payerMemberName={payerMember ? `${payerMember.firstName} ${payerMember.lastName}` : null}
+        payerMemberName={payerMember ? `${payerMember.firstName} ${payerMember.middleName ? `${payerMember.middleName} ` : ''}${payerMember.lastName}` : null}
       />
 
       {/* Record Onboarding Payment Dialog (enrollment fee + first dues) */}
@@ -1779,7 +1779,7 @@ export function MemberDetailClient({
         onOpenChange={setChargeCardOpen}
         onPaymentRecorded={handlePaymentRecorded}
         passFeesToMember={passFeesToMember}
-        payerMemberName={payerMember ? `${payerMember.firstName} ${payerMember.lastName}` : null}
+        payerMemberName={payerMember ? `${payerMember.firstName} ${payerMember.middleName ? `${payerMember.middleName} ` : ''}${payerMember.lastName}` : null}
       />
 
       {/* Change Frequency Sheet */}

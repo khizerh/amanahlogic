@@ -92,7 +92,7 @@ export function AssignPayerDialog({
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const name = `${m.firstName} ${m.lastName}`.toLowerCase();
+        const name = `${m.firstName} ${m.middleName ? m.middleName + ' ' : ''}${m.lastName}`.toLowerCase();
         const email = (m.email || "").toLowerCase();
         return name.includes(query) || email.includes(query);
       }

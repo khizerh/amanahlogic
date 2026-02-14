@@ -226,6 +226,7 @@ export class MembershipsService {
     membershipId: string;
     memberId: string;
     firstName: string;
+    middleName: string | null;
     lastName: string;
     planName: string;
   }>> {
@@ -235,7 +236,7 @@ export class MembershipsService {
       .from("memberships")
       .select(`
         id,
-        member:members!memberships_member_id_fkey(id, first_name, last_name),
+        member:members!memberships_member_id_fkey(id, first_name, middle_name, last_name),
         plan:plans(name)
       `)
       .eq("payer_member_id", payerMemberId)
@@ -249,6 +250,7 @@ export class MembershipsService {
         membershipId: row.id as string,
         memberId: (member as Record<string, unknown>)?.id as string,
         firstName: (member as Record<string, unknown>)?.first_name as string,
+        middleName: ((member as Record<string, unknown>)?.middle_name as string) || null,
         lastName: (member as Record<string, unknown>)?.last_name as string,
         planName: (plan as Record<string, unknown>)?.name as string || "Unknown Plan",
       };

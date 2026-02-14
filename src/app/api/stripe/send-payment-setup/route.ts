@@ -89,7 +89,7 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      payerForMemberName = `${member.firstName} ${member.lastName}`;
+      payerForMemberName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`;
     }
 
     const plan = await PlansService.getById(membership.planId);
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       memberId: customerMember.id,
       membershipId: membership.id,
       email: customerMember.email || undefined,
-      name: `${customerMember.firstName} ${customerMember.lastName}`,
+      name: `${customerMember.firstName} ${customerMember.middleName ? `${customerMember.middleName} ` : ''}${customerMember.lastName}`,
       organizationId,
     });
 
@@ -222,7 +222,7 @@ export async function POST(req: Request) {
       billingFrequency,
       language: emailRecipient.preferredLanguage || "en",
       firstChargeDate,
-      payingForName: payerMember ? `${member.firstName} ${member.lastName}` : undefined,
+      payingForName: payerMember ? `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}` : undefined,
     });
 
     if (!emailResult.success) {

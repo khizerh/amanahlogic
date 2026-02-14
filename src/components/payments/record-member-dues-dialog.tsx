@@ -155,7 +155,7 @@ export function RecordMemberDuesDialog({
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
           <DialogDescription>
-            Record a manual payment for {member.firstName} {member.lastName}
+            Record a manual payment for {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}
           </DialogDescription>
         </DialogHeader>
 
@@ -192,7 +192,7 @@ export function RecordMemberDuesDialog({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">
-                      {member.firstName} {member.lastName}
+                      {member.firstName} {member.middleName ? `${member.middleName} ` : ''}{member.lastName}
                     </p>
                     <p className="text-sm text-muted-foreground">{plan.name} Plan</p>
                   </div>

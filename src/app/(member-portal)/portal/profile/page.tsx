@@ -71,7 +71,7 @@ export default async function MemberProfilePage() {
   if (membership?.payerMemberId) {
     const payer = await MembersService.getById(membership.payerMemberId);
     if (payer) {
-      payerMemberName = `${payer.firstName} ${payer.lastName}`;
+      payerMemberName = `${payer.firstName} ${payer.middleName ? `${payer.middleName} ` : ''}${payer.lastName}`;
     }
   }
 

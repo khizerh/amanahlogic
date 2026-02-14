@@ -45,11 +45,11 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   const agreement = agreements.length > 0 ? agreements[0] : null;
 
   // Fetch payer info if this member has a payer
-  let payerMember: { id: string; firstName: string; lastName: string } | null = null;
+  let payerMember: { id: string; firstName: string; middleName: string | null; lastName: string } | null = null;
   if (memberData?.membership?.payerMemberId) {
     const payer = await MembersService.getById(memberData.membership.payerMemberId);
     if (payer) {
-      payerMember = { id: payer.id, firstName: payer.firstName, lastName: payer.lastName };
+      payerMember = { id: payer.id, firstName: payer.firstName, middleName: payer.middleName, lastName: payer.lastName };
     }
   }
 
