@@ -764,9 +764,14 @@ export function MemberDetailClient({
     }
   };
 
-  const getPaymentMethodBadge = (method: string | null) => {
+  const getPaymentMethodBadge = (method: string | null, stripePaymentMethodType?: string | null) => {
     if (!method) return <Badge variant="outline">-</Badge>;
     switch (method) {
+      case "stripe":
+        if (stripePaymentMethodType === "us_bank_account") return <Badge variant="outline">Stripe · ACH</Badge>;
+        if (stripePaymentMethodType === "link") return <Badge variant="outline">Stripe · Link</Badge>;
+        if (stripePaymentMethodType === "card") return <Badge variant="outline">Stripe · Card</Badge>;
+        return <Badge variant="outline">Stripe</Badge>;
       case "card":
         return <Badge variant="outline">Card</Badge>;
       case "ach":
@@ -1620,7 +1625,7 @@ export function MemberDetailClient({
                           >
                             <TableCell>{formatDate(payment.paidAt || payment.createdAt)}</TableCell>
                             <TableCell>{getPaymentTypeBadge(payment.type)}</TableCell>
-                            <TableCell>{getPaymentMethodBadge(payment.method)}</TableCell>
+                            <TableCell>{getPaymentMethodBadge(payment.method, payment.stripePaymentMethodType)}</TableCell>
                             <TableCell className="text-right font-medium">
                               {formatCurrency(payment.amount)}
                             </TableCell>
