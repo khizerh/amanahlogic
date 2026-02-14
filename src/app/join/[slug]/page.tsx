@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { JoinForm } from "./join-form";
+import { AgreementTemplatesService, resolveTemplateUrl } from "@/lib/database/agreement-templates";
 import type { Plan, PlanPricing } from "@/lib/types";
 
 interface PageProps {
@@ -65,6 +66,30 @@ export default async function JoinPage({ params }: PageProps) {
     updatedAt: "",
   }));
 
+  // Fetch active agreement templates
+  const [enTemplate, faTemplate] = await Promise.all([
+    AgreementTemplatesService.getActiveByLanguage(org.id, "en", supabase),
+    AgreementTemplatesService.getActiveByLanguage(org.id, "fa", supabase),
+  ]);
+
+  const agreements: { label: string; url: string }[] = [];
+  if (enTemplate) {
+    try {
+      const url = await resolveTemplateUrl(enTemplate.storagePath, supabase);
+      agreements.push({ label: "English", url });
+    } catch {
+      // Skip if URL generation fails
+    }
+  }
+  if (faTemplate) {
+    try {
+      const url = await resolveTemplateUrl(faTemplate.storagePath, supabase);
+      agreements.push({ label: "Dari/Farsi", url });
+    } catch {
+      // Skip if URL generation fails
+    }
+  }
+
   const orgEmail = org.email || null;
   const orgPhone = org.phone || null;
 
@@ -98,6 +123,39 @@ export default async function JoinPage({ params }: PageProps) {
           <span className="text-base text-gray-600"> and we&apos;ll help you out.</span>
         </p>
       </div>
+
+      {agreements.length > 0 && (
+        <div className="mb-8 text-center">
+          <p className="text-sm text-gray-500 mb-2">
+            Review our membership agreement before joining:
+          </p>
+          <div className="flex items-center justify-center gap-4">
+            {agreements.map((a) => (
+              <a
+                key={a.label}
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-brand-teal font-medium hover:underline"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-4 w-4"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5zm2.25 8.5a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5zm0 3a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                {a.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       <JoinForm
         orgSlug={org.slug}
