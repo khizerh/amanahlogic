@@ -47,7 +47,7 @@ const STEPS = ["Plan Selection", "Personal Information", "Additional Details"];
 
 const FREQUENCY_LABELS: Record<BillingFrequency, string> = {
   monthly: "Monthly",
-  biannual: "Every 6 Months",
+  biannual: "6 Months",
   annual: "Annually",
 };
 
@@ -365,11 +365,11 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
                     <CardTitle className="text-lg">Pricing Summary</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
+                    <div className="flex items-baseline justify-between gap-2 text-sm">
+                      <span className="text-gray-600 min-w-0">
                         {selectedPlan.name} ({FREQUENCY_LABELS[billingFrequency]})
                       </span>
-                      <span className="font-medium text-text-dark-slate">
+                      <span className="font-medium text-text-dark-slate shrink-0">
                         {formatCurrency(getPriceForFrequency(selectedPlan, billingFrequency))}
                       </span>
                     </div>
@@ -728,20 +728,20 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
 
       {/* Navigation buttons - hidden on success screen */}
       {step < 3 && (
-        <div className="mt-8 flex justify-between">
+        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
           {step > 0 ? (
-            <Button type="button" variant="outline" onClick={handleBack} disabled={submitting}>
+            <Button type="button" variant="outline" onClick={handleBack} disabled={submitting} className="w-full sm:w-auto">
               Back
             </Button>
           ) : (
-            <div />
+            <div className="hidden sm:block" />
           )}
 
           {step < STEPS.length - 1 ? (
             <Button
               type="button"
               onClick={handleNext}
-              className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+              className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
             >
               Continue
             </Button>
@@ -750,7 +750,7 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+              className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
             >
               {submitting ? "Processing..." : "Join & Pay"}
             </Button>
@@ -855,7 +855,7 @@ function SuccessScreen({
       <div className="text-center space-y-3 pt-2">
         <Button
           onClick={() => { window.location.href = paymentUrl; }}
-          className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+          className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
         >
           Continue to Payment
         </Button>
