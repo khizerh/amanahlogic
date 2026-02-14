@@ -531,93 +531,97 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
                 </CardContent>
               </Card>
 
-              {/* Family Information */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Family Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {/* Spouse */}
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-gray-700">Spouse</h4>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <Label htmlFor="spouseName">Full Name</Label>
-                        <Input
-                          id="spouseName"
-                          value={spouseName}
-                          onChange={(e) => setSpouseName(e.target.value)}
-                          placeholder="Spouse full name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="spouseDob">Date of Birth</Label>
-                        <Input
-                          id="spouseDob"
-                          type="date"
-                          value={spouseDateOfBirth}
-                          onChange={(e) => setSpouseDateOfBirth(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t" />
-
-                  {/* Children */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-gray-700">Children</h4>
-                      <Button type="button" variant="outline" size="sm" onClick={addChild}>
-                        + Add Child
-                      </Button>
-                    </div>
-                    {children.length === 0 && (
-                      <p className="text-sm text-gray-400 italic">No children added</p>
-                    )}
-                    {children.map((child, idx) => (
-                      <div
-                        key={child.id}
-                        className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Child {idx + 1}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeChild(child.id)}
-                            className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* Family Information - only for married/widow plans */}
+              {selectedPlan && selectedPlan.type !== "single" && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Family Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    {/* Spouse - only for married plans */}
+                    {selectedPlan.type === "married" && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-700">Spouse</h4>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div>
-                            <Label>Full Name</Label>
+                            <Label htmlFor="spouseName">Full Name</Label>
                             <Input
-                              value={child.name}
-                              onChange={(e) => updateChild(child.id, "name", e.target.value)}
-                              placeholder="Child's full name"
+                              id="spouseName"
+                              value={spouseName}
+                              onChange={(e) => setSpouseName(e.target.value)}
+                              placeholder="Spouse full name"
                             />
                           </div>
                           <div>
-                            <Label>Date of Birth</Label>
+                            <Label htmlFor="spouseDob">Date of Birth</Label>
                             <Input
+                              id="spouseDob"
                               type="date"
-                              value={child.dateOfBirth}
-                              onChange={(e) => updateChild(child.id, "dateOfBirth", e.target.value)}
+                              value={spouseDateOfBirth}
+                              onChange={(e) => setSpouseDateOfBirth(e.target.value)}
                             />
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    )}
+
+                    {/* Divider - only when both spouse and children sections show */}
+                    {selectedPlan.type === "married" && <div className="border-t" />}
+
+                    {/* Children */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-gray-700">Children</h4>
+                        <Button type="button" variant="outline" size="sm" onClick={addChild}>
+                          + Add Child
+                        </Button>
+                      </div>
+                      {children.length === 0 && (
+                        <p className="text-sm text-gray-400 italic">No children added</p>
+                      )}
+                      {children.map((child, idx) => (
+                        <div
+                          key={child.id}
+                          className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                              Child {idx + 1}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeChild(child.id)}
+                              className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                              <Label>Full Name</Label>
+                              <Input
+                                value={child.name}
+                                onChange={(e) => updateChild(child.id, "name", e.target.value)}
+                                placeholder="Child's full name"
+                              />
+                            </div>
+                            <div>
+                              <Label>Date of Birth</Label>
+                              <Input
+                                type="date"
+                                value={child.dateOfBirth}
+                                onChange={(e) => updateChild(child.id, "dateOfBirth", e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Emergency Contact */}
               <Card>
