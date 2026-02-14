@@ -226,43 +226,26 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
 
   return (
     <div>
-      {/* Step indicator */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {STEPS.map((label, i) => (
-            <div key={label} className="flex items-center flex-1">
-              <div className="flex flex-col items-center flex-1">
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-colors shadow-sm ${
-                    i < step
-                      ? "bg-brand-teal text-white"
-                      : i === step
-                      ? "bg-brand-teal text-white ring-4 ring-brand-teal/20"
-                      : "bg-white text-gray-400 border border-gray-200"
-                  }`}
-                >
-                  {i < step ? (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    i + 1
-                  )}
-                </div>
-                <span className={`mt-2 text-xs font-medium hidden sm:block ${
-                  i <= step ? "text-brand-teal" : "text-gray-400"
-                }`}>
-                  {label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={`h-0.5 flex-1 mx-3 rounded-full transition-colors ${
-                  i < step ? "bg-brand-teal" : "bg-gray-200"
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
+      {/* Progress indicator */}
+      <div className="mb-8 flex items-center justify-center gap-0">
+        {STEPS.map((_, i) => (
+          <div key={i} className="flex items-center">
+            <div
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                i < step
+                  ? "bg-brand-teal"
+                  : i === step
+                  ? "bg-brand-teal ring-4 ring-brand-teal/15"
+                  : "bg-gray-200"
+              }`}
+            />
+            {i < STEPS.length - 1 && (
+              <div className={`w-16 sm:w-24 h-0.5 transition-colors duration-300 ${
+                i < step ? "bg-brand-teal" : "bg-gray-200"
+              }`} />
+            )}
+          </div>
+        ))}
       </div>
 
       <AnimatePresence mode="wait">
