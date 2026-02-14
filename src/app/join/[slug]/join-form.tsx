@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +51,12 @@ const FREQUENCY_LABELS: Record<BillingFrequency, string> = {
   annual: "Annually",
 };
 
+const FREQUENCY_SHORT: Record<BillingFrequency, string> = {
+  monthly: "/mo",
+  biannual: "/6mo",
+  annual: "/yr",
+};
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -72,9 +83,11 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
   const [spouseName, setSpouseName] = useState("");
+  const [spouseDateOfBirth, setSpouseDateOfBirth] = useState("");
   const [children, setChildren] = useState<Child[]>([]);
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [emergencyRelationship, setEmergencyRelationship] = useState("");
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId);
 
@@ -136,17 +149,11 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
   function handleNext() {
     if (step === 0) {
       const err = validateStep1();
-      if (err) {
-        toast.error(err);
-        return;
-      }
+      if (err) { toast.error(err); return; }
     }
     if (step === 1) {
       const err = validateStep2();
-      if (err) {
-        toast.error(err);
-        return;
-      }
+      if (err) { toast.error(err); return; }
     }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
@@ -160,7 +167,6 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
   // ---------------------------------------------------------------------------
 
   async function handleSubmit() {
-    // Re-validate all steps
     const err1 = validateStep1();
     if (err1) { toast.error(err1); setStep(0); return; }
     const err2 = validateStep2();
@@ -209,7 +215,7 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
   }
 
   // ---------------------------------------------------------------------------
-  // Render helpers
+  // Render
   // ---------------------------------------------------------------------------
 
   const stepVariants = {
@@ -227,24 +233,32 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
             <div key={label} className="flex items-center flex-1">
               <div className="flex flex-col items-center flex-1">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                    i <= step
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-gray-200 text-gray-500"
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-colors shadow-sm ${
+                    i < step
+                      ? "bg-brand-teal text-white"
+                      : i === step
+                      ? "bg-brand-teal text-white ring-4 ring-brand-teal/20"
+                      : "bg-white text-gray-400 border border-gray-200"
                   }`}
                 >
                   {i < step ? (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
                     i + 1
                   )}
                 </div>
-                <span className="mt-1 text-xs text-gray-500 hidden sm:block">{label}</span>
+                <span className={`mt-2 text-xs font-medium hidden sm:block ${
+                  i <= step ? "text-brand-teal" : "text-gray-400"
+                }`}>
+                  {label}
+                </span>
               </div>
               {i < STEPS.length - 1 && (
-                <div className={`h-0.5 flex-1 mx-2 transition-colors ${i < step ? "bg-primary" : "bg-gray-200"}`} />
+                <div className={`h-0.5 flex-1 mx-3 rounded-full transition-colors ${
+                  i < step ? "bg-brand-teal" : "bg-gray-200"
+                }`} />
               )}
             </div>
           ))}
@@ -261,89 +275,130 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
           transition={{ duration: 0.2 }}
         >
           {/* ============================================================= */}
-          {/* Step 1: Plan Selection */}
+          {/* Step 1: Plan Selection                                        */}
           {/* ============================================================= */}
           {step === 0 && (
             <div className="space-y-6">
-              <RadioGroup
-                value={selectedPlanId}
-                onValueChange={setSelectedPlanId}
-                className="grid gap-4"
-              >
-                {plans.map((plan) => {
-                  const price = getPriceForFrequency(plan, billingFrequency);
-                  return (
-                    <label key={plan.id} htmlFor={`plan-${plan.id}`} className="cursor-pointer">
-                      <Card
-                        className={`transition-all ${
-                          selectedPlanId === plan.id
-                            ? "ring-2 ring-primary border-primary"
-                            : "hover:border-gray-300"
-                        }`}
-                      >
-                        <CardContent className="flex items-start gap-4 p-4">
-                          <RadioGroupItem value={plan.id} id={`plan-${plan.id}`} className="mt-1" />
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-semibold text-gray-900">{plan.name}</h3>
-                              <span className="text-lg font-bold text-primary">
-                                {formatCurrency(price)}
-                                <span className="text-sm font-normal text-gray-500">
-                                  /{billingFrequency === "monthly" ? "mo" : billingFrequency === "biannual" ? "6mo" : "yr"}
-                                </span>
-                              </span>
+              {/* Plan cards */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Choose Your Plan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup
+                    value={selectedPlanId}
+                    onValueChange={setSelectedPlanId}
+                    className="grid gap-3"
+                  >
+                    {plans.map((plan) => {
+                      const price = getPriceForFrequency(plan, billingFrequency);
+                      const isSelected = selectedPlanId === plan.id;
+                      return (
+                        <label key={plan.id} htmlFor={`plan-${plan.id}`} className="cursor-pointer">
+                          <div
+                            className={`relative rounded-lg border-2 p-4 transition-all ${
+                              isSelected
+                                ? "border-brand-teal bg-brand-teal/5"
+                                : "border-gray-200 hover:border-gray-300 bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <RadioGroupItem value={plan.id} id={`plan-${plan.id}`} className="mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <h3 className="font-semibold text-text-dark-slate">{plan.name}</h3>
+                                  <div className="text-right shrink-0">
+                                    <span className="text-xl font-bold text-brand-teal">
+                                      {formatCurrency(price)}
+                                    </span>
+                                    <span className="text-sm text-gray-500">
+                                      {FREQUENCY_SHORT[billingFrequency]}
+                                    </span>
+                                  </div>
+                                </div>
+                                {plan.description && (
+                                  <p className="mt-1 text-sm text-gray-500">{plan.description}</p>
+                                )}
+                                {plan.enrollmentFee > 0 && (
+                                  <p className="mt-1 text-xs text-gray-400">
+                                    + {formatCurrency(plan.enrollmentFee)} one-time enrollment fee
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                            {plan.description && (
-                              <p className="mt-1 text-sm text-gray-600">{plan.description}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+
+              {/* Billing frequency */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Billing Frequency</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup
+                    value={billingFrequency}
+                    onValueChange={(v) => setBillingFrequency(v as BillingFrequency)}
+                    className="grid grid-cols-3 gap-3"
+                  >
+                    {(["monthly", "biannual", "annual"] as BillingFrequency[]).map((freq) => {
+                      const isSelected = billingFrequency === freq;
+                      return (
+                        <label key={freq} htmlFor={`freq-${freq}`} className="cursor-pointer">
+                          <div
+                            className={`rounded-lg border-2 p-3 text-center transition-all ${
+                              isSelected
+                                ? "border-brand-teal bg-brand-teal/5"
+                                : "border-gray-200 hover:border-gray-300 bg-white"
+                            }`}
+                          >
+                            <RadioGroupItem value={freq} id={`freq-${freq}`} className="sr-only" />
+                            <div className={`text-sm font-semibold ${isSelected ? "text-brand-teal" : "text-text-dark-slate"}`}>
+                              {FREQUENCY_LABELS[freq]}
+                            </div>
+                            {selectedPlan && (
+                              <div className={`mt-1 text-xs ${isSelected ? "text-brand-teal/70" : "text-gray-400"}`}>
+                                {formatCurrency(getPriceForFrequency(selectedPlan, freq))}
+                              </div>
                             )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    </label>
-                  );
-                })}
-              </RadioGroup>
-
-              {/* Billing frequency selector */}
-              <div>
-                <Label className="mb-2 block">Billing Frequency</Label>
-                <Select
-                  value={billingFrequency}
-                  onValueChange={(v) => setBillingFrequency(v as BillingFrequency)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">{FREQUENCY_LABELS.monthly}</SelectItem>
-                    <SelectItem value="biannual">{FREQUENCY_LABELS.biannual}</SelectItem>
-                    <SelectItem value="annual">{FREQUENCY_LABELS.annual}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                        </label>
+                      );
+                    })}
+                  </RadioGroup>
+                </CardContent>
+              </Card>
 
               {/* Pricing summary */}
               {selectedPlan && (
-                <Card className="bg-gray-50">
-                  <CardContent className="p-4 space-y-2">
-                    <h4 className="font-medium text-gray-900">Pricing Summary</h4>
+                <Card className="border-brand-teal/20 bg-brand-teal/5">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Pricing Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">
                         {selectedPlan.name} ({FREQUENCY_LABELS[billingFrequency]})
                       </span>
-                      <span className="font-medium">
+                      <span className="font-medium text-text-dark-slate">
                         {formatCurrency(getPriceForFrequency(selectedPlan, billingFrequency))}
                       </span>
                     </div>
                     {selectedPlan.enrollmentFee > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">One-time enrollment fee</span>
-                        <span className="font-medium">{formatCurrency(selectedPlan.enrollmentFee)}</span>
+                        <span className="font-medium text-text-dark-slate">
+                          {formatCurrency(selectedPlan.enrollmentFee)}
+                        </span>
                       </div>
                     )}
-                    <div className="border-t pt-2 flex justify-between font-medium">
-                      <span>Total due today</span>
-                      <span>
+                    <div className="border-t border-brand-teal/10 pt-3 mt-3 flex justify-between">
+                      <span className="font-semibold text-text-dark-slate">Total due today</span>
+                      <span className="text-lg font-bold text-brand-teal">
                         {formatCurrency(
                           getPriceForFrequency(selectedPlan, billingFrequency) +
                             selectedPlan.enrollmentFee
@@ -357,193 +412,255 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
           )}
 
           {/* ============================================================= */}
-          {/* Step 2: Personal Information */}
+          {/* Step 2: Personal Information                                  */}
           {/* ============================================================= */}
           {step === 1 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="First name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="middleName">Middle Name</Label>
-                  <Input
-                    id="middleName"
-                    value={middleName}
-                    onChange={(e) => setMiddleName(e.target.value)}
-                    placeholder="Middle name"
-                  />
-                </div>
-              </div>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Personal Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="First name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="middleName">Middle Name</Label>
+                      <Input
+                        id="middleName"
+                        value={middleName}
+                        onChange={(e) => setMiddleName(e.target.value)}
+                        placeholder="Middle name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Last name"
+                        required
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <Label htmlFor="lastName">Last Name *</Label>
-                <Input
-                  id="lastName"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Last name"
-                  required
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="phone">Phone *</Label>
+                    <PhoneInput
+                      id="phone"
+                      value={phone}
+                      onChange={setPhone}
+                    />
+                  </div>
 
-              <div>
-                <Label htmlFor="phone">Phone *</Label>
-                <PhoneInput
-                  id="phone"
-                  value={phone}
-                  onChange={setPhone}
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="language">Preferred Language</Label>
-                <Select
-                  value={preferredLanguage}
-                  onValueChange={(v) => setPreferredLanguage(v as "en" | "fa")}
-                >
-                  <SelectTrigger id="language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="fa">Farsi</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div>
+                    <Label htmlFor="language">Preferred Language</Label>
+                    <Select
+                      value={preferredLanguage}
+                      onValueChange={(v) => setPreferredLanguage(v as "en" | "fa")}
+                    >
+                      <SelectTrigger id="language">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="fa">Farsi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
           {/* ============================================================= */}
-          {/* Step 3: Additional Details & Review */}
+          {/* Step 3: Additional Details & Review                           */}
           {/* ============================================================= */}
           {step === 2 && (
             <div className="space-y-6">
               {/* Address */}
-              <div className="space-y-4">
-                <h3 className="font-medium text-gray-900">Address</h3>
-                <div>
-                  <Label htmlFor="street">Street</Label>
-                  <Input
-                    id="street"
-                    value={street}
-                    onChange={(e) => setStreet(e.target.value)}
-                    placeholder="123 Main St"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Address</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="street">Street Address</Label>
                     <Input
-                      id="city"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="City"
+                      id="street"
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      placeholder="123 Main St"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="state">State</Label>
-                    <Input
-                      id="state"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      placeholder="CA"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="zip">ZIP</Label>
-                    <Input
-                      id="zip"
-                      value={zip}
-                      onChange={(e) => setZip(e.target.value)}
-                      placeholder="90001"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Spouse */}
-              <div>
-                <Label htmlFor="spouseName">Spouse Name</Label>
-                <Input
-                  id="spouseName"
-                  value={spouseName}
-                  onChange={(e) => setSpouseName(e.target.value)}
-                  placeholder="Spouse full name"
-                />
-              </div>
-
-              {/* Children */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-gray-900">Children</h3>
-                  <Button type="button" variant="outline" size="sm" onClick={addChild}>
-                    + Add Child
-                  </Button>
-                </div>
-                {children.map((child) => (
-                  <div key={child.id} className="flex items-end gap-3">
-                    <div className="flex-1">
-                      <Label>Name</Label>
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <div className="col-span-2 sm:col-span-2">
+                      <Label htmlFor="city">City</Label>
                       <Input
-                        value={child.name}
-                        onChange={(e) => updateChild(child.id, "name", e.target.value)}
-                        placeholder="Child's name"
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="City"
                       />
                     </div>
-                    <div className="flex-1">
-                      <Label>Date of Birth</Label>
+                    <div>
+                      <Label htmlFor="state">State</Label>
                       <Input
-                        type="date"
-                        value={child.dateOfBirth}
-                        onChange={(e) => updateChild(child.id, "dateOfBirth", e.target.value)}
+                        id="state"
+                        value={state}
+                        onChange={(e) => setState(e.target.value)}
+                        placeholder="CA"
+                        maxLength={2}
                       />
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeChild(child.id)}
-                      className="text-red-500 hover:text-red-700 shrink-0"
-                    >
-                      Remove
-                    </Button>
+                    <div>
+                      <Label htmlFor="zip">ZIP Code</Label>
+                      <Input
+                        id="zip"
+                        value={zip}
+                        onChange={(e) => setZip(e.target.value)}
+                        placeholder="90001"
+                        maxLength={5}
+                      />
+                    </div>
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
+
+              {/* Family Information */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Family Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {/* Spouse */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-gray-700">Spouse</h4>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <Label htmlFor="spouseName">Full Name</Label>
+                        <Input
+                          id="spouseName"
+                          value={spouseName}
+                          onChange={(e) => setSpouseName(e.target.value)}
+                          placeholder="Spouse full name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="spouseDob">Date of Birth</Label>
+                        <Input
+                          id="spouseDob"
+                          type="date"
+                          value={spouseDateOfBirth}
+                          onChange={(e) => setSpouseDateOfBirth(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t" />
+
+                  {/* Children */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-700">Children</h4>
+                      <Button type="button" variant="outline" size="sm" onClick={addChild}>
+                        + Add Child
+                      </Button>
+                    </div>
+                    {children.length === 0 && (
+                      <p className="text-sm text-gray-400 italic">No children added</p>
+                    )}
+                    {children.map((child, idx) => (
+                      <div
+                        key={child.id}
+                        className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                            Child {idx + 1}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeChild(child.id)}
+                            className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div>
+                            <Label>Full Name</Label>
+                            <Input
+                              value={child.name}
+                              onChange={(e) => updateChild(child.id, "name", e.target.value)}
+                              placeholder="Child's full name"
+                            />
+                          </div>
+                          <div>
+                            <Label>Date of Birth</Label>
+                            <Input
+                              type="date"
+                              value={child.dateOfBirth}
+                              onChange={(e) => updateChild(child.id, "dateOfBirth", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Emergency Contact */}
-              <div className="space-y-4">
-                <h3 className="font-medium text-gray-900">Emergency Contact</h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="emergencyName">Name</Label>
-                    <Input
-                      id="emergencyName"
-                      value={emergencyName}
-                      onChange={(e) => setEmergencyName(e.target.value)}
-                      placeholder="Emergency contact name"
-                    />
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Emergency Contact</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="emergencyName">Full Name</Label>
+                      <Input
+                        id="emergencyName"
+                        value={emergencyName}
+                        onChange={(e) => setEmergencyName(e.target.value)}
+                        placeholder="Contact name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="emergencyRelationship">Relationship</Label>
+                      <Input
+                        id="emergencyRelationship"
+                        value={emergencyRelationship}
+                        onChange={(e) => setEmergencyRelationship(e.target.value)}
+                        placeholder="e.g. Brother, Sister, Friend"
+                      />
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="emergencyPhone">Phone</Label>
@@ -551,43 +668,61 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
                       id="emergencyPhone"
                       value={emergencyPhone}
                       onChange={setEmergencyPhone}
-                      placeholder="(555) 123-4567"
                     />
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              {/* Summary */}
+              {/* Review Summary */}
               {selectedPlan && (
-                <Card className="bg-gray-50">
-                  <CardContent className="p-4 space-y-3">
-                    <h4 className="font-medium text-gray-900">Review Your Membership</h4>
-                    <div className="text-sm space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Plan</span>
-                        <span>{selectedPlan.name}</span>
+                <Card className="border-brand-teal/20 bg-brand-teal/5">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Review Your Membership</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {/* Member info */}
+                      <div className="grid grid-cols-2 gap-y-2 text-sm">
+                        <span className="text-gray-500">Name</span>
+                        <span className="font-medium text-text-dark-slate text-right">
+                          {firstName} {middleName ? `${middleName} ` : ""}{lastName}
+                        </span>
+                        <span className="text-gray-500">Email</span>
+                        <span className="font-medium text-text-dark-slate text-right truncate">{email}</span>
+                        <span className="text-gray-500">Phone</span>
+                        <span className="font-medium text-text-dark-slate text-right">{phone}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Billing</span>
-                        <span>{FREQUENCY_LABELS[billingFrequency]}</span>
+
+                      <div className="border-t border-brand-teal/10" />
+
+                      {/* Plan info */}
+                      <div className="grid grid-cols-2 gap-y-2 text-sm">
+                        <span className="text-gray-500">Plan</span>
+                        <span className="font-medium text-text-dark-slate text-right">{selectedPlan.name}</span>
+                        <span className="text-gray-500">Billing</span>
+                        <span className="font-medium text-text-dark-slate text-right">{FREQUENCY_LABELS[billingFrequency]}</span>
+                        <span className="text-gray-500">Recurring Dues</span>
+                        <span className="font-medium text-text-dark-slate text-right">
+                          {formatCurrency(getPriceForFrequency(selectedPlan, billingFrequency))}
+                        </span>
+                        {selectedPlan.enrollmentFee > 0 && (
+                          <>
+                            <span className="text-gray-500">Enrollment Fee</span>
+                            <span className="font-medium text-text-dark-slate text-right">
+                              {formatCurrency(selectedPlan.enrollmentFee)}
+                            </span>
+                          </>
+                        )}
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Dues</span>
-                        <span>{formatCurrency(getPriceForFrequency(selectedPlan, billingFrequency))}</span>
-                      </div>
-                      {selectedPlan.enrollmentFee > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Enrollment fee</span>
-                          <span>{formatCurrency(selectedPlan.enrollmentFee)}</span>
-                        </div>
-                      )}
-                      <div className="border-t pt-2 flex justify-between font-medium">
-                        <span>Name</span>
-                        <span>{firstName} {middleName ? `${middleName} ` : ""}{lastName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Email</span>
-                        <span>{email}</span>
+
+                      <div className="border-t border-brand-teal/10 pt-3 flex justify-between items-center">
+                        <span className="font-semibold text-text-dark-slate">Total Due Today</span>
+                        <span className="text-xl font-bold text-brand-teal">
+                          {formatCurrency(
+                            getPriceForFrequency(selectedPlan, billingFrequency) +
+                              selectedPlan.enrollmentFee
+                          )}
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -609,11 +744,20 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
         )}
 
         {step < STEPS.length - 1 ? (
-          <Button type="button" onClick={handleNext}>
+          <Button
+            type="button"
+            onClick={handleNext}
+            className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+          >
             Continue
           </Button>
         ) : (
-          <Button type="button" onClick={handleSubmit} disabled={submitting}>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+          >
             {submitting ? "Processing..." : "Join & Pay"}
           </Button>
         )}
