@@ -76,24 +76,26 @@ export default async function JoinPage({ params }: PageProps) {
       </div>
 
       {/* Requirements & help info */}
-      <div className="mb-8 text-sm text-center">
-        <p className="text-gray-500">
+      <div className="mb-8 text-center">
+        <p className="text-base text-gray-600">
           You&apos;ll need a valid email, phone number, and a credit card or bank account.
         </p>
-        <p className="mt-2 text-gray-400">
-          Returning member, prefer to pay by cash/check/Zelle, or have questions?{" "}
+        <p className="mt-2 text-base text-gray-600">
+          Returning member, prefer to pay by cash/check/Zelle, or have questions?
+        </p>
+        <p className="mt-1">
           {orgEmail ? (
-            <a href={`mailto:${orgEmail}`} className="text-brand-teal font-medium hover:underline">
+            <a href={`mailto:${orgEmail}`} className="text-base text-brand-teal font-medium hover:underline">
               Contact us
             </a>
           ) : orgPhone ? (
-            <a href={`tel:${orgPhone}`} className="text-brand-teal font-medium hover:underline">
+            <a href={`tel:${orgPhone}`} className="text-base text-brand-teal font-medium hover:underline">
               Contact us
             </a>
           ) : (
-            <span className="font-medium text-brand-teal">Contact us</span>
+            <span className="text-base font-medium text-brand-teal">Contact us</span>
           )}
-          {" "}and we&apos;ll help you out.
+          <span className="text-base text-gray-600"> and we&apos;ll help you out.</span>
         </p>
       </div>
 
