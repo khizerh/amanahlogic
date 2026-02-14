@@ -76,29 +76,24 @@ export default async function JoinPage({ params }: PageProps) {
       </div>
 
       {/* Requirements & help info */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5 text-sm">
-        <p className="font-medium text-text-dark-slate mb-2">What you&apos;ll need:</p>
-        <ul className="list-disc list-inside text-gray-600 space-y-1 mb-4">
-          <li>A valid email address</li>
-          <li>A phone number</li>
-          <li>A credit card or bank account for payment</li>
-        </ul>
+      <div className="mb-8 text-sm text-center">
         <p className="text-gray-500">
-          If you&apos;re a returning member, prefer to pay by cash, check, or Zelle,
-          need to join without an email address, or have questions about
-          sponsorships and family plans, please{" "}
+          You&apos;ll need a valid email, phone number, and a credit card or bank account.
+        </p>
+        <p className="mt-2 text-gray-400">
+          Returning member, prefer to pay by cash/check/Zelle, or have questions?{" "}
           {orgEmail ? (
             <a href={`mailto:${orgEmail}`} className="text-brand-teal font-medium hover:underline">
-              contact us
+              Contact us
             </a>
           ) : orgPhone ? (
             <a href={`tel:${orgPhone}`} className="text-brand-teal font-medium hover:underline">
-              contact us
+              Contact us
             </a>
           ) : (
-            <span className="font-medium">contact us</span>
+            <span className="font-medium text-brand-teal">Contact us</span>
           )}
-          {" "}directly so we can assist you personally.
+          {" "}and we&apos;ll help you out.
         </p>
       </div>
 
