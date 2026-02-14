@@ -25,7 +25,7 @@ export default async function JoinPage({ params }: PageProps) {
   // Fetch org by slug
   const { data: org, error: orgError } = await supabase
     .from("organizations")
-    .select("id, name, slug")
+    .select("id, name, slug, email, phone")
     .eq("slug", slug)
     .single();
 
@@ -65,12 +65,42 @@ export default async function JoinPage({ params }: PageProps) {
     updatedAt: "",
   }));
 
+  const orgEmail = org.email || null;
+  const orgPhone = org.phone || null;
+
   return (
     <>
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{org.name}</h1>
         <p className="mt-2 text-gray-600">Become a member</p>
       </div>
+
+      {/* Requirements & help info */}
+      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5 text-sm">
+        <p className="font-medium text-text-dark-slate mb-2">What you&apos;ll need:</p>
+        <ul className="list-disc list-inside text-gray-600 space-y-1 mb-4">
+          <li>A valid email address</li>
+          <li>A phone number</li>
+          <li>A credit card or bank account for payment</li>
+        </ul>
+        <p className="text-gray-500">
+          If you&apos;re a returning member, need to join without an email address, or have
+          questions about sponsorships and family plans, please{" "}
+          {orgEmail ? (
+            <a href={`mailto:${orgEmail}`} className="text-brand-teal font-medium hover:underline">
+              contact us
+            </a>
+          ) : orgPhone ? (
+            <a href={`tel:${orgPhone}`} className="text-brand-teal font-medium hover:underline">
+              contact us
+            </a>
+          ) : (
+            <span className="font-medium">contact us</span>
+          )}
+          {" "}directly so we can assist you personally.
+        </p>
+      </div>
+
       <JoinForm
         orgSlug={org.slug}
         orgName={org.name}
