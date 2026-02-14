@@ -55,14 +55,14 @@ export async function requestPasswordReset(
     {
       const { data: member } = await supabase
         .from("members")
-        .select("id, organization_id, first_name, last_name")
+        .select("id, organization_id, first_name, middle_name, last_name")
         .eq("email", email)
         .limit(1)
         .maybeSingle();
       if (member) {
         if (!orgId) orgId = member.organization_id;
         memberId = member.id;
-        memberName = [member.first_name, member.last_name].filter(Boolean).join(" ") || email;
+        memberName = [member.first_name, member.middle_name, member.last_name].filter(Boolean).join(" ") || email;
       }
     }
 

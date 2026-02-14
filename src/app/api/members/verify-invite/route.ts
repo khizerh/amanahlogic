@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         email,
         status,
         expires_at,
-        member:members(id, first_name, last_name, user_id),
+        member:members(id, first_name, middle_name, last_name, user_id),
         organization:organizations(name)
       `)
       .eq("token", token)
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       email: invite.email,
-      memberName: `${member?.first_name} ${member?.last_name}`,
+      memberName: [member?.first_name, member?.middle_name, member?.last_name].filter(Boolean).join(" "),
       orgName: org?.name || "Your Organization",
     });
   } catch (error) {
