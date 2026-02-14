@@ -68,6 +68,8 @@ export async function middleware(request: NextRequest) {
   // Fully public routes (no auth, no member/admin check)
   const isPublicRoute = pathname.startsWith("/sign/") ||
                         pathname.startsWith("/payment-complete") ||
+                        pathname.startsWith("/join/") ||
+                        pathname.startsWith("/api/join/") ||
                         pathname.startsWith("/api/webhooks") ||
                         pathname.startsWith("/api/members/verify-invite") ||
                         pathname.startsWith("/api/members/link-invite") ||

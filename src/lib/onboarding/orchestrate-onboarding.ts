@@ -39,6 +39,7 @@ export interface OrchestrateOnboardingResult {
   onboardingInviteCreated: boolean;
   stripeSessionCreated: boolean;
   agreementCreated: boolean;
+  paymentUrl?: string;
   errors: string[];
   skipped: string[];
 }
@@ -69,6 +70,7 @@ export async function orchestrateOnboarding(
     skipped: [],
   };
 
+  const supabase = createServiceRoleClient();
   const memberName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`;
   const language = member.preferredLanguage || "en";
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
@@ -78,7 +80,7 @@ export async function orchestrateOnboarding(
   // -------------------------------------------------------------------------
   let org: Organization | null = null;
   try {
-    org = await OrganizationsService.getById(organizationId);
+    org = await OrganizationsService.getById(organizationId, supabase);
   } catch (err) {
     const msg = `Failed to fetch organization: ${err instanceof Error ? err.message : String(err)}`;
     console.error("[onboarding]", msg);
@@ -92,8 +94,6 @@ export async function orchestrateOnboarding(
   let inviteExpiresAt: string | undefined;
   if (member.email) {
     try {
-      const supabase = createServiceRoleClient();
-
       // Cancel any existing pending invites
       await supabase
         .from("member_invites")
@@ -200,12 +200,13 @@ export async function orchestrateOnboarding(
 
       checkoutUrl = setupResult.url;
       result.stripeSessionCreated = true;
+      result.paymentUrl = checkoutUrl;
 
       // Update membership with customer ID
       await MembershipsService.update({
         id: membership.id,
         stripeCustomerId: customerId,
-      });
+      }, supabase);
 
       // Create onboarding invite record (stripe)
       await OnboardingInvitesService.create({
@@ -220,7 +221,7 @@ export async function orchestrateOnboarding(
         billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
         plannedAmount: priceAmount,
         sentAt: new Date().toISOString(),
-      });
+      }, supabase);
       result.onboardingInviteCreated = true;
     } catch (err) {
       const msg = `Failed to set up Stripe payment: ${err instanceof Error ? err.message : String(err)}`;
@@ -246,7 +247,7 @@ export async function orchestrateOnboarding(
         billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
         plannedAmount: priceAmount,
         sentAt: new Date().toISOString(),
-      });
+      }, supabase);
       result.onboardingInviteCreated = true;
     } catch (err) {
       const msg = `Failed to create manual onboarding invite: ${err instanceof Error ? err.message : String(err)}`;
@@ -265,7 +266,8 @@ export async function orchestrateOnboarding(
     let templateVersion: string;
     const activeTemplate = await AgreementTemplatesService.getActiveByLanguage(
       organizationId,
-      language as "en" | "fa"
+      language as "en" | "fa",
+      supabase
     );
     if (activeTemplate) {
       templateVersion = activeTemplate.version;
@@ -284,7 +286,7 @@ export async function orchestrateOnboarding(
       memberId: member.id,
       templateVersion,
       sentAt: now.toISOString(),
-    });
+    }, supabase);
 
     // Create signing link
     const token = randomUUID();
@@ -292,7 +294,7 @@ export async function orchestrateOnboarding(
       agreementId: agreement.id,
       token,
       expiresAt: agreementExpiresAt,
-    });
+    }, supabase);
 
     signUrl = `${baseUrl}/sign/${token}`;
     result.agreementCreated = true;

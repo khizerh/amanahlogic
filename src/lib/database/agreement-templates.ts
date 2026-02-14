@@ -20,11 +20,12 @@ export interface UpdateAgreementTemplateInput extends Partial<CreateAgreementTem
 export class AgreementTemplatesService {
   static async getActiveByLanguage(
     organizationId: string,
-    language: "en" | "fa"
+    language: "en" | "fa",
+    supabase?: SupabaseClient
   ): Promise<AgreementTemplate | null> {
-    const supabase = await createClientForContext();
+    const client = supabase ?? (await createClientForContext());
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("agreement_templates")
       .select("*")
       .eq("organization_id", organizationId)

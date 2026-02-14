@@ -49,10 +49,10 @@ export class OrganizationsService {
   /**
    * Get organization by ID
    */
-  static async getById(organizationId: string): Promise<Organization | null> {
-    const supabase = await createClientForContext();
+  static async getById(organizationId: string, supabase?: SupabaseClient): Promise<Organization | null> {
+    const client = supabase ?? (await createClientForContext());
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("organizations")
       .select("*")
       .eq("id", organizationId)
@@ -69,10 +69,10 @@ export class OrganizationsService {
   /**
    * Get organization by slug
    */
-  static async getBySlug(slug: string): Promise<Organization | null> {
-    const supabase = await createClientForContext();
+  static async getBySlug(slug: string, supabase?: SupabaseClient): Promise<Organization | null> {
+    const client = supabase ?? (await createClientForContext());
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("organizations")
       .select("*")
       .eq("slug", slug)

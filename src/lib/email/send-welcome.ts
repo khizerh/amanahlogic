@@ -53,7 +53,7 @@ export async function sendWelcomeEmail(
   const serviceClient = createServiceRoleClient();
 
   // Fetch org early (needed for DB template + email config)
-  const org = await OrganizationsService.getById(organizationId);
+  const org = await OrganizationsService.getById(organizationId, serviceClient);
   const orgName = org?.name ?? "Our Organization";
 
   const frequencyText =

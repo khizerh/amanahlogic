@@ -204,12 +204,13 @@ export class MembersService {
    */
   static async getByEmail(
     organizationId: string,
-    email: string
+    email: string,
+    supabase?: SupabaseClient
   ): Promise<Member | null> {
     if (!email) return null;
-    const supabase = await createClientForContext();
+    const client = supabase ?? (await createClientForContext());
 
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from("members")
       .select("*")
       .eq("organization_id", organizationId)
@@ -298,10 +299,10 @@ export class MembersService {
   /**
    * Delete a member
    */
-  static async delete(memberId: string): Promise<void> {
-    const supabase = await createClientForContext();
+  static async delete(memberId: string, supabase?: SupabaseClient): Promise<void> {
+    const client = supabase ?? (await createClientForContext());
 
-    const { error } = await supabase
+    const { error } = await client
       .from("members")
       .delete()
       .eq("id", memberId);

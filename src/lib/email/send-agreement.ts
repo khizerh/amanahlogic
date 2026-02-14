@@ -32,7 +32,7 @@ export async function sendAgreementEmail(
   const serviceClient = createServiceRoleClient();
 
   // Fetch org early (needed for DB template + email config)
-  const org = await OrganizationsService.getById(organizationId);
+  const org = await OrganizationsService.getById(organizationId, serviceClient);
   const orgName = org?.name ?? "Our Organization";
 
   // Always use React email templates for now.
