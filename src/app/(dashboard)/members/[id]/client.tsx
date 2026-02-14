@@ -1631,6 +1631,8 @@ export function MemberDetailClient({
                                     ? "success"
                                     : payment.status === "pending"
                                     ? "warning"
+                                    : payment.status === "processing"
+                                    ? "info"
                                     : payment.status === "failed"
                                     ? "error"
                                     : payment.status === "refunded"
@@ -1638,7 +1640,7 @@ export function MemberDetailClient({
                                     : "inactive"
                                 }
                               >
-                                {payment.status}
+                                {payment.status === "processing" ? "Processing" : payment.status}
                               </Badge>
                             </TableCell>
                           </TableRow>

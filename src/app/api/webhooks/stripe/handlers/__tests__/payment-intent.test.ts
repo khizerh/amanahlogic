@@ -25,6 +25,13 @@ vi.mock("@/lib/email/send-payment-failed", () => ({
   sendPaymentFailedEmail: vi.fn(),
 }));
 
+const mockStripePmRetrieve = vi.fn();
+vi.mock("@/lib/stripe", () => ({
+  stripe: {
+    paymentMethods: { retrieve: (...args: unknown[]) => mockStripePmRetrieve(...args) },
+  },
+}));
+
 import {
   handlePaymentIntentSucceeded,
   handlePaymentIntentFailed,
@@ -68,7 +75,7 @@ function createMockSupabase() {
   function buildChain(table: string, isInsert = false, isUpdate = false) {
     const chain: Record<string, unknown> = {};
     const terminalMethods = ["single", "maybeSingle"];
-    const chainMethods = ["select", "eq", "neq", "or", "is", "order", "limit", "insert", "update"];
+    const chainMethods = ["select", "eq", "neq", "or", "is", "in", "order", "limit", "insert", "update"];
 
     for (const method of chainMethods) {
       chain[method] = vi.fn((...args: unknown[]) => {
@@ -136,6 +143,8 @@ function createMockPaymentIntent(
 describe("handlePaymentIntentSucceeded", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: return card type for payment method retrieval
+    mockStripePmRetrieve.mockResolvedValue({ id: "pm_default", type: "card" });
   });
 
   it("should skip when no membership_id in metadata", async () => {

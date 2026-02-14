@@ -131,7 +131,7 @@ export async function handlePaymentIntentSucceeded(
     .from("payments")
     .select("id, amount, due_date")
     .eq("membership_id", membershipId)
-    .eq("status", "pending")
+    .in("status", ["pending", "processing"])
     .is("stripe_payment_intent_id", null)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -237,6 +237,23 @@ export async function handlePaymentIntentSucceeded(
     supabase
   );
 
+  // Derive payment method type from the payment intent (safe null fallback)
+  let piPaymentMethodType: string | null = null;
+  const piPmId = typeof paymentIntent.payment_method === "string"
+    ? paymentIntent.payment_method
+    : paymentIntent.payment_method?.id ?? null;
+  if (piPmId) {
+    try {
+      const { stripe } = await import("@/lib/stripe");
+      if (stripe) {
+        const pmObj = await stripe.paymentMethods.retrieve(piPmId);
+        piPaymentMethodType = pmObj.type ?? null;
+      }
+    } catch {
+      // Non-fatal — continue without payment method type
+    }
+  }
+
   // Create new payment record with full invoice metadata
   const { data: newPayment, error: createError } = await supabase
     .from("payments")
@@ -261,6 +278,7 @@ export async function handlePaymentIntentSucceeded(
       period_label: invoiceMetadata.periodLabel,
       // Other fields
       stripe_payment_intent_id: paymentIntent.id,
+      stripe_payment_method_type: piPaymentMethodType,
       notes: `Stripe payment - ${invoiceMetadata.periodLabel}`,
     })
     .select()
@@ -325,7 +343,7 @@ export async function handlePaymentIntentFailed(
   const { data: existingPayment } = await supabase
     .from("payments")
     .select("id")
-    .or(`stripe_payment_intent_id.eq.${paymentIntent.id},and(membership_id.eq.${metadata.membership_id},status.eq.pending)`)
+    .or(`stripe_payment_intent_id.eq.${paymentIntent.id},and(membership_id.eq.${metadata.membership_id},status.in.(pending,processing))`)
     .limit(1)
     .maybeSingle();
 

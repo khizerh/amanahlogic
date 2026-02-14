@@ -242,6 +242,7 @@ async function handleCheckoutCompleted(
     };
 
     // If enrollment fee was included, mark it as paid
+    let enrollmentPaymentId: string | null = null;
     if (includesEnrollmentFee) {
       membershipUpdate.enrollment_fee_status = "paid";
       console.log(`[Webhook] Marking enrollment fee as paid for membership ${metadata.membership_id}`);
@@ -250,7 +251,7 @@ async function handleCheckoutCompleted(
       if (enrollmentFeeAmountCents && metadata.organization_id && metadata.member_id) {
         const enrollmentFeeAmount = enrollmentFeeAmountCents / 100;
 
-        const { error: paymentError } = await supabase
+        const { data: enrollmentPayment, error: paymentError } = await supabase
           .from("payments")
           .insert({
             organization_id: metadata.organization_id,
@@ -263,12 +264,15 @@ async function handleCheckoutCompleted(
             months_credited: 0, // Enrollment fee doesn't credit months
             notes: "Enrollment fee collected via Stripe Checkout (with subscription setup)",
             paid_at: new Date().toISOString(),
-          });
+          })
+          .select("id")
+          .single();
 
         if (paymentError) {
           console.error("[Webhook] Failed to create enrollment fee payment record:", paymentError);
           // Don't throw - continue with membership update
         } else {
+          enrollmentPaymentId = enrollmentPayment?.id ?? null;
           console.log(`[Webhook] Created enrollment fee payment record for ${metadata.membership_id}`);
         }
       }
@@ -302,6 +306,14 @@ async function handleCheckoutCompleted(
 
           membershipUpdate.payment_method = pmDetails;
           console.log(`[Webhook] Saved payment method (${pm.type} ****${pmDetails.last4}) for membership ${metadata.membership_id}`);
+
+          // Back-fill stripe_payment_method_type on the enrollment fee payment
+          if (enrollmentPaymentId) {
+            await supabase
+              .from("payments")
+              .update({ stripe_payment_method_type: pm.type })
+              .eq("id", enrollmentPaymentId);
+          }
         }
       } catch (pmErr) {
         // Non-fatal — subscription is more important than card details
@@ -623,7 +635,7 @@ async function handleInvoicePaid(
       .select("id")
       .eq("stripe_payment_intent_id", paymentIntentId)
       .eq("membership_id", membershipId)
-      .eq("status", "pending")
+      .in("status", ["pending", "processing"])
       .maybeSingle();
 
     if (pendingPayment) {
@@ -740,6 +752,21 @@ async function handleInvoicePaid(
     notes += " (via Connect)";
   }
 
+  // Derive payment method type from the payment intent
+  let invoicePaymentMethodType: string | null = null;
+  if (stripe && paymentIntentId) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const pmId = typeof pi.payment_method === "string" ? pi.payment_method : pi.payment_method?.id;
+      if (pmId) {
+        const pm = await stripe.paymentMethods.retrieve(pmId);
+        invoicePaymentMethodType = pm.type ?? null;
+      }
+    } catch {
+      // Non-fatal — continue without payment method type
+    }
+  }
+
   // Create payment record
   const { data: newPayment, error: paymentError } = await supabase
     .from("payments")
@@ -762,6 +789,7 @@ async function handleInvoicePaid(
       period_end: invoiceMetadata.periodEnd,
       period_label: invoiceMetadata.periodLabel,
       stripe_payment_intent_id: paymentIntentId,
+      stripe_payment_method_type: invoicePaymentMethodType,
       notes,
     })
     .select()
@@ -845,6 +873,23 @@ async function handleInvoiceFailed(
   }
 
   // Create failed payment record for audit trail
+  // Try to derive payment method type from the invoice's payment intent
+  let failedPaymentMethodType: string | null = null;
+  const failedPiId = typeof invoice.payment_intent === "string"
+    ? invoice.payment_intent
+    : invoice.payment_intent?.id;
+  if (stripe && failedPiId) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(failedPiId);
+      const pmId = typeof pi.payment_method === "string" ? pi.payment_method : pi.payment_method?.id;
+      if (pmId) {
+        const pm = await stripe.paymentMethods.retrieve(pmId);
+        failedPaymentMethodType = pm.type ?? null;
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
   await supabase
     .from("payments")
     .insert({
@@ -855,6 +900,7 @@ async function handleInvoiceFailed(
       status: "failed",
       amount: amount,
       months_credited: 0,
+      stripe_payment_method_type: failedPaymentMethodType,
       notes: `Payment failed - ${invoice.last_finalization_error?.message || "Unknown error"}`,
     });
 }
@@ -1085,6 +1131,7 @@ async function handleSetupIntentSucceeded(
             net_amount: enrollmentFees.netAmountCents / 100,
             months_credited: 0,
             stripe_payment_intent_id: enrollmentPI.id,
+            stripe_payment_method_type: pm.type,
             notes: "Enrollment fee collected via SetupIntent flow",
             paid_at: new Date().toISOString(),
           });
@@ -1237,6 +1284,7 @@ async function handleSetupIntentSucceeded(
             period_end: invoiceMetadata.periodEnd,
             period_label: invoiceMetadata.periodLabel,
             stripe_payment_intent_id: piId,
+            stripe_payment_method_type: pm.type,
             notes: `First subscription payment - Invoice ${firstInvoice.number || firstInvoice.id} (settled via setup_intent.succeeded)`,
           })
           .select()
@@ -1274,7 +1322,7 @@ async function handleSetupIntentSucceeded(
         .select("id")
         .eq("membership_id", membershipId)
         .eq("type", "dues")
-        .in("status", ["pending", "completed"])
+        .in("status", ["pending", "processing", "completed"])
         .maybeSingle();
 
       if (!existingPending) {
@@ -1308,7 +1356,7 @@ async function handleSetupIntentSucceeded(
             member_id: memberId,
             type: "dues",
             method: "stripe",
-            status: "pending",
+            status: "processing",
             amount: baseAmountCents / 100,
             stripe_fee: invoiceFees.breakdown.stripeFee,
             platform_fee: invoiceFees.breakdown.platformFee,
@@ -1321,6 +1369,7 @@ async function handleSetupIntentSucceeded(
             period_end: invoiceMetadata.periodEnd,
             period_label: invoiceMetadata.periodLabel,
             stripe_payment_intent_id: piId,
+            stripe_payment_method_type: pm.type,
             notes: `First subscription payment - Invoice ${firstInvoice.number || firstInvoice.id} (ACH processing)`,
           })
           .select()

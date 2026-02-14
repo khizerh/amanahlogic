@@ -567,6 +567,7 @@ interface DbPaymentJoinRow {
   period_end: string | null;
   period_label: string | null;
   stripe_payment_intent_id: string | null;
+  stripe_payment_method_type: string | null;
   check_number: string | null;
   zelle_transaction_id: string | null;
   notes: string | null;
@@ -689,6 +690,7 @@ function transformMembershipWithDetails(
       periodEnd: p.period_end,
       periodLabel: p.period_label,
       stripePaymentIntentId: p.stripe_payment_intent_id,
+      stripePaymentMethodType: p.stripe_payment_method_type ?? null,
       checkNumber: p.check_number,
       zelleTransactionId: p.zelle_transaction_id,
       notes: p.notes,

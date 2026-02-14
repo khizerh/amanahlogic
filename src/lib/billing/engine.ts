@@ -507,7 +507,7 @@ export async function processRecurringBilling(
           .select("id, status, created_at")
           .eq("membership_id", membership.id)
           .gte("created_at", nextPaymentDueStr)
-          .in("status", ["pending", "completed"])
+          .in("status", ["pending", "processing", "completed"])
           .maybeSingle();
 
         if (existingPayment) {

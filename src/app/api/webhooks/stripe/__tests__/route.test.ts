@@ -14,6 +14,7 @@ const {
   mockPricesCreate,
   mockSubscriptionsCreate,
   mockPaymentIntentsCreate,
+  mockPaymentIntentsRetrieve,
   mockSettlePayment,
   mockGenerateAdHocInvoiceMetadata,
   mockGetTodayInOrgTimezone,
@@ -41,6 +42,7 @@ const {
     mockPricesCreate: vi.fn(),
     mockSubscriptionsCreate: vi.fn(),
     mockPaymentIntentsCreate: vi.fn(),
+    mockPaymentIntentsRetrieve: vi.fn(),
     mockSettlePayment: vi.fn(),
     mockGenerateAdHocInvoiceMetadata: vi.fn(),
     mockGetTodayInOrgTimezone: vi.fn(),
@@ -75,7 +77,7 @@ vi.mock("stripe", async (importOriginal) => {
     invoices: { update: mockInvoicesUpdate, list: mockInvoicesList },
     customers: { update: mockCustomersUpdate },
     prices: { create: mockPricesCreate },
-    paymentIntents: { create: mockPaymentIntentsCreate },
+    paymentIntents: { create: mockPaymentIntentsCreate, retrieve: mockPaymentIntentsRetrieve },
   };
 
   class MockStripe {
@@ -131,7 +133,7 @@ function resetQueues() {
 
 function buildChain(table: string) {
   const chain: Record<string, unknown> = {};
-  const chainMethods = ["select", "eq", "neq", "or", "is", "order", "limit"];
+  const chainMethods = ["select", "eq", "neq", "or", "is", "in", "gte", "order", "limit"];
 
   for (const method of chainMethods) {
     chain[method] = vi.fn(() => chain);
@@ -805,7 +807,9 @@ describe("Stripe Webhook Route POST", () => {
           plan: { pricing: { monthly: 47, biannual: 270, annual: 500 } },
         },
       });
-      // Check for existing payment (idempotency)
+      // Check for existing completed payment (idempotency)
+      enqueueResult("payments", { data: null });
+      // Check for pending/processing payment to settle
       enqueueResult("payments", { data: null });
       // Get membership details for months
       enqueueResult("memberships", {
@@ -848,6 +852,16 @@ describe("Stripe Webhook Route POST", () => {
         periodLabel: "Feb 2025",
       });
 
+      // Mock paymentIntents.retrieve for stripe_payment_method_type derivation
+      mockPaymentIntentsRetrieve.mockResolvedValueOnce({
+        id: "pi_inv_paid",
+        payment_method: "pm_card_123",
+      });
+      mockPaymentMethodsRetrieve.mockResolvedValueOnce({
+        id: "pm_card_123",
+        type: "card",
+        card: { last4: "4242", brand: "visa" },
+      });
       // Create payment
       enqueueResult("payments", { data: { id: "pay_inv_paid" }, error: null });
       // Settle payment
@@ -869,6 +883,13 @@ describe("Stripe Webhook Route POST", () => {
           method: "stripe",
         })
       );
+
+      // Verify stripe_payment_method_type was included in the payment insert
+      const paymentInsert = supabaseInsertCalls.find(
+        (c) => c.table === "payments" && (c.data as Record<string, unknown>).type === "dues"
+      );
+      expect(paymentInsert).toBeDefined();
+      expect((paymentInsert!.data as Record<string, unknown>).stripe_payment_method_type).toBe("card");
     });
 
     it("should skip $0 invoices", async () => {
@@ -937,6 +958,9 @@ describe("Stripe Webhook Route POST", () => {
       enqueueResult("memberships", {
         data: { id: "mem_e", organization_id: "org_e", member_id: "mbr_e" },
       });
+      // Check for existing completed payment
+      enqueueResult("payments", { data: null });
+      // Check for pending/processing payment
       enqueueResult("payments", { data: null });
       enqueueResult("memberships", {
         data: {
@@ -966,6 +990,16 @@ describe("Stripe Webhook Route POST", () => {
         periodStart: "2025-02-10",
         periodEnd: "2025-03-09",
         periodLabel: "Feb 2025",
+      });
+      // Mock paymentIntents.retrieve for stripe_payment_method_type
+      mockPaymentIntentsRetrieve.mockResolvedValueOnce({
+        id: "pi_enroll",
+        payment_method: "pm_card_enroll",
+      });
+      mockPaymentMethodsRetrieve.mockResolvedValueOnce({
+        id: "pm_card_enroll",
+        type: "card",
+        card: { last4: "4242", brand: "visa" },
       });
       enqueueResult("payments", { data: { id: "pay_enroll" }, error: null });
       mockSettlePayment.mockResolvedValueOnce({ success: true, newPaidMonths: 1, newStatus: "current" });
@@ -1269,6 +1303,50 @@ describe("Stripe Webhook Route POST", () => {
       expect(
         (failedEventInsert!.data as Record<string, unknown>).error_message
       ).toBeDefined();
+    });
+  });
+
+  describe("Processing status and payment method type", () => {
+    it("should settle a processing payment via invoice.paid", async () => {
+      const event = createStripeEvent("invoice.paid", {
+        id: "inv_ach_settle",
+        subscription: "sub_ach_settle",
+        amount_paid: 5000,
+        payment_intent: "pi_ach_settle",
+        metadata: {},
+        subscription_details: { metadata: {} },
+        billing_reason: "subscription_cycle",
+      });
+      mockConstructEvent.mockReturnValueOnce(event);
+
+      enqueueResult("stripe_webhook_events", { data: null });
+      // Lookup membership
+      enqueueResult("memberships", {
+        data: { id: "mem_ach", organization_id: "org_ach", member_id: "mbr_ach" },
+      });
+      // No existing completed payment
+      enqueueResult("payments", { data: null });
+      // Found a "processing" payment to settle
+      enqueueResult("payments", { data: { id: "pay_processing_1" } });
+      // Settle succeeds
+      mockSettlePayment.mockResolvedValueOnce({
+        success: true,
+        newPaidMonths: 3,
+        newStatus: "current",
+        becameEligible: false,
+      });
+      // Record webhook event
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      expect(NextResponse.json).toHaveBeenCalledWith({ received: true });
+      expect(mockSettlePayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentId: "pay_processing_1",
+          method: "stripe",
+        })
+      );
     });
   });
 

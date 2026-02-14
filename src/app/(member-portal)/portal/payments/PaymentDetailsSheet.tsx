@@ -35,9 +35,14 @@ function formatDate(dateString: string | null): string {
   });
 }
 
-const getPaymentMethodLabel = (method: string) => {
+const getPaymentMethodLabel = (method: string, stripePaymentMethodType?: string | null) => {
+  if (method === "stripe") {
+    if (stripePaymentMethodType === "us_bank_account") return "Bank Transfer (ACH)";
+    if (stripePaymentMethodType === "card") return "Credit/Debit Card";
+    if (stripePaymentMethodType === "link") return "Stripe Link";
+    return "Credit/Debit Card";
+  }
   const labels: Record<string, string> = {
-    stripe: "Credit/Debit Card",
     card: "Credit/Debit Card",
     ach: "Bank Transfer (ACH)",
     cash: "Cash",
@@ -53,6 +58,8 @@ const getStatusBadge = (status: string) => {
       return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
     case "pending":
       return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+    case "processing":
+      return <Badge className="bg-blue-100 text-blue-800">Processing</Badge>;
     case "failed":
       return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
     case "refunded":
@@ -145,7 +152,7 @@ export function PaymentDetailsSheet({
             <div className="text-sm font-medium text-muted-foreground mb-1">
               Payment Method
             </div>
-            <div className="font-medium">{getPaymentMethodLabel(payment.method)}</div>
+            <div className="font-medium">{getPaymentMethodLabel(payment.method, payment.stripePaymentMethodType)}</div>
             {payment.checkNumber && (
               <div className="text-sm text-muted-foreground">
                 Check #{payment.checkNumber}

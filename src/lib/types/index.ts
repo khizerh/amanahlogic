@@ -24,7 +24,7 @@ export type PaymentMethod = 'stripe' | 'cash' | 'check' | 'zelle';
 
 export type PaymentType = 'enrollment_fee' | 'dues' | 'back_dues';
 
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
 
 export type CommunicationLanguage = 'en' | 'fa'; // English, Farsi
 
@@ -238,6 +238,7 @@ export interface Payment {
 
   // Stripe
   stripePaymentIntentId: string | null;
+  stripePaymentMethodType: string | null;
 
   // Manual payment info
   checkNumber: string | null;        // For check payments

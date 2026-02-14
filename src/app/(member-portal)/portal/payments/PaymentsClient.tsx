@@ -38,9 +38,14 @@ function formatDate(dateString: string | null): string {
   });
 }
 
-function getPaymentMethodLabel(method: string): string {
+function getPaymentMethodLabel(method: string, stripePaymentMethodType?: string | null): string {
+  if (method === "stripe") {
+    if (stripePaymentMethodType === "us_bank_account") return "Bank (ACH)";
+    if (stripePaymentMethodType === "card") return "Card";
+    if (stripePaymentMethodType === "link") return "Link";
+    return "Card";
+  }
   const labels: Record<string, string> = {
-    stripe: "Card",
     card: "Card",
     cash: "Cash",
     check: "Check",
@@ -69,6 +74,8 @@ function getStatusBadge(status: string) {
       return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
     case "pending":
       return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+    case "processing":
+      return <Badge className="bg-blue-100 text-blue-800">Processing</Badge>;
     case "failed":
       return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
     case "refunded":
@@ -169,7 +176,7 @@ export function PaymentsClient({ paymentHistory, organizationName, isPending, is
                         {getPaymentTypeBadge(payment.type)}
                       </TableCell>
                       <TableCell>
-                        {getPaymentMethodLabel(payment.method)}
+                        {getPaymentMethodLabel(payment.method, payment.stripePaymentMethodType)}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(payment.totalCharged || payment.amount)}

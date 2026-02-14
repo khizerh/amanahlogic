@@ -88,6 +88,7 @@ export interface PaymentWithDetails {
 
   // Stripe
   stripePaymentIntentId: string | null;
+  stripePaymentMethodType: string | null;
 
   // Manual payment info
   checkNumber: string | null;
@@ -136,6 +137,7 @@ export interface PaymentStats {
   totalFees: number;
   succeededCount: number;
   pendingCount: number;
+  processingCount: number;
   failedCount: number;
   refundedCount: number;
   monthlyRecurringRevenue: number;
@@ -800,6 +802,7 @@ export class PaymentsService {
       totalFees: 0,
       succeededCount: 0,
       pendingCount: 0,
+      processingCount: 0,
       failedCount: 0,
       refundedCount: 0,
       monthlyRecurringRevenue: 0,
@@ -814,6 +817,8 @@ export class PaymentsService {
         stats.succeededCount++;
       } else if (payment.status === "pending") {
         stats.pendingCount++;
+      } else if (payment.status === "processing") {
+        stats.processingCount++;
       } else if (payment.status === "failed") {
         stats.failedCount++;
       } else if (payment.status === "refunded") {
@@ -918,6 +923,7 @@ interface DbPaymentRow {
   period_end: string | null;
   period_label: string | null;
   stripe_payment_intent_id: string | null;
+  stripe_payment_method_type: string | null;
   check_number: string | null;
   zelle_transaction_id: string | null;
   notes: string | null;
@@ -1013,6 +1019,7 @@ function transformPayment(dbPayment: DbPaymentRow): Payment {
     periodLabel: dbPayment.period_label,
     // Stripe
     stripePaymentIntentId: dbPayment.stripe_payment_intent_id,
+    stripePaymentMethodType: dbPayment.stripe_payment_method_type,
     // Manual payment info
     checkNumber: dbPayment.check_number,
     zelleTransactionId: dbPayment.zelle_transaction_id,
@@ -1069,6 +1076,7 @@ function transformPaymentsWithDetails(dbPayments: DbPaymentWithDetailsRow[]): Pa
       periodLabel: dbPayment.period_label,
       // Stripe
       stripePaymentIntentId: dbPayment.stripe_payment_intent_id,
+      stripePaymentMethodType: dbPayment.stripe_payment_method_type,
       // Manual payment info
       checkNumber: dbPayment.check_number,
       zelleTransactionId: dbPayment.zelle_transaction_id,

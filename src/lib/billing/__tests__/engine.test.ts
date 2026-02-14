@@ -1633,4 +1633,65 @@ describe("Billing Engine", () => {
       expect(membershipUpdate.next_payment_due).toBe("2026-03-15");
     });
   });
+
+  // =========================================================================
+  // Processing status support
+  // =========================================================================
+
+  describe("processing status", () => {
+    it("settlePayment works on a processing status payment", async () => {
+      const { supabase, mockTable, updateCalls } = createMockSupabase();
+
+      mockTable("payments", makePayment({ status: "processing" }));
+      mockTable("organizations", { timezone: "America/Los_Angeles" });
+      mockTable("payments", null);
+      mockTable("memberships", null);
+      mockTable("organization_settings", { send_receipt_email: false });
+
+      const result = await settlePayment({
+        paymentId: PAYMENT_ID,
+        method: "stripe",
+        supabase: supabase as never,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.membershipUpdated).toBe(true);
+      expect(result.newPaidMonths).toBe(11);
+
+      const paymentUpdates = updateCalls["payments"];
+      expect(paymentUpdates).toBeDefined();
+      const paymentUpdate = paymentUpdates[0] as Record<string, unknown>;
+      expect(paymentUpdate.status).toBe("completed");
+    });
+
+    it("duplicate check includes processing status", async () => {
+      const { supabase, mockTable, mockRpc } = createMockSupabase();
+
+      mockTable("organizations", { timezone: "America/Los_Angeles" });
+      mockTable("memberships", [makeMembership()]);
+      // Duplicate check finds a "processing" payment
+      mockTable("payments", {
+        id: "pay-processing",
+        status: "processing",
+        created_at: "2025-01-15T00:00:00Z",
+      });
+      mockTable("memberships", []);
+      mockTable("memberships", []);
+
+      mockRpc("acquire_billing_lock", () => ({ data: true, error: null }));
+      mockRpc("release_billing_lock", () => ({ data: null, error: null }));
+
+      const result = await processRecurringBilling(ORG_ID, { supabase: supabase as never });
+
+      expect(result.skipped).toBe(1);
+      expect(result.paymentsCreated).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith(
+        "membership_skipped_duplicate",
+        expect.objectContaining({
+          existing_payment_id: "pay-processing",
+          reason: "payment_already_exists_for_period",
+        })
+      );
+    });
+  });
 });

@@ -116,6 +116,7 @@ export interface PaymentWithDetails {
   netAmount: number;
   monthsCredited: number;
   stripePaymentIntentId: string | null;
+  stripePaymentMethodType: string | null;
   notes: string | null;
   recordedBy: string | null;
   createdAt: string;
@@ -152,6 +153,7 @@ export interface PaymentStats {
   totalFees: number;
   succeededCount: number;
   pendingCount: number;
+  processingCount: number;
   failedCount: number;
   refundedCount: number;
   monthlyRecurringRevenue: number;

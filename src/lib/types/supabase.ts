@@ -753,6 +753,7 @@ export type Database = {
           stripe_fee: number | null
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
+          stripe_payment_method_type: string | null
           total_charged: number
           type: string
           updated_at: string | null
@@ -788,6 +789,7 @@ export type Database = {
           stripe_fee?: number | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_payment_method_type?: string | null
           total_charged: number
           type: string
           updated_at?: string | null
@@ -823,6 +825,7 @@ export type Database = {
           stripe_fee?: number | null
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_payment_method_type?: string | null
           total_charged?: number
           type?: string
           updated_at?: string | null

@@ -21,7 +21,13 @@ interface PaymentDetailsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const getPaymentMethodLabel = (method: string) => {
+const getPaymentMethodLabel = (method: string, stripePaymentMethodType?: string | null) => {
+  if (method === "stripe") {
+    if (stripePaymentMethodType === "us_bank_account") return "Bank Transfer (ACH)";
+    if (stripePaymentMethodType === "card") return "Credit/Debit Card";
+    if (stripePaymentMethodType === "link") return "Stripe Link";
+    return "Stripe";
+  }
   const labels: Record<string, string> = {
     card: "Credit/Debit Card",
     ach: "Bank Transfer (ACH)",
@@ -38,6 +44,8 @@ const getStatusBadge = (status: string) => {
       return <Badge variant="success">Completed</Badge>;
     case "pending":
       return <Badge variant="warning">Pending</Badge>;
+    case "processing":
+      return <Badge variant="info">Processing</Badge>;
     case "failed":
       return <Badge variant="error">Failed</Badge>;
     case "refunded":
@@ -134,7 +142,7 @@ export function PaymentDetailsSheet({
               Payment Method
             </div>
             <div>
-              <div className="font-medium">{getPaymentMethodLabel(payment.method)}</div>
+              <div className="font-medium">{getPaymentMethodLabel(payment.method, payment.stripePaymentMethodType)}</div>
               {payment.stripePaymentIntentId && (
                 <div className="text-xs text-muted-foreground font-mono mt-1">
                   {payment.stripePaymentIntentId}

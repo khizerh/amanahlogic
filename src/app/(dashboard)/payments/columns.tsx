@@ -27,9 +27,12 @@ const getPaymentTypeBadge = (type: string) => {
   }
 };
 
-const getPaymentMethodLabel = (method: string) => {
+const getPaymentMethodLabel = (method: string, stripePaymentMethodType?: string | null) => {
   switch (method) {
     case "stripe":
+      if (stripePaymentMethodType === "us_bank_account") return "Stripe \u00b7 ACH";
+      if (stripePaymentMethodType === "card") return "Stripe \u00b7 Card";
+      if (stripePaymentMethodType === "link") return "Stripe \u00b7 Link";
       return "Stripe";
     case "cash":
       return "Cash";
@@ -62,6 +65,8 @@ const getStatusBadge = (status: string, dueDate?: string | null) => {
       return <Badge variant="success">Completed</Badge>;
     case "pending":
       return <Badge variant="warning">Pending</Badge>;
+    case "processing":
+      return <Badge variant="info">Processing</Badge>;
     case "failed":
       return <Badge variant="error">Failed</Badge>;
     case "refunded":
@@ -135,7 +140,7 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
     cell: ({ row }) => {
       return (
         <span className="text-sm">
-          {getPaymentMethodLabel(row.original.method)}
+          {getPaymentMethodLabel(row.original.method, row.original.stripePaymentMethodType)}
         </span>
       );
     },

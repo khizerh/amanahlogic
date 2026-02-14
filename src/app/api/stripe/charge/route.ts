@@ -153,6 +153,7 @@ export async function POST(req: Request) {
         period_start: today,
         period_end: today,
         period_label: description,
+        stripe_payment_method_type: paymentMethod.type,
         notes,
       })
       .select()

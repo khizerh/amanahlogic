@@ -429,6 +429,7 @@ interface DbPaymentRow {
   period_end: string | null;
   period_label: string | null;
   stripe_payment_intent_id: string | null;
+  stripe_payment_method_type: string | null;
   check_number: string | null;
   zelle_transaction_id: string | null;
   notes: string | null;
@@ -545,6 +546,7 @@ function transformPayment(db: DbPaymentRow): Payment {
     periodEnd: db.period_end,
     periodLabel: db.period_label,
     stripePaymentIntentId: db.stripe_payment_intent_id,
+    stripePaymentMethodType: db.stripe_payment_method_type,
     checkNumber: db.check_number,
     zelleTransactionId: db.zelle_transaction_id,
     notes: db.notes,

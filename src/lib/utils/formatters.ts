@@ -174,6 +174,7 @@ export function formatPaymentType(type: string): string {
 export function formatPaymentStatus(status: string): string {
   const labels: Record<string, string> = {
     pending: "Pending",
+    processing: "Processing",
     completed: "Completed",
     failed: "Failed",
     refunded: "Refunded",

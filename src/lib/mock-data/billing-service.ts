@@ -230,6 +230,7 @@ export function recordPayment(input: RecordPaymentInput): RecordPaymentResult {
     netAmount: amount - 2.0,
     monthsCredited,
     stripePaymentIntentId: null,
+    stripePaymentMethodType: null,
     checkNumber: method === 'check' ? (checkNumber || null) : null,
     zelleTransactionId: method === 'zelle' ? (zelleTransactionId || null) : null,
     notes: notes || (isManualPayment ? `${method} payment recorded` : null),
