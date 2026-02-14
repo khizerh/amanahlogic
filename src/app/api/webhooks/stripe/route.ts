@@ -999,6 +999,9 @@ async function handleSetupIntentSucceeded(
   } else if (pm.type === "link") {
     pmDetails.brand = "link";
   }
+  if (pm.us_bank_account) {
+    pmDetails.bankName = pm.us_bank_account.bank_name;
+  }
 
   // Parse metadata values
   const duesAmountCents = parseInt(duesAmountCentsStr || "0", 10);
