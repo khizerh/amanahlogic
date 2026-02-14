@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -64,6 +64,7 @@ const FREQUENCY_SHORT: Record<BillingFrequency, string> = {
 export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   // Step 1: Plan Selection
   const [selectedPlanId, setSelectedPlanId] = useState(plans.length === 1 ? plans[0].id : "");
@@ -205,7 +206,8 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
       }
 
       if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
+        setPaymentUrl(data.paymentUrl);
+        setStep(3);
       }
     } catch {
       toast.error("Something went wrong. Please try again.");
@@ -226,8 +228,8 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
 
   return (
     <div>
-      {/* Progress indicator */}
-      <div className="mb-8 flex items-center justify-center gap-0">
+      {/* Progress indicator - hidden on success screen */}
+      <div className={`mb-8 flex items-center justify-center gap-0 ${step === 3 ? "hidden" : ""}`}>
         {STEPS.map((_, i) => (
           <div key={i} className="flex items-center">
             <div
@@ -717,37 +719,149 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
               )}
             </div>
           )}
+          {/* ============================================================= */}
+          {/* Success Screen - before payment redirect                      */}
+          {/* ============================================================= */}
+          {step === 3 && <SuccessScreen paymentUrl={paymentUrl!} firstName={firstName} email={email} />}
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation buttons */}
-      <div className="mt-8 flex justify-between">
-        {step > 0 ? (
-          <Button type="button" variant="outline" onClick={handleBack} disabled={submitting}>
-            Back
-          </Button>
-        ) : (
-          <div />
-        )}
+      {/* Navigation buttons - hidden on success screen */}
+      {step < 3 && (
+        <div className="mt-8 flex justify-between">
+          {step > 0 ? (
+            <Button type="button" variant="outline" onClick={handleBack} disabled={submitting}>
+              Back
+            </Button>
+          ) : (
+            <div />
+          )}
 
-        {step < STEPS.length - 1 ? (
-          <Button
-            type="button"
-            onClick={handleNext}
-            className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
-          >
-            Continue
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
-          >
-            {submitting ? "Processing..." : "Join & Pay"}
-          </Button>
-        )}
+          {step < STEPS.length - 1 ? (
+            <Button
+              type="button"
+              onClick={handleNext}
+              className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+            >
+              Continue
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+            >
+              {submitting ? "Processing..." : "Join & Pay"}
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Success Screen
+// =============================================================================
+
+function SuccessScreen({
+  paymentUrl,
+  firstName,
+  email,
+}: {
+  paymentUrl: string;
+  firstName: string;
+  email: string;
+}) {
+  const [countdown, setCountdown] = useState(6);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          window.location.href = paymentUrl;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [paymentUrl]);
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-brand-teal/20 bg-brand-teal/5">
+        <CardContent className="pt-6 text-center">
+          <div className="mx-auto w-14 h-14 rounded-full bg-brand-teal/10 flex items-center justify-center mb-4">
+            <svg className="w-7 h-7 text-brand-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-text-dark-slate mb-2">
+            Welcome, {firstName}!
+          </h2>
+          <p className="text-gray-600">
+            Your account has been created. Here&apos;s what happens next:
+          </p>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="flex items-start gap-4 pt-5 pb-5">
+            <div className="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center text-sm font-bold shrink-0">
+              1
+            </div>
+            <div>
+              <p className="font-medium text-text-dark-slate">Set up your payment</p>
+              <p className="text-sm text-gray-500 mt-0.5">
+                You&apos;ll be redirected to our secure payment page in a moment to enter your card or bank details.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-start gap-4 pt-5 pb-5">
+            <div className="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center text-sm font-bold shrink-0">
+              2
+            </div>
+            <div>
+              <p className="font-medium text-text-dark-slate">Sign your membership agreement</p>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Check <span className="font-medium text-text-dark-slate">{email}</span> for an email with your membership agreement to review and sign.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-start gap-4 pt-5 pb-5">
+            <div className="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center text-sm font-bold shrink-0">
+              3
+            </div>
+            <div>
+              <p className="font-medium text-text-dark-slate">Access your member portal</p>
+              <p className="text-sm text-gray-500 mt-0.5">
+                You&apos;ll also receive an invite to set up your member portal account where you can manage your membership.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="text-center space-y-3 pt-2">
+        <Button
+          onClick={() => { window.location.href = paymentUrl; }}
+          className="bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
+        >
+          Continue to Payment
+        </Button>
+        <p className="text-sm text-gray-400">
+          Redirecting automatically in {countdown}s...
+        </p>
       </div>
     </div>
   );
