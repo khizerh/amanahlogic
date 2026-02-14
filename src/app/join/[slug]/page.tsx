@@ -84,8 +84,9 @@ export default async function JoinPage({ params }: PageProps) {
           <li>A credit card or bank account for payment</li>
         </ul>
         <p className="text-gray-500">
-          If you&apos;re a returning member, need to join without an email address, or have
-          questions about sponsorships and family plans, please{" "}
+          If you&apos;re a returning member, prefer to pay by cash, check, or Zelle,
+          need to join without an email address, or have questions about
+          sponsorships and family plans, please{" "}
           {orgEmail ? (
             <a href={`mailto:${orgEmail}`} className="text-brand-teal font-medium hover:underline">
               contact us
