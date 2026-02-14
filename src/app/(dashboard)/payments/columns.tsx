@@ -139,9 +139,9 @@ export const createColumns = (actions: PaymentColumnActions): ColumnDef<PaymentW
     header: "Method",
     cell: ({ row }) => {
       return (
-        <span className="text-sm">
+        <Badge variant="outline">
           {getPaymentMethodLabel(row.original.method, row.original.stripePaymentMethodType)}
-        </span>
+        </Badge>
       );
     },
     filterFn: (row, id, value) => {
