@@ -144,7 +144,7 @@ export function RecordOnboardingPaymentDialog({
           duration: 10000,
         });
       } else {
-        toast.success(`Payment of ${formatCurrency(amount)} recorded for ${invite.member.firstName} ${invite.member.lastName}`);
+        toast.success(`Payment of ${formatCurrency(amount)} recorded for ${invite.member.firstName} ${invite.member.middleName ? `${invite.member.middleName} ` : ''}${invite.member.lastName}`);
       }
 
       onOpenChange(false);
@@ -201,7 +201,7 @@ export function RecordOnboardingPaymentDialog({
         <DialogHeader>
           <DialogTitle>Record Onboarding Payment</DialogTitle>
           <DialogDescription>
-            Record payment for {invite.member.firstName} {invite.member.lastName}
+            Record payment for {invite.member.firstName} {invite.member.middleName ? `${invite.member.middleName} ` : ''}{invite.member.lastName}
           </DialogDescription>
         </DialogHeader>
 
@@ -211,7 +211,7 @@ export function RecordOnboardingPaymentDialog({
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">
-                  {invite.member.firstName} {invite.member.lastName}
+                  {invite.member.firstName} {invite.member.middleName ? `${invite.member.middleName} ` : ''}{invite.member.lastName}
                 </p>
                 <p className="text-sm text-muted-foreground">{invite.plan?.name} Plan</p>
               </div>
