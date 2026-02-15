@@ -38,7 +38,7 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
   const router = useRouter();
   const [selectedApp, setSelectedApp] = useState<ReturningApplicationWithPlan | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Editable fields
   const [paidMonths, setPaidMonths] = useState(0);
@@ -46,7 +46,7 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
 
   // Loading states
   const [isApproving, setIsApproving] = useState(false);
-  const [isRejecting, setIsRejecting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const openReview = useCallback((app: ReturningApplicationWithPlan) => {
     setSelectedApp(app);
@@ -101,9 +101,9 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
     }
   }, [selectedApp, paidMonths, waiveEnrollmentFee, router]);
 
-  const handleReject = useCallback(async () => {
+  const handleDelete = useCallback(async () => {
     if (!selectedApp) return;
-    setIsRejecting(true);
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/returning-applications/${selectedApp.id}/reject`, {
         method: "POST",
@@ -114,23 +114,23 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
       if (res.status === 409) {
         toast.error(result.error || "Application already processed");
         setSheetOpen(false);
-        setRejectDialogOpen(false);
+        setDeleteDialogOpen(false);
         router.refresh();
         return;
       }
 
       if (!res.ok) {
-        throw new Error(result.error || "Failed to reject");
+        throw new Error(result.error || "Failed to delete");
       }
 
-      toast.success("Application rejected");
+      toast.success("Application deleted");
       setSheetOpen(false);
-      setRejectDialogOpen(false);
+      setDeleteDialogOpen(false);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to reject");
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
     } finally {
-      setIsRejecting(false);
+      setIsDeleting(false);
     }
   }, [selectedApp, router]);
 
@@ -157,7 +157,7 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
               { label: "All", value: "all" },
               { label: "Pending", value: "pending" },
               { label: "Approved", value: "approved" },
-              { label: "Rejected", value: "rejected" },
+              { label: "Deleted", value: "rejected" },
             ],
           },
         ]}
@@ -298,7 +298,7 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Status</span>
                         <Badge variant={selectedApp.status === "approved" ? "success" : "error"}>
-                          {selectedApp.status === "approved" ? "Approved" : "Rejected"}
+                          {selectedApp.status === "approved" ? "Approved" : "Deleted"}
                         </Badge>
                       </div>
                     </>
@@ -309,23 +309,27 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
                   <>
                     <div className="border-t" />
 
+                    <p className="text-xs text-muted-foreground">
+                      Verify the email and plan are correct before approving — these cannot be changed after.
+                      If something is wrong, delete this application and have the member re-submit.
+                    </p>
+
                     {/* Actions */}
                     <div className="flex items-center gap-3 pb-4">
                       <Button
                         className="flex-1"
                         onClick={handleApprove}
-                        disabled={isApproving || isRejecting}
+                        disabled={isApproving || isDeleting}
                       >
                         {isApproving ? "Approving..." : "Approve & Start Onboarding"}
                       </Button>
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setRejectDialogOpen(true)}
-                        disabled={isApproving || isRejecting}
+                        variant="outline"
+                        className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                        onClick={() => setDeleteDialogOpen(true)}
+                        disabled={isApproving || isDeleting}
                       >
-                        Reject
+                        Delete
                       </Button>
                     </div>
                   </>
@@ -336,26 +340,26 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
         </SheetContent>
       </Sheet>
 
-      {/* Reject Confirmation */}
-      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Application</AlertDialogTitle>
+            <AlertDialogTitle>Delete Application</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject the application from{" "}
+              Are you sure you want to delete the application from{" "}
               <strong>
                 {selectedApp?.firstName} {selectedApp?.lastName}
               </strong>
-              ? This cannot be undone.
+              ? They can re-submit through the returning member form.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleReject}
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isRejecting ? "Rejecting..." : "Reject"}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -19,7 +19,7 @@ const getStatusBadge = (status: string) => {
   const config: Record<string, { variant: "warning" | "success" | "error"; label: string }> = {
     pending: { variant: "warning", label: "Pending" },
     approved: { variant: "success", label: "Approved" },
-    rejected: { variant: "error", label: "Rejected" },
+    rejected: { variant: "error", label: "Deleted" },
   };
   const { variant, label } = config[status] || config.pending;
   return <Badge variant={variant}>{label}</Badge>;
