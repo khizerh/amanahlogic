@@ -6,6 +6,7 @@ import { settlePayment } from "@/lib/billing/engine";
 import {
   generateAdHocInvoiceMetadata,
   getTodayInOrgTimezone,
+  parseDateInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
 import { calculateFees, reverseCalculateBaseAmount, createMembershipSubscription } from "@/lib/stripe";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
@@ -1399,7 +1400,7 @@ async function handleSetupIntentSucceeded(
   try {
     const { data: currentMembership } = await supabase
       .from("memberships")
-      .select("status, agreement_signed_at")
+      .select("status, agreement_signed_at, billing_anniversary_day")
       .eq("id", membershipId)
       .single();
 
@@ -1415,17 +1416,40 @@ async function handleSetupIntentSucceeded(
       const tz = orgForTz?.timezone || "America/Los_Angeles";
       const todayStr = getTodayInOrgTimezone(tz);
 
+      // Calculate next_payment_due so billing engine doesn't skip this member
+      // while ACH clears (3-5 days). Uses same logic as settlePayment().
+      const todayDate = parseDateInOrgTimezone(todayStr, tz);
+      const billingDay = currentMembership.billing_anniversary_day
+        || Math.min(todayDate.getDate(), 28);
+      const currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), billingDay);
+
+      let monthsCredited = 1;
+      switch (freq) {
+        case "biannual": monthsCredited = 6; break;
+        case "annual": monthsCredited = 12; break;
+      }
+
+      const totalMonths = currentDueDate.getMonth() + monthsCredited;
+      const targetYear = currentDueDate.getFullYear() + Math.floor(totalMonths / 12);
+      const targetMonth = totalMonths % 12;
+      const lastDayTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+      const targetDay = Math.min(billingDay, lastDayTargetMonth);
+      const nextPaymentDue = new Date(targetYear, targetMonth, targetDay)
+        .toISOString().split("T")[0];
+
       const { error: transitionError } = await supabase
         .from("memberships")
         .update({
           status: "current",
           join_date: todayStr,
+          next_payment_due: nextPaymentDue,
+          billing_anniversary_day: billingDay,
           updated_at: new Date().toISOString(),
         })
         .eq("id", membershipId);
 
       if (!transitionError) {
-        console.log(`[Webhook] Transitioned membership ${membershipId} from pending → current (subscription active, agreement signed)`);
+        console.log(`[Webhook] Transitioned membership ${membershipId} from pending → current (subscription active, agreement signed, next_payment_due: ${nextPaymentDue})`);
       } else {
         console.error("[Webhook] Failed to transition membership to current:", transitionError);
       }

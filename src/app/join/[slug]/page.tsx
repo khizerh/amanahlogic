@@ -124,7 +124,7 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
           </a>
         </p>
         <p className="mt-1 text-base text-gray-600">
-          Prefer to pay by cash/check/Zelle, or have questions?{" "}
+          Have questions?{" "}
           {orgEmail ? (
             <a href={`mailto:${orgEmail}`} className="text-brand-teal font-medium hover:underline">
               Contact us
@@ -136,7 +136,6 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
           ) : (
             <span className="font-medium text-brand-teal">Contact us</span>
           )}
-          <span className="text-gray-600"> and we&apos;ll help you out.</span>
         </p>
       </div>
 
