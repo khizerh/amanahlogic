@@ -61,6 +61,7 @@ export async function middleware(request: NextRequest) {
   // Admin protected routes (require admin login)
   const isAdminRoute = pathname.startsWith("/dashboard") ||
                        pathname.startsWith("/members") ||
+                       pathname.startsWith("/pending") ||
                        pathname.startsWith("/payments") ||
                        pathname.startsWith("/plans") ||
                        pathname.startsWith("/settings");

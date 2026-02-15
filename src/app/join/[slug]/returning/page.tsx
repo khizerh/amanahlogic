@@ -1,12 +1,11 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { JoinForm } from "./join-form";
+import { JoinForm } from "../join-form";
 import { AgreementTemplatesService, resolveTemplateUrl } from "@/lib/database/agreement-templates";
 import type { Plan, PlanPricing } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ returning?: string }>;
 }
 
 interface DbPlanRow {
@@ -20,15 +19,8 @@ interface DbPlanRow {
   is_active: boolean;
 }
 
-export default async function JoinPage({ params, searchParams }: PageProps) {
+export default async function ReturningMemberPage({ params }: PageProps) {
   const { slug } = await params;
-  const { returning } = await searchParams;
-
-  // Redirect old ?returning=true URLs to the dedicated route
-  if (returning === "true") {
-    redirect(`/join/${slug}/returning`);
-  }
-
   const supabase = createServiceRoleClient();
 
   // Fetch org by slug
@@ -105,7 +97,7 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
     <>
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{org.name}</h1>
-        <p className="mt-2 text-gray-600">Become a member</p>
+        <p className="mt-2 text-gray-600">Welcome Back</p>
       </div>
 
       {/* Requirements & help info */}
@@ -114,8 +106,8 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
           You&apos;ll need a valid email, phone number, and a credit card or bank account.
         </p>
         <p className="mt-2 text-base text-gray-600">
-          <a href={`/join/${slug}/returning`} className="text-brand-teal font-medium hover:underline">
-            Returning member? Register here
+          <a href={`/join/${slug}`} className="text-brand-teal font-medium hover:underline">
+            New member? Register here
           </a>
         </p>
         <p className="mt-1 text-base text-gray-600">
@@ -172,7 +164,7 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
         orgSlug={org.slug}
         orgName={org.name}
         plans={plans}
-        returning={false}
+        returning={true}
       />
 
       {/* Existing member login link */}

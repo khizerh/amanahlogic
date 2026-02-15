@@ -68,6 +68,7 @@ export default function Header() {
   const isDashboard = pathname?.startsWith("/");
   const isOverviewActive = pathname === "/dashboard" || pathname === "/";
   const isMembersActive = pathname === "/members" || pathname?.startsWith("/members/");
+  const isPendingActive = pathname === "/pending" || pathname?.startsWith("/pending/");
   const isPaymentsActive = pathname === "/payments" || pathname?.startsWith("/payments/");
   const isPlansActive = pathname === "/plans" || pathname?.startsWith("/plans/");
 
@@ -118,6 +119,17 @@ export default function Header() {
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Members
+                        </Link>
+                        <Link
+                          href="/pending"
+                          className={`text-lg font-medium px-4 py-2 rounded-md transition-colors ${
+                            isPendingActive
+                              ? "bg-brand-teal text-white"
+                              : "text-foreground hover:bg-accent"
+                          }`}
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Pending
                         </Link>
                         <Link
                           href="/payments"
@@ -230,6 +242,17 @@ export default function Header() {
                           className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
                         >
                           Members
+                        </Link>
+                      </NavigationMenuLink>
+                    </NavItem>
+
+                    <NavItem>
+                      <NavigationMenuLink asChild active={isPendingActive}>
+                        <Link
+                          href="/pending"
+                          className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
+                        >
+                          Pending
                         </Link>
                       </NavigationMenuLink>
                     </NavItem>
