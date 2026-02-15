@@ -1,5 +1,10 @@
+import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Returning Member Registration",
+};
 import { JoinForm } from "../join-form";
 import type { Plan, PlanPricing } from "@/lib/types";
 

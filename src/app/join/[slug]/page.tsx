@@ -1,5 +1,10 @@
+import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "New Member Registration",
+};
 import { JoinForm } from "./join-form";
 import { AgreementTemplatesService, resolveTemplateUrl } from "@/lib/database/agreement-templates";
 import type { Plan, PlanPricing } from "@/lib/types";
