@@ -32,6 +32,8 @@ import {
   Trash2,
   Mail,
   Pencil,
+  Copy,
+  Link,
 } from "lucide-react";
 import { getEmailTemplateTypeLabel } from "@/lib/utils/formatters";
 import { Organization, EmailTemplate, AgreementTemplate } from "@/lib/types";
@@ -337,6 +339,53 @@ export function SettingsPageClient({
                       </p>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Shareable Links */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Link className="h-5 w-5" />
+                    Shareable Links
+                  </CardTitle>
+                  <CardDescription>
+                    Share these links with members to join or manage their membership
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {[
+                    {
+                      label: "New Member Registration",
+                      description: "For new members to sign up and enroll",
+                      url: `${typeof window !== "undefined" ? window.location.origin : ""}/join/${organization.slug}`,
+                    },
+                    {
+                      label: "Returning Member Registration",
+                      description: "For previously registered members to re-enroll",
+                      url: `${typeof window !== "undefined" ? window.location.origin : ""}/join/${organization.slug}/returning`,
+                    },
+                  ].map((link) => (
+                    <div key={link.label} className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm">{link.label}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{link.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1 truncate font-mono">{link.url}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(link.url);
+                          toast.success("Link copied to clipboard");
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-1.5" />
+                        Copy
+                      </Button>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
 
