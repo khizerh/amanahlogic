@@ -276,17 +276,18 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
                 <div className="border-t" />
 
                 {/* Actions */}
-                <div className="space-y-3 pb-4">
+                <div className="flex items-center gap-3 pb-4">
                   <Button
-                    className="w-full"
+                    className="flex-1"
                     onClick={handleApprove}
                     disabled={isApproving || isRejecting}
                   >
                     {isApproving ? "Approving..." : "Approve & Start Onboarding"}
                   </Button>
                   <Button
-                    variant="destructive"
-                    className="w-full"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-destructive"
                     onClick={() => setRejectDialogOpen(true)}
                     disabled={isApproving || isRejecting}
                   >
