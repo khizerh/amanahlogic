@@ -310,7 +310,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
                                 {plan.description && (
                                   <p className="mt-1 text-sm text-gray-500">{plan.description}</p>
                                 )}
-                                {plan.enrollmentFee > 0 && (
+                                {!returning && plan.enrollmentFee > 0 && (
                                   <p className="mt-1 text-xs text-gray-400">
                                     + {formatCurrency(plan.enrollmentFee)} one-time enrollment fee
                                   </p>
@@ -390,7 +390,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
                     {returning ? (
                       <div className="border-t border-brand-teal/10 pt-3 mt-3">
                         <p className="text-sm text-gray-600">
-                          Your admin will review your registration and set up your payment.
+                          {orgName} will review your information and send you an email with next steps.
                         </p>
                       </div>
                     ) : (
@@ -721,7 +721,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
                       {returning ? (
                         <div className="border-t border-brand-teal/10 pt-3">
                           <p className="text-sm text-gray-600">
-                            Your admin will review your registration and set up your payment.
+                            {orgName} will review your information and send you an email with next steps.
                           </p>
                         </div>
                       ) : (
