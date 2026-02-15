@@ -252,6 +252,7 @@ export function MemberDetailClient({
           membershipId: membership.id,
           memberId: memberData.id,
           language: memberData.preferredLanguage,
+          sendEmail: !!memberData.email,
         }),
       });
 
@@ -269,8 +270,10 @@ export function MemberDetailClient({
       if (result.emailSent) {
         toast.success("Agreement sent! Check member's email.");
       } else {
-        toast.success("Agreement created", {
-          description: "Email not configured - copy the sign link manually.",
+        toast.success("Agreement link created", {
+          description: memberData.email
+            ? "Email not configured - copy the sign link manually."
+            : "No email on file - copy the sign link to share manually.",
           action: {
             label: "Copy Link",
             onClick: () => {
@@ -1071,19 +1074,18 @@ export function MemberDetailClient({
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleSendAgreement}
-                                disabled={isSendingAgreement || !memberData.email}
+                                disabled={isSendingAgreement}
                                 className="h-7 text-xs"
                               >
                                 {isSendingAgreement ? (
                                   <>
                                     <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                    Sending...
+                                    {memberData.email ? "Sending..." : "Creating..."}
                                   </>
                                 ) : (
-                                  "Resend Link"
+                                  memberData.email ? "Resend Link" : "Create Link"
                                 )}
                               </Button>
-                              {!memberData.email && <p className="text-xs text-amber-600">Requires email address</p>}
                               {currentSignUrl && (
                                 <Button
                                   variant="ghost"
