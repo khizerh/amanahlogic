@@ -173,6 +173,19 @@ export function MemberDetailClient({
   const [isSendingPortalInvite, setIsSendingPortalInvite] = useState(false);
   const [portalInviteUrl, setPortalInviteUrl] = useState<string | null>(initialPortalInviteUrl);
 
+  // State for enrollment fee inline editing
+  const [isEditingEnrollmentFee, setIsEditingEnrollmentFee] = useState(false);
+  const [enrollmentFeeValue, setEnrollmentFeeValue] = useState<string>(initialMember.membership?.enrollmentFeeStatus || "unpaid");
+  const [isSavingEnrollmentFee, setIsSavingEnrollmentFee] = useState(false);
+
+  // State for paid months inline editing
+  const [isEditingPaidMonths, setIsEditingPaidMonths] = useState(false);
+  const [paidMonthsValue, setPaidMonthsValue] = useState(initialMember.membership?.paidMonths || 0);
+  const [isSavingPaidMonths, setIsSavingPaidMonths] = useState(false);
+
+  // State for Start Onboarding
+  const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
+
   // Pagination
   const PAGE_SIZE = 5;
   const [paymentsPage, setPaymentsPage] = useState(0);
@@ -536,6 +549,89 @@ export function MemberDetailClient({
     }
   }, [membership, router]);
 
+  // Save enrollment fee status
+  const handleSaveEnrollmentFee = useCallback(async () => {
+    if (!membership) return;
+    setIsSavingEnrollmentFee(true);
+    try {
+      const response = await fetch(`/api/memberships/${membership.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentFeeStatus: enrollmentFeeValue }),
+      });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Failed to update");
+      }
+      toast.success("Enrollment fee status updated");
+      setIsEditingEnrollmentFee(false);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setIsSavingEnrollmentFee(false);
+    }
+  }, [membership, enrollmentFeeValue, router]);
+
+  // Save paid months
+  const handleSavePaidMonths = useCallback(async () => {
+    if (!membership) return;
+    setIsSavingPaidMonths(true);
+    try {
+      const response = await fetch(`/api/memberships/${membership.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paidMonths: paidMonthsValue }),
+      });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Failed to update");
+      }
+      toast.success("Paid months updated");
+      setIsEditingPaidMonths(false);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setIsSavingPaidMonths(false);
+    }
+  }, [membership, paidMonthsValue, router]);
+
+  // Start onboarding for returning member
+  const handleStartOnboarding = useCallback(async () => {
+    if (!membership) return;
+    setIsStartingOnboarding(true);
+    try {
+      const response = await fetch(`/api/memberships/${membership.id}/onboard`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await response.json();
+
+      if (response.status === 409) {
+        toast.info("Onboarding has already been started for this member");
+        router.refresh();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to start onboarding");
+      }
+
+      if (result.errors && result.errors.length > 0) {
+        toast.warning(`Onboarding started, but some steps had issues: ${result.errors.join(", ")}`);
+      } else {
+        toast.success("Onboarding started! Welcome email, agreement, and portal invite have been sent.");
+      }
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start onboarding");
+    } finally {
+      setIsStartingOnboarding(false);
+    }
+  }, [membership, router]);
+
   const handleStartEdit = () => {
     setEditForm({
       email: memberData.email || "",
@@ -888,15 +984,71 @@ export function MemberDetailClient({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Enrollment Fee</p>
-                      <p className="font-medium">
-                        {membership.enrollmentFeeStatus === "paid" ? (
-                          <span className="text-green-700">Paid</span>
-                        ) : membership.enrollmentFeeStatus === "waived" ? (
-                          <span className="text-blue-700">Waived</span>
-                        ) : (
-                          <span className="text-amber-700">Not Paid</span>
-                        )}
-                      </p>
+                      {isEditingEnrollmentFee ? (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Select
+                            value={enrollmentFeeValue}
+                            onValueChange={setEnrollmentFeeValue}
+                          >
+                            <SelectTrigger className="h-8 w-[120px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unpaid">Not Paid</SelectItem>
+                              <SelectItem value="waived">Waived</SelectItem>
+                              <SelectItem value="paid">Paid</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={handleSaveEnrollmentFee}
+                            disabled={isSavingEnrollmentFee}
+                          >
+                            {isSavingEnrollmentFee ? (
+                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              setEnrollmentFeeValue(membership.enrollmentFeeStatus);
+                              setIsEditingEnrollmentFee(false);
+                            }}
+                            disabled={isSavingEnrollmentFee}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <p className="font-medium">
+                            {membership.enrollmentFeeStatus === "paid" ? (
+                              <span className="text-green-700">Paid</span>
+                            ) : membership.enrollmentFeeStatus === "waived" ? (
+                              <span className="text-blue-700">Waived</span>
+                            ) : (
+                              <span className="text-amber-700">Not Paid</span>
+                            )}
+                          </p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              setEnrollmentFeeValue(membership.enrollmentFeeStatus);
+                              setIsEditingEnrollmentFee(true);
+                            }}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Agreement</p>
@@ -1223,7 +1375,59 @@ export function MemberDetailClient({
                     )}
                   </div>
                   <Progress value={progressPercent} className="h-2" />
-                  <p className="text-sm font-medium mt-2">{membership.paidMonths}/60 months</p>
+                  {isEditingPaidMonths ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={720}
+                        value={paidMonthsValue}
+                        onChange={(e) => setPaidMonthsValue(parseInt(e.target.value) || 0)}
+                        className="h-8 w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">/60 months</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={handleSavePaidMonths}
+                        disabled={isSavingPaidMonths}
+                      >
+                        {isSavingPaidMonths ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          setPaidMonthsValue(membership.paidMonths);
+                          setIsEditingPaidMonths(false);
+                        }}
+                        disabled={isSavingPaidMonths}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 mt-2">
+                      <p className="text-sm font-medium">{membership.paidMonths}/60 months</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          setPaidMonthsValue(membership.paidMonths);
+                          setIsEditingPaidMonths(true);
+                        }}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Payer Indicator */}
@@ -1527,27 +1731,48 @@ export function MemberDetailClient({
                     </>
                   ) : (
                     <>
-                      <div>
+                      {membership.status === "pending" && !membership.stripeCustomerId && !onboardingInvite ? (
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={handleSetupAutopay}
-                          disabled={isSettingUpAutopay || !memberData.email}
+                          onClick={handleStartOnboarding}
+                          disabled={isStartingOnboarding || !memberData.email}
                         >
-                          {isSettingUpAutopay ? (
+                          {isStartingOnboarding ? (
                             <>
                               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                              Setting up...
+                              Starting...
                             </>
                           ) : (
                             <>
-                              <CreditCard className="h-4 w-4 mr-2" />
-                              Set Up Auto-Pay
+                              <Send className="h-4 w-4 mr-2" />
+                              Start Onboarding
                             </>
                           )}
                         </Button>
-                        {!memberData.email && <p className="text-xs text-amber-600 mt-1">Requires email address</p>}
-                      </div>
+                      ) : (
+                        <div>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={handleSetupAutopay}
+                            disabled={isSettingUpAutopay || !memberData.email}
+                          >
+                            {isSettingUpAutopay ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Setting up...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Set Up Auto-Pay
+                              </>
+                            )}
+                          </Button>
+                          {!memberData.email && <p className="text-xs text-amber-600 mt-1">Requires email address</p>}
+                        </div>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"

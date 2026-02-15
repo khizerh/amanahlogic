@@ -6,6 +6,7 @@ import type { Plan, PlanPricing } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ returning?: string }>;
 }
 
 interface DbPlanRow {
@@ -19,8 +20,10 @@ interface DbPlanRow {
   is_active: boolean;
 }
 
-export default async function JoinPage({ params }: PageProps) {
+export default async function JoinPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const { returning: returningParam } = await searchParams;
+  const returning = returningParam === "true";
   const supabase = createServiceRoleClient();
 
   // Fetch org by slug
@@ -106,21 +109,24 @@ export default async function JoinPage({ params }: PageProps) {
           You&apos;ll need a valid email, phone number, and a credit card or bank account.
         </p>
         <p className="mt-2 text-base text-gray-600">
-          Returning member, prefer to pay by cash/check/Zelle, or have questions?
+          <a href={`/join/${slug}?returning=true`} className="text-brand-teal font-medium hover:underline">
+            Returning member? Register here
+          </a>
         </p>
-        <p className="mt-1">
+        <p className="mt-1 text-base text-gray-600">
+          Prefer to pay by cash/check/Zelle, or have questions?{" "}
           {orgEmail ? (
-            <a href={`mailto:${orgEmail}`} className="text-base text-brand-teal font-medium hover:underline">
+            <a href={`mailto:${orgEmail}`} className="text-brand-teal font-medium hover:underline">
               Contact us
             </a>
           ) : orgPhone ? (
-            <a href={`tel:${orgPhone}`} className="text-base text-brand-teal font-medium hover:underline">
+            <a href={`tel:${orgPhone}`} className="text-brand-teal font-medium hover:underline">
               Contact us
             </a>
           ) : (
-            <span className="text-base font-medium text-brand-teal">Contact us</span>
+            <span className="font-medium text-brand-teal">Contact us</span>
           )}
-          <span className="text-base text-gray-600"> and we&apos;ll help you out.</span>
+          <span className="text-gray-600"> and we&apos;ll help you out.</span>
         </p>
       </div>
 
@@ -161,6 +167,7 @@ export default async function JoinPage({ params }: PageProps) {
         orgSlug={org.slug}
         orgName={org.name}
         plans={plans}
+        returning={returning}
       />
 
       {/* Existing member login link */}

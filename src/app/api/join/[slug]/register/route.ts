@@ -7,6 +7,48 @@ import { normalizePhoneNumber } from "@/lib/utils/phone";
 import { orchestrateOnboarding } from "@/lib/onboarding/orchestrate-onboarding";
 import type { BillingFrequency } from "@/lib/types";
 
+// =============================================================================
+// Rate Limiter (best-effort, in-memory)
+// =============================================================================
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+
+  // Clean up stale entries
+  for (const [k, v] of rateLimitMap) {
+    if (now > v.resetAt) {
+      rateLimitMap.delete(k);
+    }
+  }
+
+  const entry = rateLimitMap.get(key);
+  if (!entry) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
+// =============================================================================
+// Route
+// =============================================================================
+
 interface RouteParams {
   params: Promise<{ slug: string }>;
 }
@@ -48,6 +90,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       billingFrequency,
       preferredLanguage,
       children,
+      returning,
     } = body as {
       firstName: string;
       middleName?: string;
@@ -65,9 +108,28 @@ export async function POST(request: Request, { params }: RouteParams) {
       billingFrequency: BillingFrequency;
       preferredLanguage?: "en" | "fa";
       children?: { id: string; name: string; dateOfBirth: string }[];
+      returning?: boolean;
     };
 
-    // 2. Validate required fields
+    // 2. Rate limit returning registrations
+    if (returning) {
+      const forwardedFor = request.headers.get("x-forwarded-for");
+      const realIp = request.headers.get("x-real-ip");
+      const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : realIp?.trim() || null;
+      const normalizedEmail = (email || "").trim().toLowerCase();
+      const rateLimitKey = ip
+        ? `${ip}:${slug}:returning`
+        : `${normalizedEmail}:${slug}:returning`;
+
+      if (!checkRateLimit(rateLimitKey)) {
+        return NextResponse.json(
+          { error: "Too many registration attempts. Please try again later." },
+          { status: 429 }
+        );
+      }
+    }
+
+    // 3. Validate required fields
     if (!firstName || !lastName) {
       return NextResponse.json(
         { error: "First name and last name are required" },
@@ -99,7 +161,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 3. Validate email format
+    // 4. Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
@@ -108,7 +170,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 4. Check for duplicate email in org
+    // 5. Check for duplicate email in org
     const existingMember = await MembersService.getByEmail(org.id, email, supabase);
     if (existingMember) {
       return NextResponse.json(
@@ -117,7 +179,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 5. Validate plan belongs to org and is active
+    // 6. Validate plan belongs to org and is active
     const plan = await PlansService.getById(planId, supabase);
     if (!plan || plan.organizationId !== org.id || !plan.isActive) {
       return NextResponse.json(
@@ -126,13 +188,13 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // 6. Normalize phone numbers
+    // 7. Normalize phone numbers
     const normalizedPhone = normalizePhoneNumber(phone);
     const normalizedEmergencyPhone = emergencyPhone
       ? normalizePhoneNumber(emergencyPhone)
       : "";
 
-    // 7. Create member
+    // 8. Create member
     const member = await MembersService.create(
       {
         organizationId: org.id,
@@ -158,7 +220,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       supabase
     );
 
-    // 8. Create membership
+    // 9. Create membership
     let membership;
     try {
       membership = await MembershipsService.create(
@@ -184,7 +246,15 @@ export async function POST(request: Request, { params }: RouteParams) {
       throw membershipError;
     }
 
-    // 9. Orchestrate onboarding (Stripe SetupIntent, agreement, portal invite, emails)
+    // 10. For returning members, skip orchestration entirely
+    if (returning) {
+      return NextResponse.json({
+        success: true,
+        returning: true,
+      });
+    }
+
+    // 11. Orchestrate onboarding (Stripe SetupIntent, agreement, portal invite, emails)
     const onboarding = await orchestrateOnboarding({
       organizationId: org.id,
       member,
@@ -194,7 +264,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       includeEnrollmentFee: true,
     });
 
-    // 10. Return payment URL
+    // 12. Return payment URL
     if (!onboarding.paymentUrl) {
       return NextResponse.json(
         {

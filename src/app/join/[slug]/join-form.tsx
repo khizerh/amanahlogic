@@ -31,6 +31,7 @@ interface JoinFormProps {
   orgSlug: string;
   orgName: string;
   plans: Plan[];
+  returning?: boolean;
 }
 
 interface Child {
@@ -61,7 +62,7 @@ const FREQUENCY_SHORT: Record<BillingFrequency, string> = {
 // Component
 // =============================================================================
 
-export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
+export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
@@ -195,6 +196,7 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
           billingFrequency,
           preferredLanguage,
           children: children.filter((c) => c.name.trim()),
+          ...(returning ? { returning: true } : {}),
         }),
       });
 
@@ -205,7 +207,9 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
         return;
       }
 
-      if (data.paymentUrl) {
+      if (returning && data.success) {
+        setStep(3);
+      } else if (data.paymentUrl) {
         setPaymentUrl(data.paymentUrl);
         setStep(3);
       }
@@ -228,6 +232,13 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
 
   return (
     <div>
+      {/* Returning member banner */}
+      {returning && step < 3 && (
+        <div className="mb-6 rounded-lg border border-brand-teal/20 bg-brand-teal/5 px-4 py-3 text-sm text-gray-700">
+          Welcome back! Fill out your details below. Your admin will review your account and set up your payment.
+        </div>
+      )}
+
       {/* Progress indicator - hidden on success screen */}
       <div className={`mb-8 flex items-center justify-center gap-0 ${step === 3 ? "hidden" : ""}`}>
         {STEPS.map((_, i) => (
@@ -373,7 +384,7 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
                         {formatCurrency(getPriceForFrequency(selectedPlan, billingFrequency))}
                       </span>
                     </div>
-                    {selectedPlan.enrollmentFee > 0 && (
+                    {!returning && selectedPlan.enrollmentFee > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">One-time enrollment fee</span>
                         <span className="font-medium text-text-dark-slate">
@@ -381,15 +392,23 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
                         </span>
                       </div>
                     )}
-                    <div className="border-t border-brand-teal/10 pt-3 mt-3 flex justify-between">
-                      <span className="font-semibold text-text-dark-slate">Total due today</span>
-                      <span className="text-lg font-bold text-brand-teal">
-                        {formatCurrency(
-                          getPriceForFrequency(selectedPlan, billingFrequency) +
-                            selectedPlan.enrollmentFee
-                        )}
-                      </span>
-                    </div>
+                    {returning ? (
+                      <div className="border-t border-brand-teal/10 pt-3 mt-3">
+                        <p className="text-sm text-gray-600">
+                          Your admin will review your registration and set up your payment.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="border-t border-brand-teal/10 pt-3 mt-3 flex justify-between">
+                        <span className="font-semibold text-text-dark-slate">Total due today</span>
+                        <span className="text-lg font-bold text-brand-teal">
+                          {formatCurrency(
+                            getPriceForFrequency(selectedPlan, billingFrequency) +
+                              selectedPlan.enrollmentFee
+                          )}
+                        </span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -694,7 +713,7 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
                         <span className="font-medium text-text-dark-slate text-right">
                           {formatCurrency(getPriceForFrequency(selectedPlan, billingFrequency))}
                         </span>
-                        {selectedPlan.enrollmentFee > 0 && (
+                        {!returning && selectedPlan.enrollmentFee > 0 && (
                           <>
                             <span className="text-gray-500">Enrollment Fee</span>
                             <span className="font-medium text-text-dark-slate text-right">
@@ -704,15 +723,23 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
                         )}
                       </div>
 
-                      <div className="border-t border-brand-teal/10 pt-3 flex justify-between items-center">
-                        <span className="font-semibold text-text-dark-slate">Total Due Today</span>
-                        <span className="text-xl font-bold text-brand-teal">
-                          {formatCurrency(
-                            getPriceForFrequency(selectedPlan, billingFrequency) +
-                              selectedPlan.enrollmentFee
-                          )}
-                        </span>
-                      </div>
+                      {returning ? (
+                        <div className="border-t border-brand-teal/10 pt-3">
+                          <p className="text-sm text-gray-600">
+                            Your admin will review your registration and set up your payment.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="border-t border-brand-teal/10 pt-3 flex justify-between items-center">
+                          <span className="font-semibold text-text-dark-slate">Total Due Today</span>
+                          <span className="text-xl font-bold text-brand-teal">
+                            {formatCurrency(
+                              getPriceForFrequency(selectedPlan, billingFrequency) +
+                                selectedPlan.enrollmentFee
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -722,7 +749,11 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
           {/* ============================================================= */}
           {/* Success Screen - before payment redirect                      */}
           {/* ============================================================= */}
-          {step === 3 && <SuccessScreen paymentUrl={paymentUrl!} firstName={firstName} email={email} />}
+          {step === 3 && (
+            returning
+              ? <ReturningSuccessScreen firstName={firstName} />
+              : <SuccessScreen paymentUrl={paymentUrl!} firstName={firstName} email={email} />
+          )}
         </motion.div>
       </AnimatePresence>
 
@@ -752,11 +783,37 @@ export function JoinForm({ orgSlug, orgName, plans }: JoinFormProps) {
               disabled={submitting}
               className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
             >
-              {submitting ? "Processing..." : "Join & Pay"}
+              {submitting ? "Processing..." : returning ? "Submit Registration" : "Join & Pay"}
             </Button>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Returning Member Success Screen
+// =============================================================================
+
+function ReturningSuccessScreen({ firstName }: { firstName: string }) {
+  return (
+    <div className="space-y-6">
+      <Card className="border-brand-teal/20 bg-brand-teal/5">
+        <CardContent className="pt-6 text-center">
+          <div className="mx-auto w-14 h-14 rounded-full bg-brand-teal/10 flex items-center justify-center mb-4">
+            <svg className="w-7 h-7 text-brand-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-text-dark-slate mb-2">
+            Welcome back, {firstName}!
+          </h2>
+          <p className="text-gray-600">
+            You&apos;re all set! The admin will review your account, set your membership history, and send you payment and portal information by email.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
