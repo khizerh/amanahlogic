@@ -34,6 +34,7 @@ interface DataTableProps<TData, TValue> {
   onExport?: (data: TData[]) => void;
   pageSize?: number;
   getRowClassName?: (row: TData) => string;
+  onRowClick?: (row: TData) => void;
   meta?: TableMeta<TData>;
 }
 
@@ -47,6 +48,7 @@ export function DataTable<TData, TValue>({
   onExport,
   pageSize = 10,
   getRowClassName,
+  onRowClick,
   meta,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -209,7 +211,8 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={getRowClassName ? getRowClassName(row.original) : undefined}
+                  className={`${getRowClassName ? getRowClassName(row.original) : ""} ${onRowClick ? "cursor-pointer hover:bg-muted/50" : ""}`.trim() || undefined}
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function PendingMembersPage() {
   const organizationId = await getOrganizationId();
-  const applications = await ReturningApplicationsService.getAll(organizationId, "pending");
+  const applications = await ReturningApplicationsService.getAll(organizationId);
 
   return (
     <>

@@ -137,20 +137,31 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
   if (applications.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4 text-center">
-        No pending applications
+        No applications
       </p>
     );
   }
 
-  const columns = returningColumns(openReview);
-
   return (
     <>
       <DataTable
-        columns={columns}
+        columns={returningColumns}
         data={applications}
         searchColumn="name"
         searchPlaceholder="Search by name or email..."
+        filterColumns={[
+          {
+            column: "status",
+            label: "Status",
+            options: [
+              { label: "All", value: "all" },
+              { label: "Pending", value: "pending" },
+              { label: "Approved", value: "approved" },
+              { label: "Rejected", value: "rejected" },
+            ],
+          },
+        ]}
+        onRowClick={openReview}
         pageSize={20}
       />
 
@@ -246,54 +257,79 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
                     <span className="font-medium capitalize">{selectedApp.billingFrequency}</span>
                   </div>
 
-                  {/* Paid Months - plain input */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="paidMonths">Paid Months</Label>
-                    <Input
-                      id="paidMonths"
-                      type="number"
-                      min={0}
-                      max={720}
-                      value={paidMonths}
-                      onChange={(e) => setPaidMonths(parseInt(e.target.value) || 0)}
-                      className="w-full"
-                    />
-                  </div>
+                  {selectedApp.status === "pending" ? (
+                    <>
+                      {/* Paid Months - plain input */}
+                      <div className="space-y-1.5">
+                        <Label htmlFor="paidMonths">Paid Months</Label>
+                        <Input
+                          id="paidMonths"
+                          type="number"
+                          min={0}
+                          max={720}
+                          value={paidMonths}
+                          onChange={(e) => setPaidMonths(parseInt(e.target.value) || 0)}
+                          className="w-full"
+                        />
+                      </div>
 
-                  {/* Waive Enrollment Fee - checkbox */}
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="waiveEnrollmentFee"
-                      checked={waiveEnrollmentFee}
-                      onCheckedChange={(checked) => setWaiveEnrollmentFee(checked === true)}
-                    />
-                    <Label htmlFor="waiveEnrollmentFee" className="text-sm font-normal cursor-pointer">
-                      Waive enrollment fee
-                    </Label>
-                  </div>
+                      {/* Waive Enrollment Fee - checkbox */}
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="waiveEnrollmentFee"
+                          checked={waiveEnrollmentFee}
+                          onCheckedChange={(checked) => setWaiveEnrollmentFee(checked === true)}
+                        />
+                        <Label htmlFor="waiveEnrollmentFee" className="text-sm font-normal cursor-pointer">
+                          Waive enrollment fee
+                        </Label>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Paid Months</span>
+                        <span className="font-medium">{selectedApp.paidMonths}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Enrollment Fee</span>
+                        <span className="font-medium capitalize">{selectedApp.enrollmentFeeStatus}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Status</span>
+                        <Badge variant={selectedApp.status === "approved" ? "success" : "error"}>
+                          {selectedApp.status === "approved" ? "Approved" : "Rejected"}
+                        </Badge>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <div className="border-t" />
+                {selectedApp.status === "pending" && (
+                  <>
+                    <div className="border-t" />
 
-                {/* Actions */}
-                <div className="flex items-center gap-3 pb-4">
-                  <Button
-                    className="flex-1"
-                    onClick={handleApprove}
-                    disabled={isApproving || isRejecting}
-                  >
-                    {isApproving ? "Approving..." : "Approve & Start Onboarding"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => setRejectDialogOpen(true)}
-                    disabled={isApproving || isRejecting}
-                  >
-                    Reject
-                  </Button>
-                </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-3 pb-4">
+                      <Button
+                        className="flex-1"
+                        onClick={handleApprove}
+                        disabled={isApproving || isRejecting}
+                      >
+                        {isApproving ? "Approving..." : "Approve & Start Onboarding"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => setRejectDialogOpen(true)}
+                        disabled={isApproving || isRejecting}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
