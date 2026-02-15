@@ -74,7 +74,7 @@ export default async function ReturningMemberPage({ params }: PageProps) {
     <>
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{org.name}</h1>
-        <p className="mt-2 text-gray-600">Returning Member Registration</p>
+        <p className="mt-2 text-gray-600">Welcome Back</p>
       </div>
 
       <div className="mb-8 text-center">
