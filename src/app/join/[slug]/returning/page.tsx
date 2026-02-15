@@ -74,8 +74,10 @@ export default async function ReturningMemberPage({ params }: PageProps) {
 
       <div className="mb-8 text-center">
         <p className="text-base text-gray-600">
-          This form is for existing members of {org.name}. Fill out your details below
-          and {org.name} will review your information and send you an email with next steps.
+          This form is for existing members of {org.name}.
+        </p>
+        <p className="mt-1 text-base text-gray-600">
+          Fill out your details below and {org.name} will review your information and send you an email with next steps.
         </p>
       </div>
 
