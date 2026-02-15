@@ -100,65 +100,12 @@ export default async function ReturningMemberPage({ params }: PageProps) {
         <p className="mt-2 text-gray-600">Welcome Back</p>
       </div>
 
-      {/* Requirements & help info */}
       <div className="mb-8 text-center">
         <p className="text-base text-gray-600">
-          You&apos;ll need a valid email, phone number, and a credit card or bank account.
-        </p>
-        <p className="mt-2 text-base text-gray-600">
-          <a href={`/join/${slug}`} className="text-brand-teal font-medium hover:underline">
-            New member? Register here
-          </a>
-        </p>
-        <p className="mt-1 text-base text-gray-600">
-          Prefer to pay by cash/check/Zelle, or have questions?{" "}
-          {orgEmail ? (
-            <a href={`mailto:${orgEmail}`} className="text-brand-teal font-medium hover:underline">
-              Contact us
-            </a>
-          ) : orgPhone ? (
-            <a href={`tel:${orgPhone}`} className="text-brand-teal font-medium hover:underline">
-              Contact us
-            </a>
-          ) : (
-            <span className="font-medium text-brand-teal">Contact us</span>
-          )}
-          <span className="text-gray-600"> and we&apos;ll help you out.</span>
+          This form is for existing members of {org.name}. Fill out your details below
+          and {org.name} will review your information and send you an email with next steps.
         </p>
       </div>
-
-      {agreements.length > 0 && (
-        <div className="mb-8 text-center">
-          <p className="text-sm text-gray-500 mb-2">
-            Review our membership agreement before joining:
-          </p>
-          <div className="flex items-center justify-center gap-4">
-            {agreements.map((a) => (
-              <a
-                key={a.label}
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-brand-teal font-medium hover:underline"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="h-4 w-4"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5zm2.25 8.5a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5zm0 3a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {a.label}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
 
       <JoinForm
         orgSlug={org.slug}
@@ -167,9 +114,15 @@ export default async function ReturningMemberPage({ params }: PageProps) {
         returning={true}
       />
 
-      {/* Existing member login link */}
       <p className="mt-10 text-center text-sm text-gray-400">
-        Already a member?{" "}
+        Not a returning member?{" "}
+        <a href={`/join/${slug}`} className="text-brand-teal font-medium hover:underline">
+          Register as a new member
+        </a>
+      </p>
+
+      <p className="mt-3 text-center text-sm text-gray-400">
+        Already have an account?{" "}
         <a href="/portal/login" className="text-brand-teal font-medium hover:underline">
           Log in to your portal
         </a>

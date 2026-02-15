@@ -235,7 +235,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
       {/* Returning member banner */}
       {returning && step < 3 && (
         <div className="mb-6 rounded-lg border border-brand-teal/20 bg-brand-teal/5 px-4 py-3 text-sm text-gray-700">
-          Welcome back! Fill out your details below. Your admin will review your account and set up your payment.
+          Welcome back! Fill out your details below. {orgName} will review your information and send you an email with next steps.
         </div>
       )}
 
