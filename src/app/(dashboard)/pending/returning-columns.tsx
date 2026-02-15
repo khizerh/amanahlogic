@@ -62,13 +62,6 @@ export function returningColumns(
       },
     },
     {
-      accessorKey: "paidMonths",
-      header: "Paid Months",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.paidMonths}</span>
-      ),
-    },
-    {
       accessorKey: "createdAt",
       header: "Submitted",
       cell: ({ row }) => {
