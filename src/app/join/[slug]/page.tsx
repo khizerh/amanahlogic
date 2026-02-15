@@ -105,7 +105,7 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
     <>
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{org.name}</h1>
-        <p className="mt-2 text-gray-600">Become a member</p>
+        <p className="mt-2 text-gray-600">New Member Registration</p>
       </div>
 
       {/* Requirements & help info */}
