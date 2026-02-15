@@ -313,6 +313,43 @@ export interface MemberWithMembership extends Member {
   plan: Plan | null;
 }
 
+// -----------------------------------------------------------------------------
+// Returning Application (pre-approval holding table)
+// -----------------------------------------------------------------------------
+
+export type ReturningApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ReturningApplication {
+  id: string;
+  organizationId: string;
+  status: ReturningApplicationStatus;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: Address;
+  spouseName: string | null;
+  children: Child[];
+  emergencyContact: EmergencyContact;
+  preferredLanguage: CommunicationLanguage;
+  planId: string;
+  billingFrequency: BillingFrequency;
+  paidMonths: number;
+  enrollmentFeeStatus: 'unpaid' | 'paid' | 'waived';
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  adminNotes: string | null;
+  memberId: string | null;
+  membershipId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReturningApplicationWithPlan extends ReturningApplication {
+  plan: Plan;
+}
+
 export interface MembershipWithDetails extends Membership {
   member: Member;
   plan: Plan;

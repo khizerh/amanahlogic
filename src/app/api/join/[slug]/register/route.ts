@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { MembersService } from "@/lib/database/members";
 import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
+import { ReturningApplicationsService } from "@/lib/database/returning-applications";
 import { normalizePhoneNumber } from "@/lib/utils/phone";
 import { orchestrateOnboarding } from "@/lib/onboarding/orchestrate-onboarding";
 import type { BillingFrequency } from "@/lib/types";
@@ -194,7 +195,55 @@ export async function POST(request: Request, { params }: RouteParams) {
       ? normalizePhoneNumber(emergencyPhone)
       : "";
 
-    // 8. Create member
+    // 8. Returning members → create application (no member/membership records)
+    if (returning) {
+      // Check for duplicate pending application
+      const existingApp = await ReturningApplicationsService.getByEmail(
+        org.id,
+        email,
+        supabase
+      );
+      if (existingApp) {
+        return NextResponse.json(
+          { error: "A pending application with this email already exists. Please wait for it to be reviewed." },
+          { status: 400 }
+        );
+      }
+
+      await ReturningApplicationsService.create(
+        {
+          organizationId: org.id,
+          firstName,
+          middleName: middleName || null,
+          lastName,
+          email,
+          phone: normalizedPhone || phone,
+          address: {
+            street: street || "",
+            city: city || "",
+            state: state || "",
+            zip: zip || "",
+          },
+          spouseName: spouseName || null,
+          children: children || [],
+          emergencyContact: {
+            name: emergencyName || "",
+            phone: normalizedEmergencyPhone,
+          },
+          preferredLanguage: preferredLanguage || "en",
+          planId: plan.id,
+          billingFrequency: billingFrequency || "monthly",
+        },
+        supabase
+      );
+
+      return NextResponse.json({
+        success: true,
+        returning: true,
+      });
+    }
+
+    // 9. New members → create member + membership records
     const member = await MembersService.create(
       {
         organizationId: org.id,
@@ -220,7 +269,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       supabase
     );
 
-    // 9. Create membership
+    // 10. Create membership
     let membership;
     try {
       membership = await MembershipsService.create(
@@ -244,14 +293,6 @@ export async function POST(request: Request, { params }: RouteParams) {
         // Best effort cleanup
       }
       throw membershipError;
-    }
-
-    // 10. For returning members, skip orchestration entirely
-    if (returning) {
-      return NextResponse.json({
-        success: true,
-        returning: true,
-      });
     }
 
     // 11. Orchestrate onboarding (Stripe SetupIntent, agreement, portal invite, emails)

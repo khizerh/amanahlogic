@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import Header from "@/components/Header";
-import { Card, CardContent } from "@/components/ui/card";
 import { MembersService } from "@/lib/database/members";
+import { ReturningApplicationsService } from "@/lib/database/returning-applications";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
-import { PendingMembersTable } from "./client";
+import { PendingPageClient } from "./client";
 
 export const metadata: Metadata = {
   title: "Pending Members",
@@ -11,9 +11,11 @@ export const metadata: Metadata = {
 
 export default async function PendingMembersPage() {
   const organizationId = await getOrganizationId();
-  const members = await MembersService.getAllWithMembership(organizationId, {
-    status: "pending",
-  });
+
+  const [returningApplications, pendingMembers] = await Promise.all([
+    ReturningApplicationsService.getAll(organizationId, "pending"),
+    MembersService.getAllWithMembership(organizationId, { status: "pending" }),
+  ]);
 
   return (
     <>
@@ -24,16 +26,14 @@ export default async function PendingMembersPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold">Pending Members</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Members awaiting agreement signature, payment setup, or admin review
+              Returning member applications and new members awaiting onboarding
             </p>
           </div>
 
-          {/* DataTable wrapped in Card */}
-          <Card>
-            <CardContent className="pt-6">
-              <PendingMembersTable members={members} />
-            </CardContent>
-          </Card>
+          <PendingPageClient
+            returningApplications={returningApplications}
+            pendingMembers={pendingMembers}
+          />
         </div>
       </div>
     </>
