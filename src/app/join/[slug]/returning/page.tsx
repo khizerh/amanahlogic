@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { JoinForm } from "../join-form";
-import { AgreementTemplatesService, resolveTemplateUrl } from "@/lib/database/agreement-templates";
 import type { Plan, PlanPricing } from "@/lib/types";
 
 interface PageProps {
@@ -65,33 +64,6 @@ export default async function ReturningMemberPage({ params }: PageProps) {
     createdAt: "",
     updatedAt: "",
   }));
-
-  // Fetch active agreement templates
-  const [enTemplate, faTemplate] = await Promise.all([
-    AgreementTemplatesService.getActiveByLanguage(org.id, "en", supabase),
-    AgreementTemplatesService.getActiveByLanguage(org.id, "fa", supabase),
-  ]);
-
-  const agreements: { label: string; url: string }[] = [];
-  if (enTemplate) {
-    try {
-      const url = await resolveTemplateUrl(enTemplate.storagePath, supabase);
-      agreements.push({ label: "English", url });
-    } catch {
-      // Skip if URL generation fails
-    }
-  }
-  if (faTemplate) {
-    try {
-      const url = await resolveTemplateUrl(faTemplate.storagePath, supabase);
-      agreements.push({ label: "Dari/Farsi", url });
-    } catch {
-      // Skip if URL generation fails
-    }
-  }
-
-  const orgEmail = org.email || null;
-  const orgPhone = org.phone || null;
 
   return (
     <>
