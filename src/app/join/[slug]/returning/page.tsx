@@ -77,35 +77,12 @@ export default async function ReturningMemberPage({ params }: PageProps) {
         <p className="mt-2 text-gray-600">Welcome Back</p>
       </div>
 
-      <div className="mb-8 text-center">
-        <p className="text-base text-gray-600">
-          This form is for existing members of {org.name}.
-        </p>
-        <p className="mt-1 text-base text-gray-600">
-          Fill out your details below and {org.name} will review your information and send you an email with next steps.
-        </p>
-      </div>
-
       <JoinForm
         orgSlug={org.slug}
         orgName={org.name}
         plans={plans}
         returning={true}
       />
-
-      <p className="mt-10 text-center text-sm text-gray-400">
-        Not a returning member?{" "}
-        <a href={`/join/${slug}`} className="text-brand-teal font-medium hover:underline">
-          Register as a new member
-        </a>
-      </p>
-
-      <p className="mt-3 text-center text-sm text-gray-400">
-        Already have an account?{" "}
-        <a href="/portal/login" className="text-brand-teal font-medium hover:underline">
-          Log in to your portal
-        </a>
-      </p>
     </>
   );
 }

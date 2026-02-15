@@ -232,7 +232,17 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
 
   return (
     <div>
-      {/* Returning member banner - removed, info already shown in page header */}
+      {/* Returning intro text - hidden on success */}
+      {returning && step < 3 && (
+        <div className="mb-8 text-center">
+          <p className="text-base text-gray-600">
+            This form is for existing members of {orgName}.
+          </p>
+          <p className="mt-1 text-base text-gray-600">
+            Fill out your details below and {orgName} will review your information and send you an email with next steps.
+          </p>
+        </div>
+      )}
 
       {/* Progress indicator - hidden on success screen */}
       <div className={`mb-8 flex items-center justify-center gap-0 ${step === 3 ? "hidden" : ""}`}>
@@ -782,6 +792,24 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
             </Button>
           )}
         </div>
+      )}
+
+      {/* Bottom links - hidden on success */}
+      {returning && step < 3 && (
+        <>
+          <p className="mt-10 text-center text-sm text-gray-400">
+            Not a returning member?{" "}
+            <a href={`/join/${orgSlug}`} className="text-brand-teal font-medium hover:underline">
+              Register as a new member
+            </a>
+          </p>
+          <p className="mt-3 text-center text-sm text-gray-400">
+            Already have an account?{" "}
+            <a href="/portal/login" className="text-brand-teal font-medium hover:underline">
+              Log in to your portal
+            </a>
+          </p>
+        </>
       )}
     </div>
   );
