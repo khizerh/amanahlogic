@@ -809,7 +809,9 @@ describe("Stripe Webhook Route POST", () => {
       });
       // Check for existing completed payment (idempotency)
       enqueueResult("payments", { data: null });
-      // Check for pending/processing payment to settle
+      // Check for pending/processing payment to settle (PI-based)
+      enqueueResult("payments", { data: null });
+      // Fallback: check for orphaned processing payment (no PI)
       enqueueResult("payments", { data: null });
       // Get membership details for months
       enqueueResult("memberships", {
@@ -960,7 +962,9 @@ describe("Stripe Webhook Route POST", () => {
       });
       // Check for existing completed payment
       enqueueResult("payments", { data: null });
-      // Check for pending/processing payment
+      // Check for pending/processing payment (PI-based)
+      enqueueResult("payments", { data: null });
+      // Fallback: check for orphaned processing payment (no PI)
       enqueueResult("payments", { data: null });
       enqueueResult("memberships", {
         data: {

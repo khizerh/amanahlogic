@@ -659,6 +659,38 @@ async function handleInvoicePaid(
     }
   }
 
+  // Fallback: find orphaned processing payments that were created without a PI
+  // (ACH/Link payments where PI wasn't available on the invoice at creation time)
+  const { data: orphanedProcessing } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("membership_id", membershipId)
+    .eq("method", "stripe")
+    .in("status", ["pending", "processing"])
+    .is("stripe_payment_intent_id", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (orphanedProcessing) {
+    console.log(`[Webhook] Found orphaned processing payment ${orphanedProcessing.id} (no PI) for membership ${membershipId}, settling with PI ${paymentIntentId}`);
+    const result = await settlePayment({
+      paymentId: orphanedProcessing.id,
+      method: "stripe",
+      paidAt: new Date().toISOString(),
+      stripePaymentIntentId: paymentIntentId,
+      supabase,
+    });
+
+    if (!result.success) {
+      console.error("[Webhook] Failed to settle orphaned payment:", result.error);
+      throw new Error(result.error || "Settlement failed");
+    }
+
+    console.log(`[Webhook] Orphaned payment settled: ${orphanedProcessing.id}, new paid_months: ${result.newPaidMonths}, status: ${result.newStatus}`);
+    return;
+  }
+
   // Get membership details for months calculation
   const { data: membershipData } = await supabase
     .from("memberships")
@@ -1317,9 +1349,24 @@ async function handleSetupIntentSucceeded(
     } else if (firstInvoice && firstInvoice.status === "open" && firstInvoice.amount_due > 0) {
       // ACH: Invoice is open (bank debit in transit). Create a pending payment record
       // so it shows in payment history. invoice.paid will settle it when ACH clears.
-      const piId = typeof firstInvoice.payment_intent === "string"
+      let piId = typeof firstInvoice.payment_intent === "string"
         ? firstInvoice.payment_intent
         : firstInvoice.payment_intent?.id;
+
+      // PI may not be on the webhook payload yet for ACH — re-fetch the invoice directly
+      if (!piId) {
+        try {
+          const freshInvoice = await stripe.invoices.retrieve(firstInvoice.id);
+          piId = typeof freshInvoice.payment_intent === "string"
+            ? freshInvoice.payment_intent
+            : (freshInvoice.payment_intent as Stripe.PaymentIntent | null)?.id;
+          if (piId) {
+            console.log(`[Webhook] PI not on webhook payload, fetched from invoice: ${piId}`);
+          }
+        } catch (fetchErr) {
+          console.error("[Webhook] Failed to re-fetch invoice for PI:", fetchErr);
+        }
+      }
 
       const { data: existingPending } = await supabase
         .from("payments")
@@ -1416,40 +1463,24 @@ async function handleSetupIntentSucceeded(
       const tz = orgForTz?.timezone || "America/Los_Angeles";
       const todayStr = getTodayInOrgTimezone(tz);
 
-      // Calculate next_payment_due so billing engine doesn't skip this member
-      // while ACH clears (3-5 days). Uses same logic as settlePayment().
-      const todayDate = parseDateInOrgTimezone(todayStr, tz);
       const billingDay = currentMembership.billing_anniversary_day
-        || Math.min(todayDate.getDate(), 28);
-      const currentDueDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), billingDay);
+        || Math.min(parseDateInOrgTimezone(todayStr, tz).getDate(), 28);
 
-      let monthsCredited = 1;
-      switch (freq) {
-        case "biannual": monthsCredited = 6; break;
-        case "annual": monthsCredited = 12; break;
-      }
-
-      const totalMonths = currentDueDate.getMonth() + monthsCredited;
-      const targetYear = currentDueDate.getFullYear() + Math.floor(totalMonths / 12);
-      const targetMonth = totalMonths % 12;
-      const lastDayTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-      const targetDay = Math.min(billingDay, lastDayTargetMonth);
-      const nextPaymentDue = new Date(targetYear, targetMonth, targetDay)
-        .toISOString().split("T")[0];
-
+      // Don't set next_payment_due here — settlePayment() will advance it
+      // when the ACH payment clears via invoice.paid. Setting it here caused
+      // a double-advance (off by 1 billing cycle).
       const { error: transitionError } = await supabase
         .from("memberships")
         .update({
           status: "current",
           join_date: todayStr,
-          next_payment_due: nextPaymentDue,
           billing_anniversary_day: billingDay,
           updated_at: new Date().toISOString(),
         })
         .eq("id", membershipId);
 
       if (!transitionError) {
-        console.log(`[Webhook] Transitioned membership ${membershipId} from pending → current (subscription active, agreement signed, next_payment_due: ${nextPaymentDue})`);
+        console.log(`[Webhook] Transitioned membership ${membershipId} from pending → current (subscription active, agreement signed)`);
       } else {
         console.error("[Webhook] Failed to transition membership to current:", transitionError);
       }
