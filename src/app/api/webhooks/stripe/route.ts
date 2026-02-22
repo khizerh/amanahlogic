@@ -1356,10 +1356,10 @@ async function handleSetupIntentSucceeded(
       // PI may not be on the webhook payload yet for ACH — re-fetch the invoice directly
       if (!piId) {
         try {
-          const freshInvoice = await stripe.invoices.retrieve(firstInvoice.id);
+          const freshInvoice = await stripe.invoices.retrieve(firstInvoice.id) as InvoiceWithSubscription;
           piId = typeof freshInvoice.payment_intent === "string"
             ? freshInvoice.payment_intent
-            : (freshInvoice.payment_intent as Stripe.PaymentIntent | null)?.id;
+            : freshInvoice.payment_intent?.id;
           if (piId) {
             console.log(`[Webhook] PI not on webhook payload, fetched from invoice: ${piId}`);
           }
