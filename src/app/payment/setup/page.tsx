@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
-import { calculateFees } from "@/lib/stripe";
+import { calculateFees, getPlatformFee } from "@/lib/stripe";
+import type { PlatformFees, BillingFrequency } from "@/lib/types";
 import { SetupClient } from "./SetupClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { XCircle } from "lucide-react";
@@ -54,7 +55,7 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
       .single(),
     supabase
       .from("organizations")
-      .select("id, name, platform_fee, pass_fees_to_member")
+      .select("id, name, platform_fees, pass_fees_to_member")
       .eq("id", metadata.organization_id)
       .single(),
   ]);
@@ -86,14 +87,15 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
   }
 
   const duesAmountCents = Math.round(baseDuesAmount * 100);
-  const duesFees = calculateFees(duesAmountCents, org.platform_fee || 0, passFeesToMember);
+  const platformFeeDollars = getPlatformFee(org.platform_fees as PlatformFees | null, billingFrequency as BillingFrequency);
+  const duesFees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
   const displayDues = memberIsCurrent ? 0 : duesFees.chargeAmountCents / 100;
 
   // Enrollment fee (always run through calculateFees to include platform fee)
   const enrollmentFeeAmountCents = parseInt(metadata.enrollment_fee_amount_cents || "0", 10);
   let displayEnrollmentFee: number | undefined;
   if (enrollmentFeeAmountCents > 0 && !memberIsCurrent) {
-    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, org.platform_fee || 0, passFeesToMember);
+    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, platformFeeDollars, passFeesToMember);
     displayEnrollmentFee = enrollmentFees.chargeAmountCents / 100;
   }
 

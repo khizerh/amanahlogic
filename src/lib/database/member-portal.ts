@@ -31,7 +31,7 @@ export interface MemberDashboardData {
     phone: string;
     email: string;
     timezone: string;
-    platformFee: number;
+    platformFees: { monthly: number; biannual: number; annual: number };
     passFeesToMember: boolean;
   };
   stats: {
@@ -182,7 +182,7 @@ export class MemberPortalService {
         phone: organization.phone,
         email: organization.email,
         timezone: organization.timezone || "America/Los_Angeles",
-        platformFee: organization.platformFee || 0,
+        platformFees: organization.platformFees || { monthly: 0, biannual: 0, annual: 0 },
         passFeesToMember: organization.passFeesToMember || false,
       },
       stats: {
@@ -403,7 +403,7 @@ interface DbOrganizationRow {
   timezone: string;
   stripe_connect_id: string | null;
   stripe_onboarded: boolean;
-  platform_fee: number;
+  platform_fees: { monthly: number; biannual: number; annual: number };
   pass_fees_to_member: boolean;
   created_at: string;
   updated_at: string;
@@ -518,7 +518,7 @@ function transformOrganization(db: DbOrganizationRow): Organization {
     timezone: db.timezone,
     stripeConnectId: db.stripe_connect_id,
     stripeOnboarded: db.stripe_onboarded,
-    platformFee: db.platform_fee,
+    platformFees: db.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: db.pass_fees_to_member,
     createdAt: db.created_at,
     updatedAt: db.updated_at,

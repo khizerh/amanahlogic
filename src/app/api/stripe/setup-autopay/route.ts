@@ -10,8 +10,10 @@ import {
   getOrCreateStripeCustomer,
   createSetupIntent,
   calculateFees,
+  getPlatformFee,
 } from "@/lib/stripe";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
+import type { BillingFrequency } from "@/lib/types";
 
 interface SetupAutopayBody {
   membershipId: string;
@@ -184,11 +186,12 @@ export async function POST(req: Request) {
     }
 
     // Calculate enrollment fee for response
+    const platformFeeDollars = getPlatformFee(org.platformFees, billingFrequency as BillingFrequency);
     let enrollmentFeeAmount: number | undefined;
     if (includeEnrollmentFee) {
       const enrollmentFeeCents = Math.round(plan.enrollmentFee * 100);
       if (org.passFeesToMember) {
-        const enrollmentFees = calculateFees(enrollmentFeeCents, org.platformFee || 0, true);
+        const enrollmentFees = calculateFees(enrollmentFeeCents, platformFeeDollars, true);
         enrollmentFeeAmount = enrollmentFees.chargeAmountCents;
       } else {
         enrollmentFeeAmount = enrollmentFeeCents;

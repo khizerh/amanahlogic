@@ -13,9 +13,11 @@ import {
   createMembershipSubscription,
   createSetupIntent,
   calculateFees,
+  getPlatformFee,
   cancelSubscription,
 } from "@/lib/stripe";
 import { sendPaymentSetupEmail } from "@/lib/email";
+import type { BillingFrequency } from "@/lib/types";
 
 interface AssignPayerBody {
   membershipId: string;
@@ -176,7 +178,7 @@ export async function POST(req: Request) {
           duesAmountCents,
           billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
           passFeesToMember: org.passFeesToMember || false,
-          platformFeeDollars: org.platformFee || 0,
+          platformFeeDollars: getPlatformFee(org.platformFees, billingFrequency as BillingFrequency),
           stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
           stripeConnectOnboarded: org.stripeOnboarded,
           trialEnd,
@@ -282,7 +284,7 @@ export async function POST(req: Request) {
       // Send payment setup email to PAYER
       const fees = calculateFees(
         duesAmountCents,
-        org.platformFee || 0,
+        getPlatformFee(org.platformFees, billingFrequency as BillingFrequency),
         org.passFeesToMember || false
       );
 

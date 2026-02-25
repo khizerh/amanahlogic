@@ -7,6 +7,7 @@ import type {
   OrganizationSettings,
   BillingConfig,
   Address,
+  PlatformFees,
 } from "@/lib/types";
 
 // =============================================================================
@@ -22,7 +23,7 @@ export interface CreateOrganizationInput {
   timezone?: string;
   stripeConnectId?: string;
   stripeOnboarded?: boolean;
-  platformFee?: number;
+  platformFees?: PlatformFees;
   passFeesToMember?: boolean;
 }
 
@@ -129,7 +130,7 @@ export class OrganizationsService {
         timezone: input.timezone || "America/Los_Angeles",
         stripe_connect_id: input.stripeConnectId || null,
         stripe_onboarded: input.stripeOnboarded || false,
-        platform_fee: input.platformFee || 0,
+        platform_fees: input.platformFees || { monthly: 0, biannual: 0, annual: 0 },
         pass_fees_to_member: input.passFeesToMember ?? false,
       })
       .select()
@@ -149,23 +150,27 @@ export class OrganizationsService {
     const client = supabase ?? (await createClientForContext());
     const { id, ...updates } = input;
 
-    if (updates.platformFee !== undefined || updates.passFeesToMember !== undefined) {
+    if (updates.platformFees !== undefined || updates.passFeesToMember !== undefined) {
       const { data: currentOrg, error: currentOrgError } = await client
         .from("organizations")
-        .select("platform_fee, pass_fees_to_member")
+        .select("platform_fees, pass_fees_to_member")
         .eq("id", id)
         .single();
 
       if (currentOrgError) throw currentOrgError;
 
-      const platformFeeChanging =
-        updates.platformFee !== undefined &&
-        updates.platformFee !== (currentOrg?.platform_fee ?? 0);
+      const currentFees = (currentOrg?.platform_fees as PlatformFees | null) || { monthly: 0, biannual: 0, annual: 0 };
+      const platformFeesChanging =
+        updates.platformFees !== undefined && (
+          updates.platformFees.monthly !== currentFees.monthly ||
+          updates.platformFees.biannual !== currentFees.biannual ||
+          updates.platformFees.annual !== currentFees.annual
+        );
       const passFeesChanging =
         updates.passFeesToMember !== undefined &&
         updates.passFeesToMember !== (currentOrg?.pass_fees_to_member ?? false);
 
-      if (platformFeeChanging || passFeesChanging) {
+      if (platformFeesChanging || passFeesChanging) {
         const { count, error: activeSubsError } = await client
           .from("memberships")
           .select("id", { count: "exact", head: true })
@@ -194,8 +199,8 @@ export class OrganizationsService {
       dbUpdates.stripe_connect_id = updates.stripeConnectId;
     if (updates.stripeOnboarded !== undefined)
       dbUpdates.stripe_onboarded = updates.stripeOnboarded;
-    if (updates.platformFee !== undefined)
-      dbUpdates.platform_fee = updates.platformFee;
+    if (updates.platformFees !== undefined)
+      dbUpdates.platform_fees = updates.platformFees;
     if (updates.passFeesToMember !== undefined)
       dbUpdates.pass_fees_to_member = updates.passFeesToMember;
 
@@ -372,7 +377,7 @@ interface DbOrganizationRow {
   timezone: string | null;
   stripe_connect_id: string | null;
   stripe_onboarded: boolean;
-  platform_fee: number | null;
+  platform_fees: PlatformFees | null;
   pass_fees_to_member: boolean | null;
   created_at: string;
   updated_at: string;
@@ -402,7 +407,7 @@ function transformOrganization(dbOrg: DbOrganizationRow): Organization {
     timezone: dbOrg.timezone || "America/Los_Angeles",
     stripeConnectId: dbOrg.stripe_connect_id,
     stripeOnboarded: dbOrg.stripe_onboarded,
-    platformFee: dbOrg.platform_fee || 0,
+    platformFees: dbOrg.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: dbOrg.pass_fees_to_member || false,
     createdAt: dbOrg.created_at,
     updatedAt: dbOrg.updated_at,

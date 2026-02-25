@@ -683,7 +683,7 @@ export type Database = {
           name: string
           pass_fees_to_member: boolean | null
           phone: string | null
-          platform_fee: number | null
+          platform_fees: Json | null
           slug: string
           stripe_connect_id: string | null
           stripe_onboarded: boolean | null
@@ -698,7 +698,7 @@ export type Database = {
           name: string
           pass_fees_to_member?: boolean | null
           phone?: string | null
-          platform_fee?: number | null
+          platform_fees?: Json | null
           slug: string
           stripe_connect_id?: string | null
           stripe_onboarded?: boolean | null
@@ -713,7 +713,7 @@ export type Database = {
           name?: string
           pass_fees_to_member?: boolean | null
           phone?: string | null
-          platform_fee?: number | null
+          platform_fees?: Json | null
           slug?: string
           stripe_connect_id?: string | null
           stripe_onboarded?: boolean | null

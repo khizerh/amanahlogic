@@ -8,10 +8,10 @@ import {
   getTodayInOrgTimezone,
   parseDateInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
-import { calculateFees, reverseCalculateBaseAmount, createMembershipSubscription } from "@/lib/stripe";
+import { calculateFees, reverseCalculateBaseAmount, createMembershipSubscription, getPlatformFee } from "@/lib/stripe";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
-import type { BillingFrequency, PaymentMethod } from "@/lib/types";
+import type { BillingFrequency, PaymentMethod, PlatformFees } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -466,10 +466,10 @@ async function handleInvoiceCreated(
     : invoice.subscription.id;
 
   // Look up membership by subscription ID
-  let membership: { id: string; organization_id: string } | null = null;
+  let membership: { id: string; organization_id: string; billing_frequency: string | null } | null = null;
   const { data: membershipBySubId } = await supabase
     .from("memberships")
-    .select("id, organization_id")
+    .select("id, organization_id, billing_frequency")
     .eq("stripe_subscription_id", subscriptionId)
     .single();
 
@@ -484,6 +484,7 @@ async function handleInvoiceCreated(
       membership = {
         id: subMetadata.membership_id,
         organization_id: subMetadata.organization_id,
+        billing_frequency: subMetadata.billing_frequency || null,
       };
     }
   }
@@ -496,7 +497,7 @@ async function handleInvoiceCreated(
   // Get org's Connect and fee settings
   const { data: org } = await supabase
     .from("organizations")
-    .select("stripe_connect_id, stripe_onboarded, platform_fee, pass_fees_to_member")
+    .select("stripe_connect_id, stripe_onboarded, platform_fees, pass_fees_to_member")
     .eq("id", membership.organization_id)
     .single();
 
@@ -513,7 +514,8 @@ async function handleInvoiceCreated(
     return;
   }
 
-  const platformFeeDollars = org.platform_fee || 0;
+  const billingFrequency = (membership.billing_frequency || "monthly") as BillingFrequency;
+  const platformFeeDollars = getPlatformFee(org.platform_fees as PlatformFees | null, billingFrequency);
   const passFeesToMember = org.pass_fees_to_member || false;
 
   // Determine the base amount for fee calculation
@@ -703,18 +705,21 @@ async function handleInvoicePaid(
     return;
   }
 
-  // Get organization for timezone, platform fee, and fee settings
+  // Get organization for timezone, platform fees, and fee settings
   const { data: org } = await supabase
     .from("organizations")
-    .select("timezone, platform_fee, stripe_connect_id, pass_fees_to_member")
+    .select("timezone, platform_fees, stripe_connect_id, pass_fees_to_member")
     .eq("id", organizationId)
     .single();
 
   const orgTimezone = org?.timezone || "America/Los_Angeles";
-  const platformFeeDollars = org?.platform_fee || 0;
   const isConnectPayment = !!org?.stripe_connect_id;
   const passFeesToMember = org?.pass_fees_to_member || false;
   const today = getTodayInOrgTimezone(orgTimezone);
+
+  // Resolve billing frequency first so we can get the correct per-frequency platform fee
+  const billingFrequency = membershipData.billing_frequency as BillingFrequency;
+  const platformFeeDollars = getPlatformFee(org?.platform_fees as PlatformFees | null, billingFrequency);
 
   // Determine base amount (dues) vs total charged
   // In both modes, the charge includes the platform fee, so we always reverse calculate
@@ -722,9 +727,6 @@ async function handleInvoicePaid(
   const baseAmountCents = reverseCalculateBaseAmount(chargeAmountCents, platformFeeDollars, passFeesToMember);
   const baseAmount = baseAmountCents / 100;
 
-  // Calculate months credited based on billing frequency and plan pricing
-  // Use baseAmount (actual dues) for comparison, not the charged amount
-  const billingFrequency = membershipData.billing_frequency as BillingFrequency;
   // Type assertion for joined plan data
   const planData = membershipData.plan as unknown as { pricing: { monthly: number; biannual: number; annual: number } } | { pricing: { monthly: number; biannual: number; annual: number } }[] | null;
   const planPricing = Array.isArray(planData)
@@ -1049,11 +1051,11 @@ async function handleSetupIntentSucceeded(
   // Get org for fee calculation
   const { data: org } = await supabase
     .from("organizations")
-    .select("timezone, platform_fee, stripe_connect_id, stripe_onboarded, pass_fees_to_member")
+    .select("timezone, platform_fees, stripe_connect_id, stripe_onboarded, pass_fees_to_member")
     .eq("id", organizationId)
     .single();
 
-  const platformFeeDollars = org?.platform_fee || 0;
+  const platformFeeDollars = getPlatformFee(org?.platform_fees as PlatformFees | null, freq);
 
   // Calculate fees for enrollment fee (subscription fees handled by shared helper)
   const fees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);

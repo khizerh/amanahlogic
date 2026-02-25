@@ -13,7 +13,8 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
-import { stripe, calculateFees } from "@/lib/stripe";
+import { stripe, calculateFees, getPlatformFee } from "@/lib/stripe";
+import type { BillingFrequency } from "@/lib/types";
 import { StripePortalButton } from "./profile/StripePortalButton";
 
 function formatDate(dateString: string | null, timeZone?: string): string {
@@ -354,7 +355,7 @@ export default async function MemberDashboardPage() {
                     );
                   }
                   const baseCents = Math.round(basePrice * 100);
-                  const fees = calculateFees(baseCents, organization.platformFee, organization.passFeesToMember);
+                  const fees = calculateFees(baseCents, getPlatformFee(organization.platformFees, membership.billingFrequency as BillingFrequency), organization.passFeesToMember);
                   return (
                     <p className="text-sm text-muted-foreground">
                       {formatCurrency(fees.chargeAmountCents / 100)}

@@ -16,8 +16,9 @@ import {
   getOrCreateStripeCustomer,
   createSetupIntent,
   calculateFees,
+  getPlatformFee,
 } from "@/lib/stripe";
-import type { Member, Membership, Plan, Organization } from "@/lib/types";
+import type { Member, Membership, Plan, Organization, BillingFrequency } from "@/lib/types";
 
 // =============================================================================
 // Types
@@ -162,9 +163,10 @@ export async function orchestrateOnboarding(
       });
 
       // Calculate fees for email display
+      const platformFeeDollars = getPlatformFee(org?.platformFees, billingFrequency as BillingFrequency);
       const fees = calculateFees(
         Math.round(priceAmount * 100),
-        org?.platformFee || 0,
+        platformFeeDollars,
         org?.passFeesToMember || false
       );
 
@@ -174,7 +176,7 @@ export async function orchestrateOnboarding(
         const enrollmentFeeCents = Math.round(enrollmentFeeBase * 100);
 
         if (org?.passFeesToMember) {
-          const enrollmentFees = calculateFees(enrollmentFeeCents, org.platformFee || 0, true);
+          const enrollmentFees = calculateFees(enrollmentFeeCents, platformFeeDollars, true);
           enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
         } else {
           enrollmentFeeForEmail = enrollmentFeeBase;

@@ -51,7 +51,7 @@ export const mockOrganization: Organization = {
   timezone: 'America/Chicago',
   stripeConnectId: null,
   stripeOnboarded: false,
-  platformFee: 2.0,
+  platformFees: { monthly: 2, biannual: 9, annual: 12 },
   passFeesToMember: false,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',

@@ -179,6 +179,7 @@ vi.mock("@/lib/billing/invoice-generator", () => ({
 vi.mock("@/lib/stripe", () => ({
   calculateFees: (...args: unknown[]) => mockCalculateFees(...args),
   reverseCalculateBaseAmount: (...args: unknown[]) => mockReverseCalculateBaseAmount(...args),
+  getPlatformFee: (fees: Record<string, number> | null | undefined, freq: string) => fees?.[freq] || 0,
 }));
 
 vi.mock("@/lib/email/send-payment-receipt", () => ({
@@ -640,13 +641,13 @@ describe("Stripe Webhook Route POST", () => {
 
       enqueueResult("stripe_webhook_events", { data: null });
       enqueueResult("memberships", {
-        data: { id: "mem_connect", organization_id: "org_connect" },
+        data: { id: "mem_connect", organization_id: "org_connect", billing_frequency: "monthly" },
       });
       enqueueResult("organizations", {
         data: {
           stripe_connect_id: "acct_connect",
           stripe_onboarded: true,
-          platform_fee: 3.0,
+          platform_fees: { monthly: 3, biannual: 3, annual: 3 },
           pass_fees_to_member: false,
         },
       });
@@ -716,13 +717,13 @@ describe("Stripe Webhook Route POST", () => {
 
       enqueueResult("stripe_webhook_events", { data: null });
       enqueueResult("memberships", {
-        data: { id: "mem_zero", organization_id: "org_zero" },
+        data: { id: "mem_zero", organization_id: "org_zero", billing_frequency: "monthly" },
       });
       enqueueResult("organizations", {
         data: {
           stripe_connect_id: "acct_zero",
           stripe_onboarded: true,
-          platform_fee: 3.0,
+          platform_fees: { monthly: 3, biannual: 3, annual: 3 },
           pass_fees_to_member: false,
         },
       });
@@ -745,13 +746,13 @@ describe("Stripe Webhook Route POST", () => {
 
       enqueueResult("stripe_webhook_events", { data: null });
       enqueueResult("memberships", {
-        data: { id: "mem_nc", organization_id: "org_nc" },
+        data: { id: "mem_nc", organization_id: "org_nc", billing_frequency: "monthly" },
       });
       enqueueResult("organizations", {
         data: {
           stripe_connect_id: null,
           stripe_onboarded: false,
-          platform_fee: 0,
+          platform_fees: { monthly: 0, biannual: 0, annual: 0 },
           pass_fees_to_member: false,
         },
       });
@@ -824,7 +825,7 @@ describe("Stripe Webhook Route POST", () => {
       enqueueResult("organizations", {
         data: {
           timezone: "America/New_York",
-          platform_fee: 3.0,
+          platform_fees: { monthly: 3, biannual: 3, annual: 3 },
           stripe_connect_id: "acct_paid",
           pass_fees_to_member: false,
         },
@@ -975,7 +976,7 @@ describe("Stripe Webhook Route POST", () => {
       enqueueResult("organizations", {
         data: {
           timezone: "UTC",
-          platform_fee: 0,
+          platform_fees: { monthly: 0, biannual: 0, annual: 0 },
           stripe_connect_id: null,
           pass_fees_to_member: false,
         },

@@ -1,6 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
+import type { PlatformFees, BillingFrequency } from "@/lib/types";
 
 // Initialize Stripe client
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -549,10 +550,22 @@ export interface FeeCalculation {
 }
 
 /**
+ * Resolve the platform fee for a specific billing frequency.
+ * Returns the dollar amount for the given frequency from the org's platform fees.
+ */
+export function getPlatformFee(
+  platformFees: PlatformFees | null | undefined,
+  frequency: BillingFrequency
+): number {
+  if (!platformFees) return 0;
+  return platformFees[frequency] || 0;
+}
+
+/**
  * Calculate fees for a payment
  *
  * @param baseAmountCents - The base amount (e.g., dues amount) in cents
- * @param platformFeeDollars - The platform fee in dollars (from org.platformFee)
+ * @param platformFeeDollars - The platform fee in dollars (from org.platformFees)
  * @param passFeesToMember - If true, gross-up so org receives full base amount
  * @returns Fee calculation with all breakdowns
  */

@@ -735,18 +735,32 @@ export function SettingsPageClient({
                           <div>
                             <p className="font-medium">Platform Fee</p>
                             <p className="text-sm text-muted-foreground">
-                              Amanah Logic service fee — always included in member payments
+                              Amanah Logic service fee per billing frequency
                             </p>
                           </div>
-                          <p className="font-mono text-sm">${organization.platformFee.toFixed(2)}</p>
+                          <div className="text-right font-mono text-sm space-y-1">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">Monthly</span>
+                              <span>${organization.platformFees.monthly.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">Biannual</span>
+                              <span>${organization.platformFees.biannual.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">Annual</span>
+                              <span>${organization.platformFees.annual.toFixed(2)}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Example Calculation - Dynamic based on setting */}
+                      {/* Example Calculation - Dynamic based on setting, shown for monthly */}
                       {(() => {
                         const baseDues = 50;
                         const baseCents = baseDues * 100;
-                        const platformFeeCents = Math.round(organization.platformFee * 100);
+                        const monthlyFee = organization.platformFees.monthly;
+                        const platformFeeCents = Math.round(monthlyFee * 100);
                         const stripePercent = 0.029;
                         const stripeFixed = 30; // cents
 
@@ -758,12 +772,12 @@ export function SettingsPageClient({
                           const stripeFeeCents = Math.round(chargeCents * stripePercent) + stripeFixed;
                           const chargeAmount = chargeCents / 100;
                           const stripeFee = stripeFeeCents / 100;
-                          const totalFees = stripeFee + organization.platformFee;
+                          const totalFees = stripeFee + monthlyFee;
 
                           return (
                             <div className="p-4 bg-muted/50 rounded-lg">
                               <p className="text-sm font-medium mb-3">
-                                Example: ${baseDues} dues (fees passed to member)
+                                Example: ${baseDues} monthly dues (fees passed to member)
                               </p>
                               <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
@@ -784,7 +798,7 @@ export function SettingsPageClient({
                                 </div>
                                 <div className="flex justify-between text-muted-foreground">
                                   <span>Platform keeps</span>
-                                  <span>-${organization.platformFee.toFixed(2)}</span>
+                                  <span>-${monthlyFee.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between pt-2 border-t font-medium">
                                   <span>You receive</span>
@@ -804,7 +818,7 @@ export function SettingsPageClient({
                           return (
                             <div className="p-4 bg-muted/50 rounded-lg">
                               <p className="text-sm font-medium mb-3">
-                                Example: ${baseDues} dues (org absorbs Stripe fees)
+                                Example: ${baseDues} monthly dues (org absorbs Stripe fees)
                               </p>
                               <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
@@ -813,7 +827,7 @@ export function SettingsPageClient({
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-muted-foreground">+ Platform fee</span>
-                                  <span>+${organization.platformFee.toFixed(2)}</span>
+                                  <span>+${monthlyFee.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between pt-2 border-t">
                                   <span className="font-medium">Member pays</span>
@@ -825,7 +839,7 @@ export function SettingsPageClient({
                                 </div>
                                 <div className="flex justify-between text-muted-foreground">
                                   <span>Platform fee (to Amanah Logic)</span>
-                                  <span className="text-red-600">-${organization.platformFee.toFixed(2)}</span>
+                                  <span className="text-red-600">-${monthlyFee.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between pt-2 border-t font-medium">
                                   <span>You receive</span>
@@ -838,7 +852,7 @@ export function SettingsPageClient({
                       })()}
 
                       <p className="text-xs text-muted-foreground">
-                        The ${organization.platformFee.toFixed(2)} platform fee is always included in member payments.{" "}
+                        Platform fees vary by billing frequency: ${organization.platformFees.monthly.toFixed(2)} monthly, ${organization.platformFees.biannual.toFixed(2)} biannual, ${organization.platformFees.annual.toFixed(2)} annual.{" "}
                         {organization.passFeesToMember
                           ? "Stripe processing fees are also passed to members. You receive the full dues amount."
                           : "Stripe processing fees are deducted from each transaction. You receive the net amount after Stripe fees."}

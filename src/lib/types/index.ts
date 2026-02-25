@@ -32,6 +32,12 @@ export type CommunicationLanguage = 'en' | 'fa'; // English, Farsi
 // Organization
 // -----------------------------------------------------------------------------
 
+export interface PlatformFees {
+  monthly: number;
+  biannual: number;
+  annual: number;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -42,7 +48,7 @@ export interface Organization {
   timezone: string;
   stripeConnectId: string | null;
   stripeOnboarded: boolean;
-  platformFee: number; // Fixed dollar amount per transaction
+  platformFees: PlatformFees; // Per-frequency platform fees
   passFeesToMember: boolean; // If true, gross-up charges so org receives full amount
   createdAt: string;
   updatedAt: string;
