@@ -47,15 +47,15 @@ export function MembersTable({ members }: MembersTableProps) {
       }
 
       const needsAgreement = !membership.agreementSignedAt;
-      const needsPayment = !membership.autoPayEnabled && !membership.stripeSubscriptionId;
+      const needsPortal = !member.userId;
 
-      if (!needsAgreement && !needsPayment) {
+      if (!needsAgreement && !needsPortal) {
         continue; // Nothing to remind about
       }
 
       const details: string[] = [];
       if (needsAgreement) details.push("Agreement");
-      if (needsPayment) details.push("Payment");
+      if (needsPortal) details.push("Portal");
 
       recipients.push({
         id: member.id,
@@ -212,15 +212,15 @@ export function MembersTable({ members }: MembersTableProps) {
         open={bulkReminderOpen}
         onOpenChange={setBulkReminderOpen}
         title="Send Pending Member Reminders"
-        description="Send reminder emails to pending members who haven't completed their agreement and/or payment setup."
+        description="Send reminder emails to pending members who haven't completed their agreement and/or portal setup."
         emailDescriptions={[
           {
             label: "Sign Your Membership Agreement",
             summary: "Asks the member to review and sign their membership agreement via a secure signing link.",
           },
           {
-            label: "Complete Your Membership Setup",
-            summary: "Asks the member to complete their Stripe payment setup — includes their plan name, enrollment fee, and recurring dues amount.",
+            label: "Portal Invite",
+            summary: "Sends the member a link to set up their member portal account where they can view their membership details.",
           },
         ]}
         recipients={reminderRecipients}

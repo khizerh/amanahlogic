@@ -3,27 +3,22 @@ import { randomUUID } from "crypto";
 
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { MembersService } from "@/lib/database/members";
-import { OrganizationsService } from "@/lib/database/organizations";
 import { AgreementsService } from "@/lib/database/agreements";
 import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 import { AgreementTemplatesService } from "@/lib/database/agreement-templates";
-import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { sendAgreementEmail } from "@/lib/email/send-agreement";
-import { sendPaymentSetupEmail } from "@/lib/email/send-payment-setup";
-import {
-  stripe,
-  isStripeConfigured,
-  calculateFees,
-  getPlatformFee,
-} from "@/lib/stripe";
-import type { BillingFrequency, MemberWithMembership } from "@/lib/types";
+import { sendMemberInviteEmail } from "@/lib/email/send-member-invite";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import type { MemberWithMembership } from "@/lib/types";
 
 /**
  * POST /api/reminders/pending-members
  *
  * Sends bulk email reminders to pending members:
  * - Agreement email if agreement not signed
- * - Payment setup email if payment not set up
+ * - Portal invite email if member hasn't linked their portal account
+ *
+ * Payment setup reminders are handled separately on the onboarding tab.
  */
 export async function POST() {
   try {
@@ -34,14 +29,6 @@ export async function POST() {
     const pendingMembers = allMembers.filter(
       (m) => m.membership?.status === "pending"
     );
-
-    const org = await OrganizationsService.getById(organizationId);
-    if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
-      );
-    }
 
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -68,27 +55,7 @@ export async function POST() {
 
       const memberName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ""}${member.lastName}`;
 
-      // Determine email recipient
-      let emailTo: string | null = member.email;
-      let emailMemberName = member.firstName;
-      let emailMemberId = member.id;
-      let payingForName: string | undefined;
-
-      if (membership.payerMemberId) {
-        try {
-          const payer = await MembersService.getById(membership.payerMemberId);
-          if (payer?.email) {
-            emailTo = payer.email;
-            emailMemberName = payer.firstName;
-            emailMemberId = payer.id;
-            payingForName = memberName;
-          }
-        } catch {
-          // Fall back to member email
-        }
-      }
-
-      if (!emailTo) {
+      if (!member.email) {
         skipped++;
         results.push({
           memberId: member.id,
@@ -100,10 +67,9 @@ export async function POST() {
       }
 
       const needsAgreement = !membership.agreementSignedAt;
-      const needsPayment =
-        !membership.autoPayEnabled && !membership.stripeSubscriptionId;
+      const needsPortal = !member.userId;
 
-      if (!needsAgreement && !needsPayment) {
+      if (!needsAgreement && !needsPortal) {
         skipped++;
         results.push({
           memberId: member.id,
@@ -115,7 +81,7 @@ export async function POST() {
       }
 
       let agreementSent = false;
-      let paymentSent = false;
+      let portalSent = false;
 
       // Send agreement email if needed
       if (needsAgreement) {
@@ -150,44 +116,25 @@ export async function POST() {
         }
       }
 
-      // Send payment setup email if needed
-      if (needsPayment && isStripeConfigured() && stripe) {
+      // Send portal invite email if needed
+      if (needsPortal) {
         try {
-          const paymentResult = await sendPaymentReminder(
+          const portalResult = await sendPortalInviteReminder(
             member,
             organizationId,
-            org,
-            baseUrl,
-            emailTo,
-            emailMemberName,
-            emailMemberId,
-            payingForName
+            baseUrl
           );
-          if (paymentResult.success) {
-            paymentSent = true;
+          if (portalResult.success) {
+            portalSent = true;
           } else {
-            if (paymentResult.error !== "skipped") {
-              results.push({
-                memberId: member.id,
-                memberName,
-                success: false,
-                error: paymentResult.error || "Payment email failed",
-                type: "payment",
-              });
-              failed++;
-            } else {
-              // No pending onboarding invite — nothing to resend
-              if (!agreementSent) {
-                skipped++;
-                results.push({
-                  memberId: member.id,
-                  memberName,
-                  success: false,
-                  error: "No pending payment setup",
-                  type: "payment",
-                });
-              }
-            }
+            results.push({
+              memberId: member.id,
+              memberName,
+              success: false,
+              error: portalResult.error || "Portal invite failed",
+              type: "portal",
+            });
+            failed++;
           }
         } catch (err) {
           results.push({
@@ -195,18 +142,18 @@ export async function POST() {
             memberName,
             success: false,
             error:
-              err instanceof Error ? err.message : "Payment email error",
-            type: "payment",
+              err instanceof Error ? err.message : "Portal invite error",
+            type: "portal",
           });
           failed++;
         }
       }
 
-      if (agreementSent || paymentSent) {
+      if (agreementSent || portalSent) {
         sent++;
         const types = [
           agreementSent ? "agreement" : null,
-          paymentSent ? "payment" : null,
+          portalSent ? "portal" : null,
         ]
           .filter(Boolean)
           .join(" + ");
@@ -296,90 +243,49 @@ async function sendAgreementReminder(
 }
 
 /**
- * Send payment setup reminder — retrieves existing SetupIntent and resends email
+ * Send portal invite — creates a new member_invites record and sends invite email.
+ * Reuses logic from /api/members/invite
  */
-async function sendPaymentReminder(
+async function sendPortalInviteReminder(
   member: MemberWithMembership,
   organizationId: string,
-  org: { platformFees: any; passFeesToMember: boolean },
-  baseUrl: string,
-  emailTo: string,
-  emailMemberName: string,
-  emailMemberId: string,
-  payingForName?: string
+  baseUrl: string
 ): Promise<{ success: boolean; error?: string }> {
-  const membership = member.membership!;
+  const supabase = createServiceRoleClient();
+  const memberName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ""}${member.lastName}`;
 
-  // Look up existing pending onboarding invite
-  const invite = await OnboardingInvitesService.getPendingForMembership(
-    membership.id
-  );
-  if (!invite || !invite.stripeSetupIntentId) {
-    return { success: false, error: "skipped" };
+  // Cancel any existing pending invites
+  await supabase
+    .from("member_invites")
+    .update({ status: "expired" })
+    .eq("member_id", member.id)
+    .eq("status", "pending");
+
+  // Create new invite
+  const { data: invite, error: inviteError } = await supabase
+    .from("member_invites")
+    .insert({
+      organization_id: organizationId,
+      member_id: member.id,
+      email: member.email,
+    })
+    .select()
+    .single();
+
+  if (inviteError) {
+    return { success: false, error: inviteError.message };
   }
 
-  // Retrieve existing SetupIntent
-  const setupIntent = await stripe!.setupIntents.retrieve(
-    invite.stripeSetupIntentId
-  );
+  const inviteUrl = `${baseUrl}/portal/accept-invite?token=${invite.token}`;
 
-  if (
-    setupIntent.status === "canceled" ||
-    setupIntent.status === "succeeded"
-  ) {
-    return {
-      success: false,
-      error:
-        setupIntent.status === "succeeded"
-          ? "Setup already complete"
-          : "Setup expired",
-    };
-  }
-
-  const checkoutUrl = `${baseUrl}/payment/setup?setup_intent=${setupIntent.id}&setup_intent_client_secret=${setupIntent.client_secret}`;
-
-  const billingFrequency = (membership.billingFrequency ||
-    "monthly") as BillingFrequency;
-  const platformFeeDollars = getPlatformFee(
-    org.platformFees,
-    billingFrequency
-  );
-  const fees = calculateFees(
-    Math.round(invite.duesAmount * 100),
-    platformFeeDollars,
-    org.passFeesToMember || false
-  );
-
-  let enrollmentFeeForEmail: number | undefined;
-  if (
-    invite.includesEnrollmentFee &&
-    invite.enrollmentFeeAmount > 0 &&
-    !invite.enrollmentFeePaidAt
-  ) {
-    if (org.passFeesToMember) {
-      const enrollmentFees = calculateFees(
-        Math.round(invite.enrollmentFeeAmount * 100),
-        platformFeeDollars,
-        true
-      );
-      enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
-    } else {
-      enrollmentFeeForEmail = invite.enrollmentFeeAmount;
-    }
-  }
-
-  const emailResult = await sendPaymentSetupEmail({
-    to: emailTo,
-    memberName: emailMemberName,
-    memberId: emailMemberId,
+  const emailResult = await sendMemberInviteEmail({
+    to: member.email!,
+    memberName,
+    memberId: member.id,
     organizationId,
-    checkoutUrl,
-    planName: member.plan?.name || "Membership",
-    enrollmentFee: enrollmentFeeForEmail,
-    duesAmount: fees.chargeAmountCents / 100,
-    billingFrequency,
+    inviteUrl,
+    expiresAt: invite.expires_at,
     language: member.preferredLanguage || "en",
-    payingForName,
   });
 
   return {
