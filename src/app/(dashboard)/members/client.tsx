@@ -13,6 +13,7 @@ import {
   type BulkReminderResults,
   type ReminderRecipient,
   type SkippedRecipient,
+  type EmailDescription,
 } from "@/components/reminders/bulk-reminder-dialog";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ export function MembersTable({ members }: MembersTableProps) {
         id: member.id,
         name,
         email: member.email,
+        language: member.preferredLanguage || "en",
         detail: details.join(" + "),
       });
     }
@@ -211,6 +213,16 @@ export function MembersTable({ members }: MembersTableProps) {
         onOpenChange={setBulkReminderOpen}
         title="Send Pending Member Reminders"
         description="Send reminder emails to pending members who haven't completed their agreement and/or payment setup."
+        emailDescriptions={[
+          {
+            label: "Sign Your Membership Agreement",
+            summary: "Asks the member to review and sign their membership agreement via a secure signing link.",
+          },
+          {
+            label: "Complete Your Membership Setup",
+            summary: "Asks the member to complete their Stripe payment setup — includes their plan name, enrollment fee, and recurring dues amount.",
+          },
+        ]}
         recipients={reminderRecipients}
         skipped={reminderSkipped}
         onConfirm={handleBulkReminder}

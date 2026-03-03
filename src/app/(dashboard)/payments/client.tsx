@@ -17,6 +17,7 @@ import {
   type BulkReminderResults,
   type ReminderRecipient,
   type SkippedRecipient,
+  type EmailDescription,
 } from "@/components/reminders/bulk-reminder-dialog";
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
@@ -113,6 +114,7 @@ export function PaymentsPageClient({
         id: invite.memberId,
         name,
         email: invite.member.email,
+        language: invite.member.preferredLanguage || "en",
         detail: "Payment setup",
       });
     }
@@ -669,6 +671,12 @@ export function PaymentsPageClient({
         onOpenChange={setBulkReminderOpen}
         title="Send Onboarding Reminders"
         description="Send payment setup reminder emails to all pending Stripe onboarding members."
+        emailDescriptions={[
+          {
+            label: "Complete Your Membership Setup",
+            summary: "Asks the member to complete their Stripe payment setup — includes their plan name, enrollment fee, and recurring dues amount with a secure payment link.",
+          },
+        ]}
         recipients={bulkReminderRecipients}
         skipped={bulkReminderSkipped}
         onConfirm={handleBulkReminder}

@@ -19,7 +19,13 @@ export interface ReminderRecipient {
   id: string;
   name: string;
   email: string;
+  language: "en" | "fa";
   detail?: string; // e.g. "Agreement + Payment" or "Payment setup"
+}
+
+export interface EmailDescription {
+  label: string;
+  summary: string;
 }
 
 export interface SkippedRecipient {
@@ -48,6 +54,7 @@ interface BulkReminderDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
+  emailDescriptions: EmailDescription[];
   recipients: ReminderRecipient[];
   skipped: SkippedRecipient[];
   onConfirm: () => Promise<BulkReminderResults>;
@@ -61,6 +68,7 @@ export function BulkReminderDialog({
   onOpenChange,
   title,
   description,
+  emailDescriptions,
   recipients,
   skipped,
   onConfirm,
@@ -154,6 +162,25 @@ export function BulkReminderDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Email descriptions */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Emails that will be sent:</p>
+            {emailDescriptions.map((desc) => (
+              <div
+                key={desc.label}
+                className="rounded-lg border bg-blue-50 px-3 py-2"
+              >
+                <p className="text-sm font-medium text-blue-900">{desc.label}</p>
+                <p className="text-xs text-blue-700 mt-0.5">{desc.summary}</p>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground">
+              Each member receives the email in their preferred language (English or Farsi).
+            </p>
+          </div>
+
+          <Separator />
+
           {/* Recipients summary */}
           <div className="rounded-lg border bg-muted/50 p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -176,11 +203,24 @@ export function BulkReminderDialog({
                         {r.email}
                       </span>
                     </div>
-                    {r.detail && (
-                      <Badge variant="outline" className="text-xs shrink-0 ml-2">
-                        {r.detail}
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0",
+                          r.language === "fa"
+                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200"
+                        )}
+                      >
+                        {r.language === "fa" ? "FA" : "EN"}
                       </Badge>
-                    )}
+                      {r.detail && (
+                        <Badge variant="outline" className="text-xs">
+                          {r.detail}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
