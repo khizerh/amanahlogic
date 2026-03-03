@@ -5,12 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/ui/data-table";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { SettlePaymentDialog } from "@/components/payments/settle-payment-dialog";
 import { RecordOutstandingPaymentDialog } from "@/components/payments/record-outstanding-payment-dialog";
 import { RecordOnboardingPaymentDialog } from "@/components/payments/record-onboarding-payment-dialog";
+import {
+  BulkReminderDialog,
+  type BulkReminderResults,
+  type ReminderRecipient,
+  type SkippedRecipient,
+} from "@/components/reminders/bulk-reminder-dialog";
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";
 import { createOnboardingColumns } from "./onboarding-columns";
@@ -20,6 +27,7 @@ import { formatCurrency } from "@/lib/utils/formatters";
 import {
   AlertTriangle,
   CreditCard,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -75,6 +83,71 @@ export function PaymentsPageClient({
   // Onboarding payment dialog state
   const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
   const [selectedOnboardingInvite, setSelectedOnboardingInvite] = useState<OnboardingInviteWithMember | null>(null);
+
+  // Bulk reminder dialog state
+  const [bulkReminderOpen, setBulkReminderOpen] = useState(false);
+  const [bulkReminderLoading, setBulkReminderLoading] = useState(false);
+  const [bulkReminderResults, setBulkReminderResults] = useState<BulkReminderResults | null>(null);
+
+  // Compute bulk reminder recipients and skipped from onboarding invites
+  const { bulkReminderRecipients, bulkReminderSkipped } = useMemo(() => {
+    const recipients: ReminderRecipient[] = [];
+    const skipped: SkippedRecipient[] = [];
+
+    for (const invite of initialOnboardingInvites) {
+      if (invite.status !== "pending") continue;
+
+      const name = `${invite.member.firstName} ${invite.member.lastName}`;
+
+      if (invite.paymentMethod !== "stripe") {
+        skipped.push({ id: invite.memberId, name, reason: "Manual payment" });
+        continue;
+      }
+
+      if (!invite.member.email) {
+        skipped.push({ id: invite.memberId, name, reason: "No email" });
+        continue;
+      }
+
+      recipients.push({
+        id: invite.memberId,
+        name,
+        email: invite.member.email,
+        detail: "Payment setup",
+      });
+    }
+
+    return { bulkReminderRecipients: recipients, bulkReminderSkipped: skipped };
+  }, [initialOnboardingInvites]);
+
+  const handleBulkReminder = async (): Promise<BulkReminderResults> => {
+    setBulkReminderLoading(true);
+    try {
+      const res = await fetch("/api/reminders/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send reminders");
+      }
+      const results: BulkReminderResults = data;
+      setBulkReminderResults(results);
+      if (results.sent > 0) {
+        toast.success(`Sent ${results.sent} reminder${results.sent !== 1 ? "s" : ""}`);
+      }
+      router.refresh();
+      return results;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to send reminders";
+      toast.error(errorMsg);
+      const fallback: BulkReminderResults = { sent: 0, failed: 0, skipped: 0, results: [] };
+      setBulkReminderResults(fallback);
+      return fallback;
+    } finally {
+      setBulkReminderLoading(false);
+    }
+  };
 
   // Handle payment recorded - refresh the page
   const handlePaymentRecorded = () => {
@@ -495,13 +568,31 @@ export function PaymentsPageClient({
             <TabsContent value="onboarding">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Onboarding Payments
-                  </CardTitle>
-                  <CardDescription>
-                    Track initial payment setup for new members (enrollment fee + first dues)
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1.5">
+                      <CardTitle className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Onboarding Payments
+                      </CardTitle>
+                      <CardDescription>
+                        Track initial payment setup for new members (enrollment fee + first dues)
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBulkReminderOpen(true)}
+                      disabled={bulkReminderRecipients.length === 0}
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Reminders
+                      {bulkReminderRecipients.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {bulkReminderRecipients.length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <DataTable
@@ -570,6 +661,20 @@ export function PaymentsPageClient({
         open={onboardingDialogOpen}
         onOpenChange={setOnboardingDialogOpen}
         onPaymentRecorded={handlePaymentRecorded}
+      />
+
+      {/* Bulk Reminder Dialog (for onboarding tab) */}
+      <BulkReminderDialog
+        open={bulkReminderOpen}
+        onOpenChange={setBulkReminderOpen}
+        title="Send Onboarding Reminders"
+        description="Send payment setup reminder emails to all pending Stripe onboarding members."
+        recipients={bulkReminderRecipients}
+        skipped={bulkReminderSkipped}
+        onConfirm={handleBulkReminder}
+        isLoading={bulkReminderLoading}
+        results={bulkReminderResults}
+        onReset={() => setBulkReminderResults(null)}
       />
     </>
   );
