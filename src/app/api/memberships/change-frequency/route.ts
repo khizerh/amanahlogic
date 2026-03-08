@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { MembershipsService } from "@/lib/database/memberships";
+import { PlansService } from "@/lib/database/plans";
+import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
-import { BillingFrequency } from "@/lib/types";
+import { updateSubscriptionPricing, getPlatformFee } from "@/lib/stripe";
+import type { BillingFrequency, PlatformFees } from "@/lib/types";
 
 interface ChangeFrequencyBody {
   membershipId: string;
@@ -15,6 +18,7 @@ const VALID_FREQUENCIES: BillingFrequency[] = ["monthly", "biannual", "annual"];
  * POST /api/memberships/change-frequency
  *
  * Change the billing frequency of a membership.
+ * If the membership has an active Stripe subscription, updates it too.
  */
 export async function POST(req: Request) {
   try {
@@ -44,16 +48,47 @@ export async function POST(req: Request) {
 
     const previousFrequency = membership.billingFrequency;
 
-    // Update billing frequency
+    // Update billing frequency in DB
     await MembershipsService.update({
       id: membershipId,
       billingFrequency: newFrequency,
     });
 
+    // Sync Stripe subscription if one exists
+    let stripeUpdated = false;
+    if (membership.stripeSubscriptionId && membership.subscriptionStatus === "active") {
+      try {
+        const [plan, org] = await Promise.all([
+          PlansService.getById(membership.planId),
+          OrganizationsService.getById(organizationId),
+        ]);
+
+        if (plan && org) {
+          const newDuesAmountCents = Math.round((plan.pricing[newFrequency] || 0) * 100);
+          const platformFeeDollars = getPlatformFee(org.platformFees as PlatformFees | null, newFrequency);
+
+          await updateSubscriptionPricing({
+            subscriptionId: membership.stripeSubscriptionId,
+            newDuesAmountCents,
+            newBillingFrequency: newFrequency,
+            passFeesToMember: org.passFeesToMember || false,
+            platformFeeDollars,
+            planName: plan.name,
+            stripeConnectAccountId: org.stripeConnectId || undefined,
+          });
+          stripeUpdated = true;
+        }
+      } catch (error) {
+        console.error("Failed to update Stripe subscription for frequency change:", error);
+        // DB is already updated — log but don't fail the request
+      }
+    }
+
     return NextResponse.json({
       success: true,
       previousFrequency,
       newFrequency,
+      stripeUpdated,
     });
   } catch (error) {
     console.error("Error changing billing frequency:", error);

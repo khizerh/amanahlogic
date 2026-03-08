@@ -53,10 +53,17 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
     }
   }
 
-  // Fetch "paying for" list if this member pays for others
-  const payingFor = memberData
+  // Fetch sponsored members if this member sponsors others
+  const sponsoredMembers = memberData
     ? await MembershipsService.getByPayerMemberId(id, organizationId)
     : [];
+
+  // Fetch combined payment history across sponsor + all sponsored members
+  let sponsoredPayments: Awaited<ReturnType<typeof PaymentsService.getByMultipleMembers>> = [];
+  if (sponsoredMembers.length > 0) {
+    const allMemberIds = [id, ...sponsoredMembers.map(s => s.memberId)];
+    sponsoredPayments = await PaymentsService.getByMultipleMembers(allMemberIds, organizationId);
+  }
 
   if (!memberData) {
     return (
@@ -128,7 +135,8 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
       portalInviteUrl={portalInviteUrl}
       passFeesToMember={org?.passFeesToMember ?? false}
       payerMember={payerMember}
-      payingFor={payingFor}
+      sponsoredMembers={sponsoredMembers}
+      sponsoredPayments={sponsoredPayments}
     />
   );
 }

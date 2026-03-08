@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { MembershipsService } from "@/lib/database/memberships";
+import { PlansService } from "@/lib/database/plans";
+import { OrganizationsService } from "@/lib/database/organizations";
+import { updateSubscriptionPricing, getPlatformFee } from "@/lib/stripe";
+import type { BillingFrequency, PlatformFees } from "@/lib/types";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,15 +42,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { enrollmentFeeStatus, paidMonths } = body as {
+    const { enrollmentFeeStatus, paidMonths, planId } = body as {
       enrollmentFeeStatus?: string;
       paidMonths?: number;
+      planId?: string;
     };
 
     // Must provide at least one field
-    if (enrollmentFeeStatus === undefined && paidMonths === undefined) {
+    if (enrollmentFeeStatus === undefined && paidMonths === undefined && planId === undefined) {
       return NextResponse.json(
-        { error: "At least one field (enrollmentFeeStatus or paidMonths) is required" },
+        { error: "At least one field (enrollmentFeeStatus, paidMonths, or planId) is required" },
         { status: 400 }
       );
     }
@@ -71,6 +76,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }
     }
 
+    // Validate planId if provided
+    let newPlan: Awaited<ReturnType<typeof PlansService.getById>> | null = null;
+    if (planId !== undefined) {
+      newPlan = await PlansService.getById(planId);
+      if (!newPlan || newPlan.organizationId !== organizationId) {
+        return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+      }
+    }
+
     // Build update
     const updateInput: Parameters<typeof MembershipsService.update>[0] = { id };
     if (enrollmentFeeStatus !== undefined) {
@@ -79,10 +93,39 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (paidMonths !== undefined) {
       updateInput.paidMonths = paidMonths;
     }
+    if (planId !== undefined) {
+      updateInput.planId = planId;
+    }
 
     const updated = await MembershipsService.update(updateInput);
 
-    return NextResponse.json({ success: true, membership: updated });
+    // Sync Stripe subscription if plan changed and subscription exists
+    let stripeUpdated = false;
+    if (planId !== undefined && newPlan && membership.stripeSubscriptionId && membership.subscriptionStatus === "active") {
+      try {
+        const org = await OrganizationsService.getById(organizationId);
+        if (org) {
+          const billingFrequency = (membership.billingFrequency || "monthly") as BillingFrequency;
+          const newDuesAmountCents = Math.round((newPlan.pricing[billingFrequency] || 0) * 100);
+          const platformFeeDollars = getPlatformFee(org.platformFees as PlatformFees | null, billingFrequency);
+
+          await updateSubscriptionPricing({
+            subscriptionId: membership.stripeSubscriptionId,
+            newDuesAmountCents,
+            newBillingFrequency: billingFrequency,
+            passFeesToMember: org.passFeesToMember || false,
+            platformFeeDollars,
+            planName: newPlan.name,
+            stripeConnectAccountId: org.stripeConnectId || undefined,
+          });
+          stripeUpdated = true;
+        }
+      } catch (error) {
+        console.error("Failed to update Stripe subscription for plan change:", error);
+      }
+    }
+
+    return NextResponse.json({ success: true, membership: updated, stripeUpdated });
   } catch (error) {
     console.error("Error updating membership:", error);
     return NextResponse.json(

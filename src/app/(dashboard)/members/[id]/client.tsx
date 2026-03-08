@@ -105,7 +105,21 @@ interface MemberDetailClientProps {
   portalInviteUrl: string | null;
   passFeesToMember: boolean;
   payerMember: { id: string; firstName: string; middleName: string | null; lastName: string } | null;
-  payingFor: Array<{ membershipId: string; memberId: string; firstName: string; middleName: string | null; lastName: string; planName: string }>;
+  sponsoredMembers: Array<{
+    membershipId: string;
+    memberId: string;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+    planName: string;
+    status: string;
+    billingFrequency: string;
+    nextPaymentDue: string | null;
+    paidMonths: number;
+    autoPayEnabled: boolean;
+    subscriptionStatus: string | null;
+  }>;
+  sponsoredPayments: Array<Payment & { forMemberName: string; forMemberId: string }>;
 }
 
 export function MemberDetailClient({
@@ -119,7 +133,8 @@ export function MemberDetailClient({
   portalInviteUrl: initialPortalInviteUrl,
   passFeesToMember,
   payerMember,
-  payingFor,
+  sponsoredMembers,
+  sponsoredPayments,
 }: MemberDetailClientProps) {
   const router = useRouter();
   const memberData = initialMember;
@@ -194,6 +209,14 @@ export function MemberDetailClient({
   const paginatedPayments = initialPayments.slice(paymentsPage * PAGE_SIZE, (paymentsPage + 1) * PAGE_SIZE);
   const recentEmails = memberEmails.slice(0, 3);
   const [emailsDialogOpen, setEmailsDialogOpen] = useState(false);
+
+  // Sponsored payments pagination
+  const [sponsoredPaymentsPage, setSponsoredPaymentsPage] = useState(0);
+  const sponsoredPaymentsTotal = sponsoredPayments.length;
+  const paginatedSponsoredPayments = sponsoredPayments.slice(
+    sponsoredPaymentsPage * PAGE_SIZE,
+    (sponsoredPaymentsPage + 1) * PAGE_SIZE
+  );
 
   // State for inline editing
   const [isEditing, setIsEditing] = useState(false);
@@ -1432,12 +1455,12 @@ export function MemberDetailClient({
                   )}
                 </div>
 
-                {/* Payer Indicator */}
+                {/* Sponsor Indicator */}
                 {membership.payerMemberId && payerMember && (
                   <div className="mb-6 pb-6 border-b">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm text-muted-foreground">Paid By</span>
+                      <Shield className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm text-muted-foreground">Sponsored by</span>
                       <a href={`/members/${payerMember.id}`} className="font-medium text-blue-600 hover:underline">
                         {payerMember.firstName} {payerMember.middleName ? `${payerMember.middleName} ` : ''}{payerMember.lastName}
                       </a>
@@ -1445,13 +1468,13 @@ export function MemberDetailClient({
                   </div>
                 )}
 
-                {/* Payer Awaiting Setup */}
+                {/* Sponsor Awaiting Setup */}
                 {membership.payerMemberId && !membership.autoPayEnabled && payerMember && (
                   <div className="mb-6 pb-6 border-b">
                     <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-800 rounded-md">
                       <AlertCircle className="h-4 w-4" />
                       <span className="text-sm">
-                        Awaiting payment setup from{" "}
+                        Awaiting payment setup from sponsor{" "}
                         <a href={`/members/${payerMember.id}`} className="font-medium underline">
                           {payerMember.firstName} {payerMember.middleName ? `${payerMember.middleName} ` : ''}{payerMember.lastName}
                         </a>
@@ -1798,23 +1821,41 @@ export function MemberDetailClient({
             </Card>
           )}
 
-          {/* Paying For */}
-          {payingFor.length > 0 && (
+          {/* Sponsored Members */}
+          {sponsoredMembers.length > 0 && (
             <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Paying For
+                  Sponsored Members ({sponsoredMembers.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {payingFor.map((item) => (
-                    <div key={item.membershipId} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                      <a href={`/members/${item.memberId}`} className="text-blue-600 hover:underline font-medium">
-                        {item.firstName} {item.middleName ? `${item.middleName} ` : ''}{item.lastName}
-                      </a>
-                      <span className="text-sm text-muted-foreground">{item.planName}</span>
+                <div className="space-y-3">
+                  {sponsoredMembers.map((item) => (
+                    <div key={item.membershipId} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="min-w-0">
+                        <a href={`/members/${item.memberId}`} className="text-blue-600 hover:underline font-medium">
+                          {item.firstName} {item.middleName ? `${item.middleName} ` : ""}{item.lastName}
+                        </a>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">{item.planName}</span>
+                          <span className="text-xs text-muted-foreground">&middot;</span>
+                          <span className="text-xs text-muted-foreground capitalize">{item.billingFrequency}</span>
+                          <span className="text-xs text-muted-foreground">&middot;</span>
+                          <span className="text-xs text-muted-foreground">{item.paidMonths} months paid</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {item.nextPaymentDue && (
+                          <span className="text-xs text-muted-foreground">
+                            Due {formatDate(item.nextPaymentDue)}
+                          </span>
+                        )}
+                        <Badge variant={getStatusVariant(item.status as Parameters<typeof getStatusVariant>[0])}>
+                          {formatStatus(item.status as Parameters<typeof formatStatus>[0])}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1909,6 +1950,114 @@ export function MemberDetailClient({
               )}
             </CardContent>
           </Card>
+
+          {/* Sponsor Payment History - combined view across all sponsored members */}
+          {sponsoredMembers.length > 0 && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Sponsor Payment History
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  All payments across this member and their {sponsoredMembers.length} sponsored member{sponsoredMembers.length > 1 ? "s" : ""}
+                </p>
+              </CardHeader>
+              <CardContent>
+                {sponsoredPaymentsTotal === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No payments yet across sponsored members</p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>For</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Method</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedSponsoredPayments.map((payment) => (
+                            <TableRow
+                              key={payment.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleViewPayment(payment)}
+                            >
+                              <TableCell>{formatDate(payment.paidAt || payment.createdAt)}</TableCell>
+                              <TableCell>
+                                <a
+                                  href={`/members/${payment.forMemberId}`}
+                                  className="text-blue-600 hover:underline text-sm"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {payment.forMemberId === memberData.id
+                                    ? "Self"
+                                    : payment.forMemberName}
+                                </a>
+                              </TableCell>
+                              <TableCell>{getPaymentTypeBadge(payment.type)}</TableCell>
+                              <TableCell>{getPaymentMethodBadge(payment.method, payment.stripePaymentMethodType)}</TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatCurrency(payment.amount)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    payment.status === "completed"
+                                      ? "success"
+                                      : payment.status === "pending"
+                                      ? "warning"
+                                      : payment.status === "processing"
+                                      ? "info"
+                                      : payment.status === "failed"
+                                      ? "error"
+                                      : payment.status === "refunded"
+                                      ? "refunded"
+                                      : "inactive"
+                                  }
+                                >
+                                  {payment.status === "processing" ? "Processing" : payment.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {sponsoredPaymentsTotal > PAGE_SIZE && (
+                      <div className="flex items-center justify-between pt-4">
+                        <p className="text-sm text-muted-foreground">
+                          {sponsoredPaymentsPage * PAGE_SIZE + 1}-{Math.min((sponsoredPaymentsPage + 1) * PAGE_SIZE, sponsoredPaymentsTotal)} of {sponsoredPaymentsTotal}
+                        </p>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSponsoredPaymentsPage(p => p - 1)}
+                            disabled={sponsoredPaymentsPage === 0}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSponsoredPaymentsPage(p => p + 1)}
+                            disabled={(sponsoredPaymentsPage + 1) * PAGE_SIZE >= sponsoredPaymentsTotal}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Email History */}
           <Card>

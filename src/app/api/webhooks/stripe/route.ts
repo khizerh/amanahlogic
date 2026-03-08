@@ -551,12 +551,32 @@ async function handleInvoicePaid(
   invoice: InvoiceWithSubscription,
   supabase: ReturnType<typeof createServiceRoleClient>
 ) {
-  // Get membership_id from metadata or subscription
+  // Get membership_id from metadata — try multiple sources since Stripe doesn't
+  // always copy subscription metadata onto the invoice object itself.
   let membershipId = (invoice.metadata as Record<string, string>)?.membership_id;
   let organizationId = (invoice.metadata as Record<string, string>)?.organization_id;
   let memberId = (invoice.metadata as Record<string, string>)?.member_id;
 
-  // Try to find from subscription if not in invoice metadata
+  // Fallback 1: subscription_details.metadata (contains subscription's metadata)
+  if (!membershipId && invoice.subscription_details?.metadata) {
+    const subMeta = invoice.subscription_details.metadata as Record<string, string>;
+    membershipId = membershipId || subMeta.membership_id;
+    organizationId = organizationId || subMeta.organization_id;
+    memberId = memberId || subMeta.member_id;
+  }
+
+  // Fallback 2: first line item metadata
+  if (!membershipId) {
+    const lineItems = (invoice as unknown as { lines?: { data?: Array<{ metadata?: Record<string, string> }> } }).lines?.data;
+    if (lineItems?.[0]?.metadata) {
+      const lineMeta = lineItems[0].metadata;
+      membershipId = membershipId || lineMeta.membership_id;
+      organizationId = organizationId || lineMeta.organization_id;
+      memberId = memberId || lineMeta.member_id;
+    }
+  }
+
+  // Fallback 3: look up from subscription if still not found
   if (!membershipId && invoice.subscription) {
     const subscriptionId = typeof invoice.subscription === "string"
       ? invoice.subscription

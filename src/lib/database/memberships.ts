@@ -229,6 +229,12 @@ export class MembershipsService {
     middleName: string | null;
     lastName: string;
     planName: string;
+    status: string;
+    billingFrequency: string;
+    nextPaymentDue: string | null;
+    paidMonths: number;
+    autoPayEnabled: boolean;
+    subscriptionStatus: string | null;
   }>> {
     const client = supabase ?? (await createClientForContext());
 
@@ -236,6 +242,12 @@ export class MembershipsService {
       .from("memberships")
       .select(`
         id,
+        status,
+        billing_frequency,
+        next_payment_due,
+        paid_months,
+        auto_pay_enabled,
+        subscription_status,
         member:members!memberships_member_id_fkey(id, first_name, middle_name, last_name),
         plan:plans(name)
       `)
@@ -253,6 +265,12 @@ export class MembershipsService {
         middleName: ((member as Record<string, unknown>)?.middle_name as string) || null,
         lastName: (member as Record<string, unknown>)?.last_name as string,
         planName: (plan as Record<string, unknown>)?.name as string || "Unknown Plan",
+        status: row.status as string,
+        billingFrequency: row.billing_frequency as string,
+        nextPaymentDue: (row.next_payment_due as string) || null,
+        paidMonths: row.paid_months as number,
+        autoPayEnabled: row.auto_pay_enabled as boolean,
+        subscriptionStatus: (row.subscription_status as string) || null,
       };
     });
   }

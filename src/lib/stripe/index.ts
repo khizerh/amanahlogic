@@ -755,6 +755,94 @@ export async function confirmPaymentIntent(params: {
 }
 
 /**
+ * Update a Stripe subscription's pricing when plan or billing frequency changes.
+ *
+ * Creates a new price object with the correct amount/interval and swaps it on
+ * the existing subscription. Proration is disabled so the new price takes effect
+ * at the next billing cycle.
+ */
+export async function updateSubscriptionPricing(params: {
+  subscriptionId: string;
+  newDuesAmountCents: number;
+  newBillingFrequency: StripeBillingFrequency;
+  passFeesToMember: boolean;
+  platformFeeDollars: number;
+  planName: string;
+  stripeConnectAccountId?: string;
+}): Promise<{ subscription: Stripe.Subscription; newChargeAmountCents: number }> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const {
+    subscriptionId,
+    newDuesAmountCents,
+    newBillingFrequency,
+    passFeesToMember,
+    platformFeeDollars,
+    planName,
+    stripeConnectAccountId,
+  } = params;
+
+  const fees = calculateFees(newDuesAmountCents, platformFeeDollars, passFeesToMember);
+
+  let interval: "month" | "year" = "month";
+  let intervalCount = 1;
+  switch (newBillingFrequency) {
+    case "monthly":
+      interval = "month";
+      intervalCount = 1;
+      break;
+    case "biannual":
+      interval = "month";
+      intervalCount = 6;
+      break;
+    case "annual":
+      interval = "year";
+      intervalCount = 1;
+      break;
+  }
+
+  // Create new price
+  const newPrice = await stripe.prices.create({
+    currency: "usd",
+    unit_amount: fees.chargeAmountCents,
+    recurring: { interval, interval_count: intervalCount },
+    product_data: { name: `${planName} Dues` },
+  });
+
+  // Get current subscription to find the existing item
+  const currentSub = await stripe.subscriptions.retrieve(subscriptionId);
+  const existingItem = currentSub.items.data[0];
+
+  if (!existingItem) {
+    throw new Error("Subscription has no items");
+  }
+
+  // Update params: swap the price, update metadata
+  const updateParams: Stripe.SubscriptionUpdateParams = {
+    items: [
+      { id: existingItem.id, price: newPrice.id },
+    ],
+    proration_behavior: "none",
+    metadata: {
+      ...((currentSub.metadata || {}) as Record<string, string>),
+      billing_frequency: newBillingFrequency,
+    },
+  };
+
+  // Update application_fee_percent for Connect
+  if (stripeConnectAccountId && fees.chargeAmountCents > 0) {
+    updateParams.application_fee_percent =
+      Math.ceil((fees.applicationFeeCents / fees.chargeAmountCents) * 10000) / 100;
+  }
+
+  const subscription = await stripe.subscriptions.update(subscriptionId, updateParams);
+
+  return { subscription, newChargeAmountCents: fees.chargeAmountCents };
+}
+
+/**
  * Pause a Stripe subscription
  */
 export async function pauseSubscription(subscriptionId: string): Promise<void> {

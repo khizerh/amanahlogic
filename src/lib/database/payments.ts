@@ -333,6 +333,47 @@ export class PaymentsService {
   }
 
   /**
+   * Get payments across multiple members (for sponsor payment history).
+   * Returns payments with the member name attached so the UI can show "For: [name]".
+   */
+  static async getByMultipleMembers(
+    memberIds: string[],
+    organizationId: string
+  ): Promise<Array<Payment & { forMemberName: string; forMemberId: string }>> {
+    if (memberIds.length === 0) return [];
+
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("payments")
+      .select("*, member:members!payments_member_id_fkey(id, first_name, middle_name, last_name)")
+      .in("member_id", memberIds)
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map((row) => {
+      const member = Array.isArray(row.member) ? row.member[0] : row.member;
+      const memberRec = member as Record<string, unknown> | null;
+      const firstName = (memberRec?.first_name as string) || "";
+      const middleName = memberRec?.middle_name as string | null;
+      const lastName = (memberRec?.last_name as string) || "";
+      const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
+
+      // Strip the joined member field before transforming
+      const { member: _member, ...paymentRow } = row;
+      void _member;
+      const payment = transformPayment(paymentRow as DbPaymentRow);
+      return {
+        ...payment,
+        forMemberName: fullName,
+        forMemberId: (memberRec?.id as string) || row.member_id,
+      };
+    });
+  }
+
+  /**
    * Get payments by member with membership details
    */
   static async getByMemberDetailed(
