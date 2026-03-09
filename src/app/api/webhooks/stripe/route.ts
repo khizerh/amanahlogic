@@ -1266,14 +1266,15 @@ async function handleSetupIntentSucceeded(
 
   console.log(`[Webhook] Membership ${membershipId} updated with subscription ${subscription.id}`);
 
-  // Handle the first invoice payment.
-  // Skip for trialing subscriptions — there's no invoice to settle during trial.
-  // RACE CONDITION: Stripe fires invoice.paid for the first subscription invoice
-  // before our setup_intent.succeeded handler writes stripe_subscription_id to the
-  // membership. That means handleInvoicePaid can't find the membership by subscription
-  // ID and silently skips it. We settle the first invoice here instead.
+  // Handle the first invoice payment for ACH/bank payments.
+  // For card payments: invoice.paid webhook handles settlement (it can find the
+  // membership via subscription_details.metadata even before stripe_subscription_id
+  // is written to the DB). We do NOT settle paid invoices here to avoid a race
+  // condition where both handlers create duplicate payment records.
+  // For ACH payments: the invoice is "open" (bank debit in transit), so we create
+  // a pending payment record. invoice.paid will settle it when the ACH clears.
   if (isTrialing) {
-    console.log(`[Webhook] Subscription is trialing — skipping first invoice settlement for membership ${membershipId}`);
+    console.log(`[Webhook] Subscription is trialing — skipping first invoice handling for membership ${membershipId}`);
   } else try {
     const invoices = await stripe.invoices.list({
       subscription: subscription.id,
@@ -1282,92 +1283,9 @@ async function handleSetupIntentSucceeded(
     const firstInvoice = invoices.data[0] as InvoiceWithSubscription | undefined;
 
     if (firstInvoice && firstInvoice.status === "paid" && firstInvoice.amount_paid > 0) {
-      const piId = typeof firstInvoice.payment_intent === "string"
-        ? firstInvoice.payment_intent
-        : firstInvoice.payment_intent?.id;
-
-      // Check if a payment record already exists (in case invoice.paid won the race)
-      const { data: existingPayment } = await supabase
-        .from("payments")
-        .select("id")
-        .eq("membership_id", membershipId)
-        .eq("type", "dues")
-        .eq("status", "completed")
-        .maybeSingle();
-
-      if (!existingPayment) {
-        // Get org timezone for invoice metadata
-        const { data: orgForTz } = await supabase
-          .from("organizations")
-          .select("timezone")
-          .eq("id", organizationId)
-          .single();
-        const orgTimezone = orgForTz?.timezone || "America/Los_Angeles";
-        const today = getTodayInOrgTimezone(orgTimezone);
-
-        // Calculate months credited
-        let monthsCredited = 1;
-        switch (freq) {
-          case "biannual": monthsCredited = 6; break;
-          case "annual": monthsCredited = 12; break;
-        }
-
-        const invoiceMetadata = await generateAdHocInvoiceMetadata(
-          organizationId, today, monthsCredited, orgTimezone, supabase
-        );
-
-        // The invoice amount is the charge amount (dues only, no enrollment fee here)
-        const invoiceAmountCents = firstInvoice.amount_paid;
-        const baseAmountCents = reverseCalculateBaseAmount(invoiceAmountCents, platformFeeDollars, passFeesToMember);
-        const invoiceFees = calculateFees(baseAmountCents, platformFeeDollars, passFeesToMember);
-
-        const { data: duesPayment, error: duesPaymentError } = await supabase
-          .from("payments")
-          .insert({
-            organization_id: organizationId,
-            membership_id: membershipId,
-            member_id: memberId,
-            type: "dues",
-            method: "stripe",
-            status: "pending",
-            amount: baseAmountCents / 100,
-            stripe_fee: invoiceFees.breakdown.stripeFee,
-            platform_fee: invoiceFees.breakdown.platformFee,
-            total_charged: invoiceFees.breakdown.chargeAmount,
-            net_amount: invoiceFees.netAmountCents / 100,
-            months_credited: monthsCredited,
-            invoice_number: invoiceMetadata.invoiceNumber,
-            due_date: invoiceMetadata.dueDate,
-            period_start: invoiceMetadata.periodStart,
-            period_end: invoiceMetadata.periodEnd,
-            period_label: invoiceMetadata.periodLabel,
-            stripe_payment_intent_id: piId,
-            stripe_payment_method_type: pm.type,
-            notes: `First subscription payment - Invoice ${firstInvoice.number || firstInvoice.id} (settled via setup_intent.succeeded)`,
-          })
-          .select()
-          .single();
-
-        if (duesPaymentError || !duesPayment) {
-          console.error("[Webhook] Failed to create first dues payment:", duesPaymentError);
-        } else {
-          const settleResult = await settlePayment({
-            paymentId: duesPayment.id,
-            method: "stripe",
-            paidAt: new Date().toISOString(),
-            stripePaymentIntentId: piId,
-            supabase,
-          });
-
-          if (settleResult.success) {
-            console.log(`[Webhook] First dues payment settled: ${duesPayment.id}, paid_months: ${settleResult.newPaidMonths}, status: ${settleResult.newStatus}`);
-          } else {
-            console.error("[Webhook] Failed to settle first dues payment:", settleResult.error);
-          }
-        }
-      } else {
-        console.log(`[Webhook] First dues payment already exists (${existingPayment.id}), skipping`);
-      }
+      // Card payment: invoice.paid webhook will handle creating and settling the
+      // payment record. Do nothing here to avoid duplicate payment race condition.
+      console.log(`[Webhook] First invoice ${firstInvoice.id} already paid — invoice.paid webhook will handle settlement for membership ${membershipId}`);
     } else if (firstInvoice && firstInvoice.status === "open" && firstInvoice.amount_due > 0) {
       // ACH: Invoice is open (bank debit in transit). Create a pending payment record
       // so it shows in payment history. invoice.paid will settle it when ACH clears.

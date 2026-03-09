@@ -101,7 +101,7 @@ function makeMembership(overrides: Record<string, unknown> = {}) {
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-12-15T00:00:00Z",
     stripe_subscription_id: null,
-    stripe_subscription_status: null,
+    subscription_status: null,
     member: {
       first_name: "Ahmed",
       last_name: "Ali",
@@ -401,7 +401,7 @@ describe("Billing Engine", () => {
         mockTable("memberships", [
           makeMembership({
             stripe_subscription_id: "sub_abc123",
-            stripe_subscription_status: "active",
+            subscription_status: "active",
           }),
         ]);
         mockTable("memberships", []);
@@ -428,7 +428,7 @@ describe("Billing Engine", () => {
         mockTable("memberships", [
           makeMembership({
             stripe_subscription_id: "sub_trial",
-            stripe_subscription_status: "trialing",
+            subscription_status: "trialing",
           }),
         ]);
         mockTable("memberships", []);
@@ -642,7 +642,7 @@ describe("Billing Engine", () => {
           makeMembership({
             id: "mem-stripe",
             stripe_subscription_id: "sub_skip",
-            stripe_subscription_status: "active",
+            subscription_status: "active",
           }),
         ]);
 
@@ -678,7 +678,7 @@ describe("Billing Engine", () => {
           makeMembership({
             id: "mem-stripe",
             stripe_subscription_id: "sub_skip",
-            stripe_subscription_status: "active",
+            subscription_status: "active",
           }),
         ]);
 
@@ -727,7 +727,7 @@ describe("Billing Engine", () => {
           makeMembership({
             id: "mem-stripe",
             stripe_subscription_id: "sub_skip",
-            stripe_subscription_status: "active",
+            subscription_status: "active",
           }),
         ]);
         // With lapseDays=14, cutoff date is 2025-01-01 (15 - 14 = 1)

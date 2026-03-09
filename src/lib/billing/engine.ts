@@ -127,7 +127,7 @@ interface MembershipToBill {
   updated_at: string;
   // Stripe subscription tracking
   stripe_subscription_id?: string | null;
-  stripe_subscription_status?: string | null;
+  subscription_status?: string | null;
   // Joined data
   member?: {
     first_name: string;
@@ -413,7 +413,7 @@ export async function processRecurringBilling(
         created_at,
         updated_at,
         stripe_subscription_id,
-        stripe_subscription_status,
+        subscription_status,
         member:members!memberships_member_id_fkey(
           first_name,
           middle_name,
@@ -477,14 +477,14 @@ export async function processRecurringBilling(
         // Check 0: Has Stripe subscription? (Skip - Stripe handles billing)
         if (
           membership.stripe_subscription_id &&
-          (membership.stripe_subscription_status === "active" ||
-            membership.stripe_subscription_status === "trialing")
+          (membership.subscription_status === "active" ||
+            membership.subscription_status === "trialing")
         ) {
           logger.info("membership_skipped", {
             membership_id: membership.id,
             reason: "stripe_subscription",
             subscription_id: membership.stripe_subscription_id,
-            subscription_status: membership.stripe_subscription_status,
+            subscription_status: membership.subscription_status,
           });
           skipped++;
           continue;
