@@ -7,10 +7,10 @@ import type { PlatformFees, BillingFrequency } from "@/lib/types";
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
 // PINNED API VERSION - DO NOT CHANGE
-// See: https://docs.stripe.com/changelog#2025-12-15.clover
+// See: https://docs.stripe.com/changelog#2026-02-25.clover
 export const stripe = stripeSecretKey
   ? new Stripe(stripeSecretKey, {
-      apiVersion: "2025-12-15.clover",
+      apiVersion: "2026-02-25.clover",
     })
   : null;
 
