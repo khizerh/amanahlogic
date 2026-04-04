@@ -94,11 +94,11 @@ describe("Date Utilities", () => {
     });
 
     it("should handle leap year birthday (Feb 29)", () => {
-      // Born Feb 29, 2000
+      // Born Feb 29, 2000 — age depends on current date
       const age = calculateAge("2000-02-29");
-      // In Feb 2026, Feb 29 hasn't happened (2026 is not a leap year),
-      // so age should be 25
-      expect(age).toBe(25);
+      const today = new Date();
+      const expectedAge = today.getFullYear() - 2000 - (today.getMonth() < 1 || (today.getMonth() === 1 && today.getDate() < 29) ? 1 : 0);
+      expect(age).toBe(expectedAge);
     });
   });
 

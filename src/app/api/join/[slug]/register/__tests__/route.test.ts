@@ -11,6 +11,8 @@ const {
   mockPlansGetById,
   mockOrchestrateOnboarding,
   mockNormalizePhoneNumber,
+  mockReturningAppsCreate,
+  mockReturningAppsGetByEmail,
 } = vi.hoisted(() => ({
   mockMembersCreate: vi.fn(),
   mockMembersGetByEmail: vi.fn(),
@@ -19,6 +21,8 @@ const {
   mockPlansGetById: vi.fn(),
   mockOrchestrateOnboarding: vi.fn(),
   mockNormalizePhoneNumber: vi.fn((v: string) => v),
+  mockReturningAppsCreate: vi.fn(),
+  mockReturningAppsGetByEmail: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -84,6 +88,13 @@ vi.mock("@/lib/utils/phone", () => ({
 
 vi.mock("@/lib/onboarding/orchestrate-onboarding", () => ({
   orchestrateOnboarding: mockOrchestrateOnboarding,
+}));
+
+vi.mock("@/lib/database/returning-applications", () => ({
+  ReturningApplicationsService: {
+    create: mockReturningAppsCreate,
+    getByEmail: mockReturningAppsGetByEmail,
+  },
 }));
 
 // ---------------------------------------------------------------------------
@@ -156,6 +167,8 @@ describe("POST /api/join/[slug]/register", () => {
     mockPlansGetById.mockResolvedValue(mockPlan);
     mockMembersCreate.mockResolvedValue(mockMember);
     mockMembershipsCreate.mockResolvedValue(mockMembership);
+    mockReturningAppsGetByEmail.mockResolvedValue(null);
+    mockReturningAppsCreate.mockResolvedValue({ id: "app-1" });
     mockOrchestrateOnboarding.mockResolvedValue({
       welcomeEmailSent: true,
       agreementEmailSent: true,
@@ -193,12 +206,13 @@ describe("POST /api/join/[slug]/register", () => {
     expect(mockOrchestrateOnboarding).not.toHaveBeenCalled();
   });
 
-  it("returning=true still creates member and membership", async () => {
+  it("returning=true creates a returning application instead of member/membership", async () => {
     const req = makeRequest({ ...defaultBody, returning: true });
     await POST(req, routeParams);
 
-    expect(mockMembersCreate).toHaveBeenCalledTimes(1);
-    expect(mockMembershipsCreate).toHaveBeenCalledTimes(1);
+    expect(mockReturningAppsCreate).toHaveBeenCalledTimes(1);
+    expect(mockMembersCreate).not.toHaveBeenCalled();
+    expect(mockMembershipsCreate).not.toHaveBeenCalled();
   });
 
   it("duplicate email returns 400", async () => {

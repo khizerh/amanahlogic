@@ -143,7 +143,7 @@ describe("PUT /api/memberships/[id]", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({
-      error: "At least one field (enrollmentFeeStatus or paidMonths) is required",
+      error: "At least one field (enrollmentFeeStatus, paidMonths, or planId) is required",
     });
   });
 
