@@ -101,7 +101,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     // Sync Stripe subscription if plan changed and subscription exists
     let stripeUpdated = false;
-    if (planId !== undefined && newPlan && membership.stripeSubscriptionId && membership.subscriptionStatus === "active") {
+    if (planId !== undefined && newPlan && membership.stripeSubscriptionId && (membership.subscriptionStatus === "active" || membership.subscriptionStatus === "trialing")) {
       try {
         const org = await OrganizationsService.getById(organizationId);
         if (org) {

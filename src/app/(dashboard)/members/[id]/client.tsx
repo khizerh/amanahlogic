@@ -1895,7 +1895,7 @@ export function MemberDetailClient({
                             <TableCell>{getPaymentTypeBadge(payment.type)}</TableCell>
                             <TableCell>{getPaymentMethodBadge(payment.method, payment.stripePaymentMethodType)}</TableCell>
                             <TableCell className="text-right font-medium">
-                              {formatCurrency(payment.amount)}
+                              {formatCurrency(payment.totalCharged || payment.amount)}
                             </TableCell>
                             <TableCell>
                               <Badge
@@ -2002,7 +2002,7 @@ export function MemberDetailClient({
                               <TableCell>{getPaymentTypeBadge(payment.type)}</TableCell>
                               <TableCell>{getPaymentMethodBadge(payment.method, payment.stripePaymentMethodType)}</TableCell>
                               <TableCell className="text-right font-medium">
-                                {formatCurrency(payment.amount)}
+                                {formatCurrency(payment.totalCharged || payment.amount)}
                               </TableCell>
                               <TableCell>
                                 <Badge

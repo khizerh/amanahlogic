@@ -71,7 +71,7 @@ export default async function DashboardPage() {
     memberName: payment.member ? `${payment.member.firstName} ${payment.member.middleName ? `${payment.member.middleName} ` : ''}${payment.member.lastName}` : 'Unknown',
     memberId: payment.memberId,
     detail: payment.type === 'enrollment_fee' ? 'Enrollment fee' : `${payment.monthsCredited} month${payment.monthsCredited > 1 ? 's' : ''} dues`,
-    amount: payment.amount,
+    amount: payment.totalCharged || payment.amount,
   }));
 
   const recentActivity = [...recentSignups, ...paymentActivity]

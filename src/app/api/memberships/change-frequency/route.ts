@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
     // Sync Stripe subscription if one exists
     let stripeUpdated = false;
-    if (membership.stripeSubscriptionId && membership.subscriptionStatus === "active") {
+    if (membership.stripeSubscriptionId && (membership.subscriptionStatus === "active" || membership.subscriptionStatus === "trialing")) {
       try {
         const [plan, org] = await Promise.all([
           PlansService.getById(membership.planId),
