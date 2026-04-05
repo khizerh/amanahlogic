@@ -16,6 +16,9 @@ import type {
   Plan,
   PlanPricing,
   SubscriptionStatus,
+  RevenueStats,
+  FrequencyBreakdown,
+  UpcomingCharge,
 } from "@/lib/types";
 
 // =============================================================================
@@ -500,6 +503,117 @@ export class MembershipsService {
 
     if (error) throw error;
     return transformMembershipsWithDetails(data || []);
+  }
+
+  /**
+   * Calculate revenue stats from active memberships joined with plan pricing.
+   * Returns MRR, ARR, and breakdown by billing frequency.
+   */
+  static async getRevenueStats(organizationId: string): Promise<RevenueStats> {
+    const supabase = await createClientForContext();
+
+    const { data, error } = await supabase
+      .from("memberships")
+      .select("billing_frequency, plan:plans(pricing, name, type)")
+      .eq("organization_id", organizationId)
+      .eq("status", "current");
+
+    if (error) throw error;
+
+    const byFrequency: Record<BillingFrequency, { count: number; totalMonthly: number }> = {
+      monthly: { count: 0, totalMonthly: 0 },
+      biannual: { count: 0, totalMonthly: 0 },
+      annual: { count: 0, totalMonthly: 0 },
+    };
+
+    for (const row of data || []) {
+      const freq = row.billing_frequency as BillingFrequency;
+      const plan = row.plan as unknown as { pricing: PlanPricing } | null;
+      if (!plan?.pricing || !byFrequency[freq]) continue;
+
+      const periodAmount = plan.pricing[freq] || 0;
+      let monthlyEquiv = 0;
+      switch (freq) {
+        case "monthly": monthlyEquiv = periodAmount; break;
+        case "biannual": monthlyEquiv = periodAmount / 6; break;
+        case "annual": monthlyEquiv = periodAmount / 12; break;
+      }
+
+      byFrequency[freq].count++;
+      byFrequency[freq].totalMonthly += monthlyEquiv;
+    }
+
+    const breakdown: FrequencyBreakdown[] = (["monthly", "biannual", "annual"] as BillingFrequency[]).map(freq => ({
+      frequency: freq,
+      memberCount: byFrequency[freq].count,
+      monthlyEquivalent: Math.round(byFrequency[freq].totalMonthly * 100) / 100,
+      annualEquivalent: Math.round(byFrequency[freq].totalMonthly * 12 * 100) / 100,
+    }));
+
+    const mrr = breakdown.reduce((sum, b) => sum + b.monthlyEquivalent, 0);
+
+    return {
+      mrr: Math.round(mrr * 100) / 100,
+      arr: Math.round(mrr * 12 * 100) / 100,
+      breakdown,
+      totalSubscribed: breakdown.reduce((sum, b) => sum + b.memberCount, 0),
+    };
+  }
+
+  /**
+   * Get upcoming charges within the next N days.
+   */
+  static async getUpcomingCharges(
+    organizationId: string,
+    daysAhead: number = 30
+  ): Promise<UpcomingCharge[]> {
+    const supabase = await createClientForContext();
+
+    const today = new Date();
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + daysAhead);
+    const todayStr = today.toISOString().split("T")[0];
+    const futureStr = futureDate.toISOString().split("T")[0];
+
+    const { data, error } = await supabase
+      .from("memberships")
+      .select(`
+        id,
+        member_id,
+        billing_frequency,
+        next_payment_due,
+        auto_pay_enabled,
+        member:members!memberships_member_id_fkey(id, first_name, middle_name, last_name),
+        plan:plans(name, type, pricing)
+      `)
+      .eq("organization_id", organizationId)
+      .eq("status", "current")
+      .gte("next_payment_due", todayStr)
+      .lte("next_payment_due", futureStr)
+      .order("next_payment_due", { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map((row) => {
+      const member = row.member as unknown as { id: string; first_name: string; middle_name: string | null; last_name: string } | null;
+      const plan = row.plan as unknown as { name: string; type: string; pricing: PlanPricing } | null;
+      const freq = row.billing_frequency as BillingFrequency;
+      const amount = plan?.pricing?.[freq] || 0;
+
+      return {
+        membershipId: row.id,
+        memberId: row.member_id,
+        memberName: member
+          ? `${member.first_name}${member.middle_name ? ` ${member.middle_name}` : ''} ${member.last_name}`
+          : "Unknown",
+        planName: plan?.name || "Unknown",
+        planType: plan?.type || "unknown",
+        amount,
+        dueDate: row.next_payment_due,
+        billingFrequency: freq,
+        autoPayEnabled: row.auto_pay_enabled,
+      };
+    });
   }
 }
 

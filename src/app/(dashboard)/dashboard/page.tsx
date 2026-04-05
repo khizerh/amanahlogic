@@ -23,13 +23,20 @@ export default async function DashboardPage() {
   // Get org context with billing config
   const { organizationId, billingConfig } = await getOrgContext();
 
+  // Current month date range for "collected this month"
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
   // Fetch all data in parallel using org config
-  const [organization, membersWithMembership, paymentStats, overdueMembers, recentPayments] = await Promise.all([
+  const [organization, membersWithMembership, monthlyPaymentStats, overdueMembers, recentPayments, revenueStats, upcomingCharges] = await Promise.all([
     OrganizationsService.getById(organizationId),
     MembersService.getAllWithMembership(organizationId),
-    PaymentsService.getStats(organizationId),
+    PaymentsService.getStats(organizationId, { start: startOfMonth, end: endOfMonth }),
     MembershipsService.getOverdue(organizationId, billingConfig.lapseDays),
     PaymentsService.getRecent(organizationId, 10),
+    MembershipsService.getRevenueStats(organizationId),
+    MembershipsService.getUpcomingCharges(organizationId, 30),
   ]);
 
   // Calculate stats from real data
@@ -38,7 +45,7 @@ export default async function DashboardPage() {
     totalMembers: membersWithMembership.length,
     activeMembers: membersWithMembership.filter(m => m.membership?.status === 'current').length,
     lapsed: membersWithMembership.filter(m => m.membership?.status === 'lapsed').length,
-    monthlyRevenue: paymentStats.totalCollected,
+    collectedThisMonth: monthlyPaymentStats.totalCollected,
   };
 
   // Build recent activity feed combining signups and payments
@@ -124,11 +131,99 @@ export default async function DashboardPage() {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+                <CardTitle className="text-sm font-medium">Monthly Recurring</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-emerald-600">{formatCurrency(stats.monthlyRevenue)}</div>
-                <p className="text-xs text-muted-foreground">This month</p>
+                <div className="text-2xl font-bold text-emerald-600">{formatCurrency(revenueStats.mrr)}</div>
+                <p className="text-xs text-muted-foreground">{revenueStats.totalSubscribed} paying members</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Revenue Overview */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-8">
+            {/* Revenue Summary + Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Revenue</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">MRR</div>
+                    <div className="text-xl font-bold text-emerald-600">{formatCurrency(revenueStats.mrr)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Annual Run Rate</div>
+                    <div className="text-xl font-bold">{formatCurrency(revenueStats.arr)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Collected This Month</div>
+                    <div className="text-xl font-bold">{formatCurrency(stats.collectedThisMonth)}</div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="text-sm font-medium text-muted-foreground mb-3">Breakdown by Frequency</div>
+                  <div className="space-y-2">
+                    {revenueStats.breakdown.map((b) => (
+                      <div key={b.frequency} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="capitalize">{b.frequency === "biannual" ? "Bi-Annual" : b.frequency}</span>
+                          <Badge variant="secondary" className="text-xs">{b.memberCount}</Badge>
+                        </div>
+                        <span className="font-medium">{formatCurrency(b.monthlyEquivalent)}/mo</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between text-sm font-semibold border-t pt-2">
+                      <span>Total</span>
+                      <span>{formatCurrency(revenueStats.mrr)}/mo</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Charges */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Upcoming Charges</CardTitle>
+                  <span className="text-sm text-muted-foreground">Next 30 days</span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {upcomingCharges.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No upcoming charges</p>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingCharges.slice(0, 10).map((charge) => (
+                      <div key={charge.membershipId} className="flex items-center justify-between text-sm">
+                        <div>
+                          <Link href={`/members/${charge.memberId}`} className="font-medium hover:underline">
+                            {charge.memberName}
+                          </Link>
+                          <div className="text-xs text-muted-foreground">
+                            {charge.planName} {charge.billingFrequency === "biannual" ? "Bi-Annual" : charge.billingFrequency}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">{formatCurrency(charge.amount)}</div>
+                          <div className="text-xs text-muted-foreground">{formatDate(charge.dueDate)}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {upcomingCharges.length > 10 && (
+                      <p className="text-xs text-muted-foreground text-center pt-1">
+                        +{upcomingCharges.length - 10} more
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between font-semibold text-sm border-t pt-3">
+                      <span>Expected Total</span>
+                      <span className="text-emerald-600">{formatCurrency(upcomingCharges.reduce((sum, c) => sum + c.amount, 0))}</span>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

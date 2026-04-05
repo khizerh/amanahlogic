@@ -385,6 +385,36 @@ export interface DashboardStats {
 }
 
 // -----------------------------------------------------------------------------
+// Revenue Types
+// -----------------------------------------------------------------------------
+
+export interface FrequencyBreakdown {
+  frequency: BillingFrequency;
+  memberCount: number;
+  monthlyEquivalent: number;
+  annualEquivalent: number;
+}
+
+export interface RevenueStats {
+  mrr: number;
+  arr: number;
+  breakdown: FrequencyBreakdown[];
+  totalSubscribed: number;
+}
+
+export interface UpcomingCharge {
+  membershipId: string;
+  memberId: string;
+  memberName: string;
+  planName: string;
+  planType: string;
+  amount: number;
+  dueDate: string;
+  billingFrequency: BillingFrequency;
+  autoPayEnabled: boolean;
+}
+
+// -----------------------------------------------------------------------------
 // Filter Types
 // -----------------------------------------------------------------------------
 
