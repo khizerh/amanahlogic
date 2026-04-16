@@ -1059,10 +1059,25 @@ async function handleSetupIntentSucceeded(
   }
 
   // Parse metadata values
-  const duesAmountCents = parseInt(duesAmountCentsStr || "0", 10);
   const enrollmentFeeAmountCents = parseInt(enrollmentFeeAmountCentsStr || "0", 10);
   const passFeesToMember = passFeesToMemberStr === "true";
-  const freq = (billingFrequency || "monthly") as BillingFrequency;
+
+  // Read CURRENT billing frequency & dues from DB instead of relying solely on
+  // SetupIntent metadata, which can become stale if admin changes frequency after
+  // the payment link was sent.
+  const { data: currentMembership } = await supabase
+    .from("memberships")
+    .select("billing_frequency, plan:plans(pricing, name)")
+    .eq("id", membershipId)
+    .single();
+
+  const currentPlan = currentMembership?.plan
+    ? (Array.isArray(currentMembership.plan) ? currentMembership.plan[0] : currentMembership.plan)
+    : null;
+  const freq = ((currentMembership?.billing_frequency || billingFrequency || "monthly") as BillingFrequency);
+  const duesAmountCents = currentPlan?.pricing?.[freq]
+    ? Math.round(currentPlan.pricing[freq] * 100)
+    : parseInt(duesAmountCentsStr || "0", 10);
 
   // Check if member is current (already paid through a future date)
   const memberIsCurrent = metadata.member_is_current === "true";

@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
+import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
-import { updateSubscriptionPricing, getPlatformFee } from "@/lib/stripe";
+import { updateSubscriptionPricing, getPlatformFee, cancelSetupIntent } from "@/lib/stripe";
 import type { BillingFrequency, PlatformFees } from "@/lib/types";
 
 interface ChangeFrequencyBody {
@@ -84,11 +85,27 @@ export async function POST(req: Request) {
       }
     }
 
+    // Invalidate any pending payment links (SetupIntents) that have stale frequency/amount
+    let pendingLinkInvalidated = false;
+    try {
+      const pendingInvite = await OnboardingInvitesService.getPendingForMembership(membershipId);
+      if (pendingInvite?.stripeSetupIntentId) {
+        await cancelSetupIntent(pendingInvite.stripeSetupIntentId);
+        await OnboardingInvitesService.markCanceled(pendingInvite.id);
+        pendingLinkInvalidated = true;
+        console.log(`[ChangeFrequency] Invalidated pending SetupIntent ${pendingInvite.stripeSetupIntentId} for membership ${membershipId}`);
+      }
+    } catch (error) {
+      console.error("Failed to invalidate pending payment link:", error);
+      // Don't fail the request — frequency is already updated
+    }
+
     return NextResponse.json({
       success: true,
       previousFrequency,
       newFrequency,
       stripeUpdated,
+      pendingLinkInvalidated,
     });
   } catch (error) {
     console.error("Error changing billing frequency:", error);

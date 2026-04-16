@@ -129,9 +129,16 @@ export function ChangeFrequencySheet({
         throw new Error(result.error || "Failed to update frequency");
       }
 
-      toast.success("Billing frequency updated", {
-        description: `Changed from ${getFrequencyLabel(currentFrequency)} to ${getFrequencyLabel(selectedFrequency)}`,
-      });
+      if (result.pendingLinkInvalidated) {
+        toast.warning("Frequency updated — payment link invalidated", {
+          description: `The pending payment link had the old frequency. Please re-send the payment link.`,
+          duration: 8000,
+        });
+      } else {
+        toast.success("Billing frequency updated", {
+          description: `Changed from ${getFrequencyLabel(currentFrequency)} to ${getFrequencyLabel(selectedFrequency)}`,
+        });
+      }
 
       onOpenChange(false);
       onFrequencyChanged?.();

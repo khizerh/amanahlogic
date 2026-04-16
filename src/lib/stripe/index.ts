@@ -316,6 +316,29 @@ export async function createSetupIntent(params: {
 }
 
 /**
+ * Cancel a SetupIntent (e.g. when admin changes billing frequency after link was sent).
+ * Silently succeeds if the SetupIntent is already canceled, consumed, or expired.
+ */
+export async function cancelSetupIntent(setupIntentId: string): Promise<boolean> {
+  if (!stripe) throw new Error("Stripe is not configured");
+
+  try {
+    await stripe.setupIntents.cancel(setupIntentId);
+    return true;
+  } catch (error) {
+    // SetupIntent already canceled, succeeded, or otherwise non-cancelable — that's fine
+    if (
+      error instanceof Stripe.errors.StripeInvalidRequestError &&
+      (error.message.includes("cannot be canceled") ||
+       error.message.includes("has already been"))
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
  * Check if a Stripe error is a configuration error (portal not set up)
  */
 export function isStripeConfigurationError(error: unknown): boolean {
