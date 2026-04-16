@@ -71,6 +71,7 @@ export default function Header() {
   const isPendingActive = pathname === "/pending" || pathname?.startsWith("/pending/");
   const isPaymentsActive = pathname === "/payments" || pathname?.startsWith("/payments/");
   const isPlansActive = pathname === "/plans" || pathname?.startsWith("/plans/");
+  const isEnrollActive = pathname === "/enroll" || pathname?.startsWith("/enroll/");
 
   return (
     <>
@@ -152,6 +153,17 @@ export default function Header() {
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Plans
+                        </Link>
+                        <Link
+                          href="/enroll"
+                          className={`text-lg font-medium px-4 py-2 rounded-md transition-colors ${
+                            isEnrollActive
+                              ? "bg-brand-teal text-white"
+                              : "text-foreground hover:bg-accent"
+                          }`}
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Enroll
                         </Link>
                         <Link
                           href="/settings"
@@ -275,6 +287,17 @@ export default function Header() {
                           className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
                         >
                           Plans
+                        </Link>
+                      </NavigationMenuLink>
+                    </NavItem>
+
+                    <NavItem>
+                      <NavigationMenuLink asChild active={isEnrollActive}>
+                        <Link
+                          href="/enroll"
+                          className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
+                        >
+                          Enroll
                         </Link>
                       </NavigationMenuLink>
                     </NavItem>

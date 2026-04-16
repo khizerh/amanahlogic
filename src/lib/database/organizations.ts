@@ -379,6 +379,7 @@ interface DbOrganizationRow {
   stripe_onboarded: boolean;
   platform_fees: PlatformFees | null;
   pass_fees_to_member: boolean | null;
+  terminal_location_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -409,6 +410,7 @@ function transformOrganization(dbOrg: DbOrganizationRow): Organization {
     stripeOnboarded: dbOrg.stripe_onboarded,
     platformFees: dbOrg.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: dbOrg.pass_fees_to_member || false,
+    terminalLocationId: dbOrg.terminal_location_id || null,
     createdAt: dbOrg.created_at,
     updatedAt: dbOrg.updated_at,
   };

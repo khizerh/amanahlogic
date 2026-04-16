@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { getEmailTemplateTypeLabel } from "@/lib/utils/formatters";
 import { Organization, EmailTemplate, AgreementTemplate } from "@/lib/types";
+import { TerminalSettings } from "@/components/settings/terminal-settings";
 import { toast } from "sonner";
 
 interface SettingsPageClientProps {
@@ -281,6 +282,7 @@ export function SettingsPageClient({
               <TabsTrigger value="organization">Organization</TabsTrigger>
               <TabsTrigger value="agreement">Agreement</TabsTrigger>
               <TabsTrigger value="stripe">Stripe</TabsTrigger>
+              <TabsTrigger value="terminal">Terminal</TabsTrigger>
               <TabsTrigger value="emails">Email Templates</TabsTrigger>
             </TabsList>
 
@@ -861,6 +863,11 @@ export function SettingsPageClient({
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* Terminal Tab */}
+            <TabsContent value="terminal">
+              <TerminalSettings organization={organization} onOrganizationUpdate={setOrganization} />
             </TabsContent>
 
             {/* Email Templates Tab */}

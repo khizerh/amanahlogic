@@ -50,6 +50,7 @@ export interface Organization {
   stripeOnboarded: boolean;
   platformFees: PlatformFees; // Per-frequency platform fees
   passFeesToMember: boolean; // If true, gross-up charges so org receives full amount
+  terminalLocationId: string | null; // Stripe Terminal Location ID for in-person payments
   createdAt: string;
   updatedAt: string;
 }

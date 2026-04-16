@@ -80,6 +80,7 @@ export async function POST(request: Request) {
       waiveEnrollmentFee?: boolean;
       paymentMethod?: "stripe" | "manual";
       paidMonths?: number;
+      skipOnboarding?: boolean;
     };
 
     // Sanitize paidMonths: must be a non-negative integer
@@ -175,28 +176,31 @@ export async function POST(request: Request) {
     }
 
     // Orchestrate onboarding (best-effort — failures don't roll back member creation)
+    // Skip for in-person enrollment — payment is collected at the counter, not via email
     let onboarding = null;
-    try {
-      onboarding = await orchestrateOnboarding({
-        organizationId,
-        member,
-        membership,
-        plan,
-        paymentMethod: paymentMethod || "manual",
-        includeEnrollmentFee: !waiveEnrollmentFee,
-      });
-    } catch (err) {
-      console.error("Onboarding orchestration failed:", err);
-      onboarding = {
-        welcomeEmailSent: false,
-        agreementEmailSent: false,
-        inviteCreated: false,
-        onboardingInviteCreated: false,
-        stripeSessionCreated: false,
-        agreementCreated: false,
-        errors: [err instanceof Error ? err.message : "Onboarding orchestration failed"],
-        skipped: [],
-      };
+    if (!body.skipOnboarding) {
+      try {
+        onboarding = await orchestrateOnboarding({
+          organizationId,
+          member,
+          membership,
+          plan,
+          paymentMethod: paymentMethod || "manual",
+          includeEnrollmentFee: !waiveEnrollmentFee,
+        });
+      } catch (err) {
+        console.error("Onboarding orchestration failed:", err);
+        onboarding = {
+          welcomeEmailSent: false,
+          agreementEmailSent: false,
+          inviteCreated: false,
+          onboardingInviteCreated: false,
+          stripeSessionCreated: false,
+          agreementCreated: false,
+          errors: [err instanceof Error ? err.message : "Onboarding orchestration failed"],
+          skipped: [],
+        };
+      }
     }
 
     return NextResponse.json({
