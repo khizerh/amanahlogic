@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -503,10 +504,32 @@ export function EnrollClient({ organization, plans }: EnrollClientProps) {
                 <CardTitle>Charge Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {selectedPlan && includeEnrollmentFee && selectedPlan.enrollmentFee > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Enrollment Fee</span>
-                    <span>{formatCurrency(selectedPlan.enrollmentFee)}</span>
+                {selectedPlan && selectedPlan.enrollmentFee > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Enrollment Fee
+                        {!includeEnrollmentFee && (
+                          <Badge variant="secondary" className="ml-2 text-xs">Waived</Badge>
+                        )}
+                      </span>
+                      <span className={!includeEnrollmentFee ? "line-through text-muted-foreground" : ""}>
+                        {formatCurrency(selectedPlan.enrollmentFee)}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="waiveEnrollmentFee"
+                        checked={!includeEnrollmentFee}
+                        onCheckedChange={(checked) => setIncludeEnrollmentFee(!checked)}
+                      />
+                      <Label
+                        htmlFor="waiveEnrollmentFee"
+                        className="text-sm font-normal cursor-pointer text-muted-foreground"
+                      >
+                        Waive enrollment fee
+                      </Label>
+                    </div>
                   </div>
                 )}
                 {selectedPlan && (
