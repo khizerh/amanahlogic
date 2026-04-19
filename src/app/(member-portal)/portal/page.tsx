@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, PauseCircle, Users } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
+import { MembershipsService } from "@/lib/database/memberships";
 import { formatCurrency } from "@/lib/utils/currency";
 import { formatPhoneNumber } from "@/lib/utils";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -75,6 +76,7 @@ export default async function MemberDashboardPage() {
   }
 
   const dashboardData = await MemberPortalService.getDashboardData(memberId, organizationId);
+  const sponsoredMembers = await MembershipsService.getByPayerMemberId(memberId, organizationId);
 
   if (!dashboardData) {
     return (
@@ -416,6 +418,56 @@ export default async function MemberDashboardPage() {
                 No automatic payment method on file. Contact {organization.name} to set up automatic payments.
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Members You Sponsor */}
+      {sponsoredMembers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Members You Sponsor ({sponsoredMembers.length})
+            </CardTitle>
+            <CardDescription>
+              Memberships paid for from your account. Each is billed separately.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {sponsoredMembers.map((item) => (
+                <div
+                  key={item.membershipId}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {item.firstName} {item.middleName ? `${item.middleName} ` : ""}
+                      {item.lastName}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground">{item.planName}</span>
+                      <span className="text-xs text-muted-foreground">&middot;</span>
+                      <span className="text-xs text-muted-foreground capitalize">
+                        Billed {item.billingFrequency}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {item.nextPaymentDue && (
+                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                        Next: {formatDate(item.nextPaymentDue, organization.timezone)}
+                      </span>
+                    )}
+                    {getStatusBadge(item.status)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">
+              To update or remove a sponsored membership, contact {organization.name}.
+            </p>
           </CardContent>
         </Card>
       )}
