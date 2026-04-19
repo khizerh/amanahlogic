@@ -10,6 +10,7 @@ import {
 } from "@/lib/billing/invoice-generator";
 import { calculateFees, reverseCalculateBaseAmount, createMembershipSubscription, getPlatformFee } from "@/lib/stripe";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
+import { sendPaymentFailedEmail } from "@/lib/email/send-payment-failed";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import type { BillingFrequency, PaymentMethod, PlatformFees } from "@/lib/types";
 
@@ -37,9 +38,12 @@ const IGNORED_EVENTS = [
 ];
 
 /**
- * Extended Invoice type with optional fields that may be present
+ * Extended Invoice type covering both the legacy flat fields (pre-2025-06-30)
+ * and the new `parent.subscription_details` / `payments` structure introduced
+ * in API version 2025-06-30 (Basil) and carried through 2026-02-25 (Clover).
  */
 type InvoiceWithSubscription = Stripe.Invoice & {
+  // legacy flat fields (absent under newer API versions, retained for compat)
   subscription?: string | Stripe.Subscription | null;
   payment_intent?: string | Stripe.PaymentIntent | null;
   application_fee_amount?: number | null;
@@ -48,7 +52,68 @@ type InvoiceWithSubscription = Stripe.Invoice & {
     subscription?: string | Stripe.Subscription;
     subscription_proration_date?: number;
   } | null;
+  // new-shape fields
+  parent?: {
+    type?: string;
+    subscription_details?: {
+      subscription?: string | Stripe.Subscription | null;
+      metadata?: Stripe.Metadata | null;
+    } | null;
+  } | null;
+  payments?: {
+    data?: Array<{
+      payment?: {
+        payment_intent?: string | (Stripe.PaymentIntent & { id: string }) | null;
+      } | null;
+    }>;
+  } | null;
 };
+
+/** Extract subscription ID from legacy or new-shape invoice. */
+function extractInvoiceSubscriptionId(invoice: InvoiceWithSubscription): string | null {
+  const legacy = invoice.subscription;
+  if (typeof legacy === "string") return legacy;
+  if (legacy && typeof legacy === "object" && "id" in legacy) return legacy.id;
+  const nested = invoice.parent?.subscription_details?.subscription;
+  if (typeof nested === "string") return nested;
+  if (nested && typeof nested === "object" && "id" in nested) return nested.id;
+  return null;
+}
+
+/** Extract subscription-level metadata from legacy or new-shape invoice. */
+function extractInvoiceSubscriptionMetadata(
+  invoice: InvoiceWithSubscription
+): Record<string, string> {
+  const legacy = invoice.subscription_details?.metadata;
+  if (legacy) return legacy as Record<string, string>;
+  const nested = invoice.parent?.subscription_details?.metadata;
+  if (nested) return nested as Record<string, string>;
+  return {};
+}
+
+/** Extract first line-item metadata (which includes membership_id for our invoices). */
+function extractInvoiceLineMetadata(
+  invoice: InvoiceWithSubscription
+): Record<string, string> {
+  const lineItems = (invoice as unknown as {
+    lines?: { data?: Array<{ metadata?: Record<string, string> }> };
+  }).lines?.data;
+  return (lineItems?.[0]?.metadata || {}) as Record<string, string>;
+}
+
+/** Extract payment_intent ID from legacy or new-shape invoice. */
+function extractInvoicePaymentIntentId(invoice: InvoiceWithSubscription): string | undefined {
+  const legacy = invoice.payment_intent;
+  if (typeof legacy === "string") return legacy;
+  if (legacy && typeof legacy === "object" && "id" in legacy) return legacy.id;
+  const payments = invoice.payments?.data || [];
+  for (const p of payments) {
+    const pi = p.payment?.payment_intent;
+    if (typeof pi === "string") return pi;
+    if (pi && typeof pi === "object" && "id" in pi) return pi.id;
+  }
+  return undefined;
+}
 
 /**
  * POST /api/webhooks/stripe
@@ -449,8 +514,10 @@ async function handleInvoiceCreated(
 ) {
   if (!stripe) return;
 
+  const subscriptionId = extractInvoiceSubscriptionId(invoice);
+
   // Only process subscription invoices
-  if (!invoice.subscription) {
+  if (!subscriptionId) {
     console.log("[Webhook] invoice.created - not a subscription invoice, skipping");
     return;
   }
@@ -460,10 +527,6 @@ async function handleInvoiceCreated(
     console.log("[Webhook] invoice.created - application_fee_amount already set, skipping");
     return;
   }
-
-  const subscriptionId = typeof invoice.subscription === "string"
-    ? invoice.subscription
-    : invoice.subscription.id;
 
   // Look up membership by subscription ID
   let membership: { id: string; organization_id: string; billing_frequency: string | null } | null = null;
@@ -478,13 +541,26 @@ async function handleInvoiceCreated(
   // Fallback: if the subscription ID hasn't been written to the DB yet
   // (race condition during setup_intent.succeeded), use subscription metadata
   if (!membership) {
-    const subMetadata = invoice.subscription_details?.metadata;
-    if (subMetadata?.membership_id && subMetadata?.organization_id) {
-      console.log(`[Webhook] invoice.created - falling back to subscription_details.metadata (membership_id: ${subMetadata.membership_id})`);
+    const subMetadata = extractInvoiceSubscriptionMetadata(invoice);
+    if (subMetadata.membership_id && subMetadata.organization_id) {
+      console.log(`[Webhook] invoice.created - falling back to subscription metadata (membership_id: ${subMetadata.membership_id})`);
       membership = {
         id: subMetadata.membership_id,
         organization_id: subMetadata.organization_id,
         billing_frequency: subMetadata.billing_frequency || null,
+      };
+    }
+  }
+
+  // Fallback 2: line-item metadata (populated on our subscriptions)
+  if (!membership) {
+    const lineMeta = extractInvoiceLineMetadata(invoice);
+    if (lineMeta.membership_id && lineMeta.organization_id) {
+      console.log(`[Webhook] invoice.created - falling back to line-item metadata (membership_id: ${lineMeta.membership_id})`);
+      membership = {
+        id: lineMeta.membership_id,
+        organization_id: lineMeta.organization_id,
+        billing_frequency: lineMeta.billing_frequency || null,
       };
     }
   }
@@ -557,9 +633,9 @@ async function handleInvoicePaid(
   let organizationId = (invoice.metadata as Record<string, string>)?.organization_id;
   let memberId = (invoice.metadata as Record<string, string>)?.member_id;
 
-  // Fallback 1: subscription_details.metadata (contains subscription's metadata)
-  if (!membershipId && invoice.subscription_details?.metadata) {
-    const subMeta = invoice.subscription_details.metadata as Record<string, string>;
+  // Fallback 1: subscription metadata (legacy + new shape)
+  if (!membershipId) {
+    const subMeta = extractInvoiceSubscriptionMetadata(invoice);
     membershipId = membershipId || subMeta.membership_id;
     organizationId = organizationId || subMeta.organization_id;
     memberId = memberId || subMeta.member_id;
@@ -567,32 +643,27 @@ async function handleInvoicePaid(
 
   // Fallback 2: first line item metadata
   if (!membershipId) {
-    const lineItems = (invoice as unknown as { lines?: { data?: Array<{ metadata?: Record<string, string> }> } }).lines?.data;
-    if (lineItems?.[0]?.metadata) {
-      const lineMeta = lineItems[0].metadata;
-      membershipId = membershipId || lineMeta.membership_id;
-      organizationId = organizationId || lineMeta.organization_id;
-      memberId = memberId || lineMeta.member_id;
-    }
+    const lineMeta = extractInvoiceLineMetadata(invoice);
+    membershipId = membershipId || lineMeta.membership_id;
+    organizationId = organizationId || lineMeta.organization_id;
+    memberId = memberId || lineMeta.member_id;
   }
 
   // Fallback 3: look up from subscription if still not found
-  if (!membershipId && invoice.subscription) {
-    const subscriptionId = typeof invoice.subscription === "string"
-      ? invoice.subscription
-      : invoice.subscription.id;
+  if (!membershipId) {
+    const subscriptionId = extractInvoiceSubscriptionId(invoice);
+    if (subscriptionId) {
+      const { data: membership } = await supabase
+        .from("memberships")
+        .select("id, organization_id, member_id, billing_frequency, plan:plans(pricing)")
+        .eq("stripe_subscription_id", subscriptionId)
+        .single();
 
-    // Look up membership by subscription ID
-    const { data: membership } = await supabase
-      .from("memberships")
-      .select("id, organization_id, member_id, billing_frequency, plan:plans(pricing)")
-      .eq("stripe_subscription_id", subscriptionId)
-      .single();
-
-    if (membership) {
-      membershipId = membership.id;
-      organizationId = membership.organization_id;
-      memberId = membership.member_id;
+      if (membership) {
+        membershipId = membership.id;
+        organizationId = membership.organization_id;
+        memberId = membership.member_id;
+      }
     }
   }
 
@@ -610,7 +681,7 @@ async function handleInvoicePaid(
   // Check if this invoice includes enrollment fee (from subscription metadata)
   // We need to subtract it since enrollment fee is handled separately in checkout.session.completed
   let enrollmentFeeAmountCents = 0;
-  const subscriptionMetadata = invoice.subscription_details?.metadata || {};
+  const subscriptionMetadata = extractInvoiceSubscriptionMetadata(invoice);
   if (subscriptionMetadata.includes_enrollment_fee === "true" && invoice.billing_reason === "subscription_create") {
     // This is the first invoice with enrollment fee - we need to exclude it from dues calculation
     enrollmentFeeAmountCents = subscriptionMetadata.enrollment_fee_amount_cents
@@ -630,9 +701,7 @@ async function handleInvoicePaid(
   }
 
   const amount = duesAmountCents / 100;
-  const paymentIntentId = typeof invoice.payment_intent === "string"
-    ? invoice.payment_intent
-    : invoice.payment_intent?.id;
+  const paymentIntentId = extractInvoicePaymentIntentId(invoice);
 
   console.log(`[Webhook] Invoice paid: $${amount} for membership ${membershipId}`);
 
@@ -885,24 +954,39 @@ async function handleInvoiceFailed(
   invoice: InvoiceWithSubscription,
   supabase: ReturnType<typeof createServiceRoleClient>
 ) {
-  // Get membership_id from metadata or subscription
+  // Resolve membership_id / organization_id / member_id using the same cascade
+  // as invoice.paid so we don't bail on new-shape invoices.
   let membershipId = (invoice.metadata as Record<string, string>)?.membership_id;
   let organizationId = (invoice.metadata as Record<string, string>)?.organization_id;
+  let memberId = (invoice.metadata as Record<string, string>)?.member_id;
 
-  if (!membershipId && invoice.subscription) {
-    const subscriptionId = typeof invoice.subscription === "string"
-      ? invoice.subscription
-      : invoice.subscription.id;
+  if (!membershipId) {
+    const subMeta = extractInvoiceSubscriptionMetadata(invoice);
+    membershipId = membershipId || subMeta.membership_id;
+    organizationId = organizationId || subMeta.organization_id;
+    memberId = memberId || subMeta.member_id;
+  }
 
-    const { data: membership } = await supabase
-      .from("memberships")
-      .select("id, organization_id")
-      .eq("stripe_subscription_id", subscriptionId)
-      .single();
+  if (!membershipId) {
+    const lineMeta = extractInvoiceLineMetadata(invoice);
+    membershipId = membershipId || lineMeta.membership_id;
+    organizationId = organizationId || lineMeta.organization_id;
+    memberId = memberId || lineMeta.member_id;
+  }
 
-    if (membership) {
-      membershipId = membership.id;
-      organizationId = membership.organization_id;
+  if (!membershipId) {
+    const subscriptionId = extractInvoiceSubscriptionId(invoice);
+    if (subscriptionId) {
+      const { data: membership } = await supabase
+        .from("memberships")
+        .select("id, organization_id, member_id")
+        .eq("stripe_subscription_id", subscriptionId)
+        .single();
+      if (membership) {
+        membershipId = membership.id;
+        organizationId = membership.organization_id;
+        memberId = membership.member_id;
+      }
     }
   }
 
@@ -927,12 +1011,9 @@ async function handleInvoiceFailed(
     console.error("[Webhook] Failed to update membership after payment failure:", error);
   }
 
-  // Create failed payment record for audit trail
-  // Try to derive payment method type from the invoice's payment intent
+  // Derive payment method type from the invoice's payment intent (legacy or new shape)
   let failedPaymentMethodType: string | null = null;
-  const failedPiId = typeof invoice.payment_intent === "string"
-    ? invoice.payment_intent
-    : invoice.payment_intent?.id;
+  const failedPiId = extractInvoicePaymentIntentId(invoice);
   if (stripe && failedPiId) {
     try {
       const pi = await stripe.paymentIntents.retrieve(failedPiId);
@@ -945,19 +1026,87 @@ async function handleInvoiceFailed(
       // Non-fatal
     }
   }
-  await supabase
-    .from("payments")
-    .insert({
+
+  const failureMessage =
+    invoice.last_finalization_error?.message ||
+    (stripe && failedPiId
+      ? await stripe.paymentIntents.retrieve(failedPiId).then(
+          (pi) => pi.last_payment_error?.message || null,
+          () => null
+        )
+      : null) ||
+    "Unknown error";
+
+  // Create failed payment record for audit trail (idempotent on stripe_payment_intent_id)
+  if (failedPiId) {
+    const { data: existingFailed } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("stripe_payment_intent_id", failedPiId)
+      .eq("status", "failed")
+      .maybeSingle();
+    if (existingFailed) {
+      console.log(`[Webhook] Failed payment already recorded (${existingFailed.id}), skipping insert`);
+    } else {
+      await supabase.from("payments").insert({
+        organization_id: organizationId,
+        membership_id: membershipId,
+        member_id: memberId,
+        type: "dues",
+        method: "stripe",
+        status: "failed",
+        amount,
+        total_charged: amount,
+        net_amount: 0,
+        months_credited: 0,
+        stripe_payment_intent_id: failedPiId,
+        stripe_payment_method_type: failedPaymentMethodType,
+        notes: `Payment failed - ${failureMessage}`,
+      });
+    }
+  } else {
+    await supabase.from("payments").insert({
       organization_id: organizationId,
       membership_id: membershipId,
+      member_id: memberId,
       type: "dues",
       method: "stripe",
       status: "failed",
-      amount: amount,
+      amount,
+      total_charged: amount,
+      net_amount: 0,
       months_credited: 0,
       stripe_payment_method_type: failedPaymentMethodType,
-      notes: `Payment failed - ${invoice.last_finalization_error?.message || "Unknown error"}`,
+      notes: `Payment failed - ${failureMessage}`,
     });
+  }
+
+  // Send failure email so the member can update their card / retry.
+  try {
+    const { data: member } = await supabase
+      .from("members")
+      .select("first_name, middle_name, last_name, email, preferred_language")
+      .eq("id", memberId)
+      .single();
+
+    if (member?.email) {
+      const fullName = [member.first_name, member.middle_name, member.last_name]
+        .filter(Boolean)
+        .join(" ");
+      await sendPaymentFailedEmail({
+        to: member.email,
+        memberName: fullName,
+        memberId: memberId!,
+        organizationId: organizationId!,
+        amount: `$${amount.toFixed(2)}`,
+        failureReason: failureMessage,
+        language: (member.preferred_language as "en" | "fa") || "en",
+      });
+      console.log(`[Webhook] Sent payment-failed email to ${member.email}`);
+    }
+  } catch (emailErr) {
+    console.error("[Webhook] Failed to send payment-failed email:", emailErr);
+  }
 }
 
 /**
@@ -1304,17 +1453,16 @@ async function handleSetupIntentSucceeded(
     } else if (firstInvoice && firstInvoice.status === "open" && firstInvoice.amount_due > 0) {
       // ACH: Invoice is open (bank debit in transit). Create a pending payment record
       // so it shows in payment history. invoice.paid will settle it when ACH clears.
-      let piId = typeof firstInvoice.payment_intent === "string"
-        ? firstInvoice.payment_intent
-        : firstInvoice.payment_intent?.id;
+      let piId = extractInvoicePaymentIntentId(firstInvoice);
 
-      // PI may not be on the webhook payload yet for ACH — re-fetch the invoice directly
+      // PI may not be on the webhook payload yet for ACH — re-fetch the invoice with
+      // payments expanded so the new-shape field is populated.
       if (!piId) {
         try {
-          const freshInvoice = await stripe.invoices.retrieve(firstInvoice.id) as InvoiceWithSubscription;
-          piId = typeof freshInvoice.payment_intent === "string"
-            ? freshInvoice.payment_intent
-            : freshInvoice.payment_intent?.id;
+          const freshInvoice = (await stripe.invoices.retrieve(firstInvoice.id, {
+            expand: ["payments"],
+          })) as InvoiceWithSubscription;
+          piId = extractInvoicePaymentIntentId(freshInvoice);
           if (piId) {
             console.log(`[Webhook] PI not on webhook payload, fetched from invoice: ${piId}`);
           }
