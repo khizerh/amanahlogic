@@ -160,17 +160,28 @@ export async function POST(req: Request) {
 
   const supabase = createServiceRoleClient();
 
-  // IDEMPOTENCY CHECK: Has this event already been processed?
+  // IDEMPOTENCY CHECK: only short-circuit when a prior run succeeded.
+  // Rows with status='failed' must be allowed to retry on Stripe redelivery —
+  // otherwise transient handler bugs become permanent silent drops.
   const { data: existingEvent } = await supabase
     .from("stripe_webhook_events")
-    .select("id, status")
+    .select("id")
     .eq("event_id", event.id)
+    .eq("status", "processed")
     .maybeSingle();
 
   if (existingEvent) {
-    console.log(`[Webhook] Event ${event.id} already processed (status: ${existingEvent.status})`);
+    console.log(`[Webhook] Event ${event.id} already processed`);
     return NextResponse.json({ received: true, duplicate: true });
   }
+
+  // If a previous attempt left a 'failed' row, clear it so the retry can
+  // insert a fresh record below (the event_id would otherwise be unique).
+  await supabase
+    .from("stripe_webhook_events")
+    .delete()
+    .eq("event_id", event.id)
+    .eq("status", "failed");
 
   // Extract metadata from event for organization context
   const eventData = event.data.object as unknown as Record<string, unknown>;
@@ -245,6 +256,7 @@ export async function POST(req: Request) {
       organization_id: organizationId || null,
       membership_id: metadata.membership_id || null,
       status: "processed",
+      payload: event as unknown as Record<string, unknown>,
       processed_at: new Date().toISOString(),
     });
 
@@ -252,22 +264,44 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error(`[Webhook] Error processing ${event.type}:`, error);
 
-    // Record failed processing
+    // Record failed processing. PostgrestError and similar Supabase errors are
+    // plain objects, not Error subclasses, so `String(err)` yields "[object
+    // Object]". Extract the message defensively instead.
+    const errorMessage = serializeError(error);
+
     await supabase.from("stripe_webhook_events").insert({
       event_id: event.id,
       event_type: event.type,
       organization_id: organizationId || null,
       membership_id: metadata.membership_id || null,
       status: "failed",
-      error_message: error instanceof Error ? error.message : String(error),
+      payload: event as unknown as Record<string, unknown>,
+      error_message: errorMessage,
       processed_at: new Date().toISOString(),
     });
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
+}
+
+function serializeError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    const o = err as Record<string, unknown>;
+    if (typeof o.message === "string" && o.message) {
+      const details =
+        typeof o.details === "string" ? ` | details: ${o.details}` :
+        typeof o.hint === "string" ? ` | hint: ${o.hint}` : "";
+      const code = typeof o.code === "string" ? ` [${o.code}]` : "";
+      return `${o.message}${code}${details}`;
+    }
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
 }
 
 /**
