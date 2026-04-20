@@ -53,7 +53,7 @@ async function main() {
       continue;
     }
 
-    const obj = event.data.object as Record<string, unknown>;
+    const obj = event.data.object as unknown as Record<string, unknown>;
     const metadata = (obj.metadata || {}) as Record<string, string>;
 
     console.log(`  stripe object id: ${obj.id}`);

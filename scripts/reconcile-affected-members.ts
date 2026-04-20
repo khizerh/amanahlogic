@@ -82,7 +82,7 @@ async function main() {
       if (invs.data.length) {
         console.log(`  Latest invoices:`);
         for (const inv of invs.data.slice(0, 3)) {
-          console.log(`    ${inv.id}  status=${inv.status}  paid=${inv.paid}  amount=${inv.amount_paid/100}  created=${new Date(inv.created*1000).toISOString().slice(0,10)}`);
+          console.log(`    ${inv.id}  status=${inv.status}  amount=${inv.amount_paid/100}  created=${new Date(inv.created*1000).toISOString().slice(0,10)}`);
         }
       }
     } catch (e) {
