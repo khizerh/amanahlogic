@@ -22,7 +22,7 @@ export default async function PendingMembersPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold">Pending Applications</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Returning member applications awaiting review
+              New and returning member applications awaiting review
             </p>
           </div>
 

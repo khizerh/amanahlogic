@@ -151,6 +151,15 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
         searchPlaceholder="Search by name or email..."
         filterColumns={[
           {
+            column: "kind",
+            label: "Type",
+            options: [
+              { label: "All", value: "all" },
+              { label: "New", value: "new" },
+              { label: "Returning", value: "returning" },
+            ],
+          },
+          {
             column: "status",
             label: "Status",
             options: [
@@ -257,21 +266,32 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
                     <span className="font-medium capitalize">{selectedApp.billingFrequency}</span>
                   </div>
 
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Type</span>
+                    {selectedApp.kind === "new" ? (
+                      <Badge variant="info">New</Badge>
+                    ) : (
+                      <Badge variant="refunded">Returning</Badge>
+                    )}
+                  </div>
+
                   {selectedApp.status === "pending" ? (
                     <>
-                      {/* Paid Months - plain input */}
-                      <div className="space-y-1.5">
-                        <Label htmlFor="paidMonths">Paid Months</Label>
-                        <Input
-                          id="paidMonths"
-                          type="number"
-                          min={0}
-                          max={720}
-                          value={paidMonths}
-                          onChange={(e) => setPaidMonths(parseInt(e.target.value) || 0)}
-                          className="w-full"
-                        />
-                      </div>
+                      {/* Paid Months - returning only */}
+                      {selectedApp.kind === "returning" && (
+                        <div className="space-y-1.5">
+                          <Label htmlFor="paidMonths">Paid Months</Label>
+                          <Input
+                            id="paidMonths"
+                            type="number"
+                            min={0}
+                            max={720}
+                            value={paidMonths}
+                            onChange={(e) => setPaidMonths(parseInt(e.target.value) || 0)}
+                            className="w-full"
+                          />
+                        </div>
+                      )}
 
                       {/* Waive Enrollment Fee - checkbox */}
                       <div className="flex items-center gap-2">
@@ -287,10 +307,12 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
                     </>
                   ) : (
                     <>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Paid Months</span>
-                        <span className="font-medium">{selectedApp.paidMonths}</span>
-                      </div>
+                      {selectedApp.kind === "returning" && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Paid Months</span>
+                          <span className="font-medium">{selectedApp.paidMonths}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Enrollment Fee</span>
                         <span className="font-medium capitalize">{selectedApp.enrollmentFeeStatus}</span>
@@ -350,7 +372,7 @@ export function ReturningApplicationsTable({ applications }: ReturningApplicatio
               <strong>
                 {selectedApp?.firstName} {selectedApp?.lastName}
               </strong>
-              ? They can re-submit through the returning member form.
+              ? They can re-submit through the join form.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

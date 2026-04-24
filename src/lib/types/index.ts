@@ -325,11 +325,13 @@ export interface MemberWithMembership extends Member {
 // -----------------------------------------------------------------------------
 
 export type ReturningApplicationStatus = 'pending' | 'approved' | 'rejected';
+export type ApplicationKind = 'new' | 'returning';
 
 export interface ReturningApplication {
   id: string;
   organizationId: string;
   status: ReturningApplicationStatus;
+  kind: ApplicationKind;
   firstName: string;
   middleName: string | null;
   lastName: string;

@@ -6,6 +6,7 @@ import type {
   ReturningApplication,
   ReturningApplicationWithPlan,
   ReturningApplicationStatus,
+  ApplicationKind,
   BillingFrequency,
   CommunicationLanguage,
   Address,
@@ -21,6 +22,7 @@ import type {
 
 export interface CreateReturningApplicationInput {
   organizationId: string;
+  kind?: ApplicationKind;
   firstName: string;
   middleName?: string | null;
   lastName: string;
@@ -163,6 +165,7 @@ export class ReturningApplicationsService {
       .from("returning_applications")
       .insert({
         organization_id: input.organizationId,
+        kind: input.kind || "returning",
         first_name: input.firstName,
         middle_name: input.middleName || null,
         last_name: input.lastName,
@@ -294,6 +297,7 @@ interface DbReturningApplicationRow {
   id: string;
   organization_id: string;
   status: ReturningApplicationStatus;
+  kind: ApplicationKind;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -343,6 +347,7 @@ function transformApplication(row: DbReturningApplicationRow): ReturningApplicat
     id: row.id,
     organizationId: row.organization_id,
     status: row.status,
+    kind: row.kind || "returning",
     firstName: row.first_name,
     middleName: row.middle_name,
     lastName: row.last_name,

@@ -25,7 +25,24 @@ const getStatusBadge = (status: string) => {
   return <Badge variant={variant}>{label}</Badge>;
 };
 
+const getKindBadge = (kind: "new" | "returning") => {
+  return kind === "new" ? (
+    <Badge variant="info">New</Badge>
+  ) : (
+    <Badge variant="refunded">Returning</Badge>
+  );
+};
+
 export const returningColumns: ColumnDef<ReturningApplicationWithPlan>[] = [
+  {
+    accessorKey: "kind",
+    header: "Type",
+    cell: ({ row }) => getKindBadge(row.original.kind),
+    filterFn: (row, _id, filterValue) => {
+      if (filterValue === "all" || !filterValue) return true;
+      return row.original.kind === filterValue;
+    },
+  },
   {
     accessorKey: "name",
     header: "Name",

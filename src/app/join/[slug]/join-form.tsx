@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -65,7 +65,6 @@ const FREQUENCY_SHORT: Record<BillingFrequency, string> = {
 export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   // Step 1: Plan Selection
   const [selectedPlanId, setSelectedPlanId] = useState(plans.length === 1 ? plans[0].id : "");
@@ -207,10 +206,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
         return;
       }
 
-      if (returning && data.success) {
-        setStep(3);
-      } else if (data.paymentUrl) {
-        setPaymentUrl(data.paymentUrl);
+      if (data.success) {
         setStep(3);
       }
     } catch {
@@ -232,15 +228,23 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
 
   return (
     <div>
-      {/* Returning intro text - hidden on success */}
-      {returning && step < 3 && (
+      {/* Intro text - hidden on success */}
+      {step < 3 && (
         <div className="mb-8 text-center">
-          <p className="text-base text-gray-600">
-            This form is for existing members of {orgName}.
-          </p>
-          <p className="mt-1 text-base text-gray-600">
-            Fill out your details below and {orgName} will review your information and send you an email with next steps.
-          </p>
+          {returning ? (
+            <>
+              <p className="text-base text-gray-600">
+                This form is for existing members of {orgName}.
+              </p>
+              <p className="mt-1 text-base text-gray-600">
+                Fill out your details below and {orgName} will review your information and send you an email with next steps.
+              </p>
+            </>
+          ) : (
+            <p className="text-base text-gray-600">
+              Fill out your details below and {orgName} will review your application and send you an email with next steps.
+            </p>
+          )}
         </div>
       )}
 
@@ -397,23 +401,11 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
                         </span>
                       </div>
                     )}
-                    {returning ? (
-                      <div className="border-t border-brand-teal/10 pt-3 mt-3">
-                        <p className="text-sm text-gray-600">
-                          {orgName} will review your information and send you an email with next steps.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="border-t border-brand-teal/10 pt-3 mt-3 flex justify-between">
-                        <span className="font-semibold text-text-dark-slate">Total due today</span>
-                        <span className="text-lg font-bold text-brand-teal">
-                          {formatCurrency(
-                            getPriceForFrequency(selectedPlan, billingFrequency) +
-                              selectedPlan.enrollmentFee
-                          )}
-                        </span>
-                      </div>
-                    )}
+                    <div className="border-t border-brand-teal/10 pt-3 mt-3">
+                      <p className="text-sm text-gray-600">
+                        {orgName} will review your {returning ? "information" : "application"} and send you an email with next steps, including payment setup.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -728,23 +720,11 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
                         )}
                       </div>
 
-                      {returning ? (
-                        <div className="border-t border-brand-teal/10 pt-3">
-                          <p className="text-sm text-gray-600">
-                            {orgName} will review your information and send you an email with next steps.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="border-t border-brand-teal/10 pt-3 flex justify-between items-center">
-                          <span className="font-semibold text-text-dark-slate">Total Due Today</span>
-                          <span className="text-xl font-bold text-brand-teal">
-                            {formatCurrency(
-                              getPriceForFrequency(selectedPlan, billingFrequency) +
-                                selectedPlan.enrollmentFee
-                            )}
-                          </span>
-                        </div>
-                      )}
+                      <div className="border-t border-brand-teal/10 pt-3">
+                        <p className="text-sm text-gray-600">
+                          {orgName} will review your {returning ? "information" : "application"} and send you an email with next steps, including payment setup.
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -755,9 +735,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
           {/* Success Screen - before payment redirect                      */}
           {/* ============================================================= */}
           {step === 3 && (
-            returning
-              ? <ReturningSuccessScreen firstName={firstName} />
-              : <SuccessScreen paymentUrl={paymentUrl!} firstName={firstName} email={email} />
+            <PendingReviewScreen firstName={firstName} orgName={orgName} />
           )}
         </motion.div>
       </AnimatePresence>
@@ -788,21 +766,30 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
               disabled={submitting}
               className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
             >
-              {submitting ? "Processing..." : returning ? "Submit Registration" : "Join & Pay"}
+              {submitting ? "Processing..." : "Submit Application"}
             </Button>
           )}
         </div>
       )}
 
       {/* Bottom links - hidden on success */}
-      {returning && step < 3 && (
+      {step < 3 && (
         <>
-          <p className="mt-10 text-center text-sm text-gray-400">
-            Not a returning member?{" "}
-            <a href={`/join/${orgSlug}`} className="text-brand-teal font-medium hover:underline">
-              Register as a new member
-            </a>
-          </p>
+          {returning ? (
+            <p className="mt-10 text-center text-sm text-gray-400">
+              Not a returning member?{" "}
+              <a href={`/join/${orgSlug}`} className="text-brand-teal font-medium hover:underline">
+                Register as a new member
+              </a>
+            </p>
+          ) : (
+            <p className="mt-10 text-center text-sm text-gray-400">
+              Already a member rejoining?{" "}
+              <a href={`/join/${orgSlug}/returning`} className="text-brand-teal font-medium hover:underline">
+                Register as a returning member
+              </a>
+            </p>
+          )}
           <p className="mt-3 text-center text-sm text-gray-400">
             Already have an account?{" "}
             <a href="/portal/login" className="text-brand-teal font-medium hover:underline">
@@ -816,10 +803,10 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
 }
 
 // =============================================================================
-// Returning Member Success Screen
+// Pending Review Screen (shown after submission — admin must approve)
 // =============================================================================
 
-function ReturningSuccessScreen({ firstName }: { firstName: string }) {
+function PendingReviewScreen({ firstName, orgName }: { firstName: string; orgName: string }) {
   return (
     <div className="space-y-6">
       <Card className="border-brand-teal/20 bg-brand-teal/5">
@@ -830,119 +817,13 @@ function ReturningSuccessScreen({ firstName }: { firstName: string }) {
             </svg>
           </div>
           <h2 className="text-xl font-bold text-text-dark-slate mb-2">
-            Welcome back, {firstName}!
+            Thank you, {firstName}!
           </h2>
           <p className="text-gray-600">
-            You&apos;re all set! The admin will review your account, set your membership history, and send you payment and portal information by email.
+            Your application has been submitted. {orgName} will review it and email you with next steps, including a link to set up payment and sign your membership agreement.
           </p>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-// =============================================================================
-// Success Screen
-// =============================================================================
-
-function SuccessScreen({
-  paymentUrl,
-  firstName,
-  email,
-}: {
-  paymentUrl: string;
-  firstName: string;
-  email: string;
-}) {
-  const [countdown, setCountdown] = useState(6);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          window.location.href = paymentUrl;
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [paymentUrl]);
-
-  return (
-    <div className="space-y-6">
-      <Card className="border-brand-teal/20 bg-brand-teal/5">
-        <CardContent className="pt-6 text-center">
-          <div className="mx-auto w-14 h-14 rounded-full bg-brand-teal/10 flex items-center justify-center mb-4">
-            <svg className="w-7 h-7 text-brand-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-text-dark-slate mb-2">
-            Welcome, {firstName}!
-          </h2>
-          <p className="text-gray-600">
-            Your account has been created. Here&apos;s what happens next:
-          </p>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="flex items-start gap-4 pt-5 pb-5">
-            <div className="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center text-sm font-bold shrink-0">
-              1
-            </div>
-            <div>
-              <p className="font-medium text-text-dark-slate">Set up your payment</p>
-              <p className="text-sm text-gray-500 mt-0.5">
-                You&apos;ll be redirected to our secure payment page in a moment to enter your card or bank details.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-start gap-4 pt-5 pb-5">
-            <div className="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center text-sm font-bold shrink-0">
-              2
-            </div>
-            <div>
-              <p className="font-medium text-text-dark-slate">Sign your membership agreement</p>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Check <span className="font-medium text-text-dark-slate">{email}</span> for an email with your membership agreement to review and sign.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-start gap-4 pt-5 pb-5">
-            <div className="w-8 h-8 rounded-full bg-brand-teal text-white flex items-center justify-center text-sm font-bold shrink-0">
-              3
-            </div>
-            <div>
-              <p className="font-medium text-text-dark-slate">Access your member portal</p>
-              <p className="text-sm text-gray-500 mt-0.5">
-                You&apos;ll also receive an invite to set up your member portal account where you can manage your membership.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="text-center space-y-3 pt-2">
-        <Button
-          onClick={() => { window.location.href = paymentUrl; }}
-          className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
-        >
-          Continue to Payment
-        </Button>
-        <p className="text-sm text-gray-400">
-          Redirecting automatically in {countdown}s...
-        </p>
-      </div>
     </div>
   );
 }

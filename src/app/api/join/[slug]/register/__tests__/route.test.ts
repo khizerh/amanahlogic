@@ -182,40 +182,41 @@ describe("POST /api/join/[slug]/register", () => {
     });
   });
 
-  it("normal flow returns paymentUrl and calls orchestration", async () => {
+  it("new-member signup creates a kind='new' application and skips member/membership/Stripe", async () => {
     const req = makeRequest(defaultBody);
     const res = await POST(req, routeParams);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       success: true,
-      paymentUrl: "https://stripe.com/checkout/123",
+      pendingApproval: true,
+      returning: false,
     });
-    expect(mockOrchestrateOnboarding).toHaveBeenCalledTimes(1);
+    expect(mockReturningAppsCreate).toHaveBeenCalledTimes(1);
+    expect(mockReturningAppsCreate.mock.calls[0][0]).toMatchObject({ kind: "new" });
+    expect(mockMembersCreate).not.toHaveBeenCalled();
+    expect(mockMembershipsCreate).not.toHaveBeenCalled();
+    expect(mockOrchestrateOnboarding).not.toHaveBeenCalled();
   });
 
-  it("returning=true returns success without paymentUrl, skips orchestration", async () => {
+  it("returning-member signup creates a kind='returning' application", async () => {
     const req = makeRequest({ ...defaultBody, returning: true });
     const res = await POST(req, routeParams);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       success: true,
+      pendingApproval: true,
       returning: true,
     });
+    expect(mockReturningAppsCreate).toHaveBeenCalledTimes(1);
+    expect(mockReturningAppsCreate.mock.calls[0][0]).toMatchObject({ kind: "returning" });
+    expect(mockMembersCreate).not.toHaveBeenCalled();
+    expect(mockMembershipsCreate).not.toHaveBeenCalled();
     expect(mockOrchestrateOnboarding).not.toHaveBeenCalled();
   });
 
-  it("returning=true creates a returning application instead of member/membership", async () => {
-    const req = makeRequest({ ...defaultBody, returning: true });
-    await POST(req, routeParams);
-
-    expect(mockReturningAppsCreate).toHaveBeenCalledTimes(1);
-    expect(mockMembersCreate).not.toHaveBeenCalled();
-    expect(mockMembershipsCreate).not.toHaveBeenCalled();
-  });
-
-  it("duplicate email returns 400", async () => {
+  it("duplicate email (existing member) returns 400", async () => {
     mockMembersGetByEmail.mockResolvedValue(mockMember);
     const req = makeRequest({ ...defaultBody, returning: true });
     const res = await POST(req, routeParams);
@@ -224,8 +225,7 @@ describe("POST /api/join/[slug]/register", () => {
     expect(res.body).toEqual({ error: "A member with this email already exists" });
   });
 
-  it("rate limits returning registrations after 5 attempts", async () => {
-    // Make 5 successful requests
+  it("rate limits signups (new or returning) after 5 attempts per IP+kind", async () => {
     for (let i = 0; i < 5; i++) {
       const req = makeRequest(
         { ...defaultBody, email: `user${i}@example.com`, returning: true },
@@ -235,7 +235,6 @@ describe("POST /api/join/[slug]/register", () => {
       expect(res.status).toBe(200);
     }
 
-    // 6th request should be rate limited
     const req = makeRequest(
       { ...defaultBody, email: "user5@example.com", returning: true },
       { "x-forwarded-for": "1.2.3.4" }
@@ -244,15 +243,21 @@ describe("POST /api/join/[slug]/register", () => {
     expect(res.status).toBe(429);
   });
 
-  it("non-returning requests are not rate limited", async () => {
-    // Make 6 non-returning requests from same IP
-    for (let i = 0; i < 6; i++) {
+  it("rate limits new-member signups after 5 attempts per IP", async () => {
+    for (let i = 0; i < 5; i++) {
       const req = makeRequest(
-        { ...defaultBody, email: `user${i}@example.com` },
-        { "x-forwarded-for": "1.2.3.4" }
+        { ...defaultBody, email: `newuser${i}@example.com` },
+        { "x-forwarded-for": "5.6.7.8" }
       );
       const res = await POST(req, routeParams);
       expect(res.status).toBe(200);
     }
+
+    const req = makeRequest(
+      { ...defaultBody, email: "newuser5@example.com" },
+      { "x-forwarded-for": "5.6.7.8" }
+    );
+    const res = await POST(req, routeParams);
+    expect(res.status).toBe(429);
   });
 });
