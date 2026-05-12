@@ -1099,7 +1099,17 @@ async function handleInvoiceFailed(
       .eq("status", "failed")
       .maybeSingle();
     if (existingFailed) {
-      console.log(`[Webhook] Failed payment already recorded (${existingFailed.id}), skipping insert`);
+      // Stripe retries reuse the same PI — refresh the existing row with the
+      // latest decline reason so admins see the current failure mode, not the
+      // one from the first attempt.
+      await supabase
+        .from("payments")
+        .update({
+          stripe_payment_method_type: failedPaymentMethodType,
+          notes: `Payment failed - ${failureMessage}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingFailed.id);
     } else {
       await supabase.from("payments").insert({
         organization_id: organizationId,
