@@ -70,58 +70,60 @@ export function MessagesClient({ memberOptions, smsLive, isDev }: Props) {
   }, [loaded, deepLinkMemberId, conversations, memberOptions, selected]);
 
   return (
-    <div className="min-h-screen">
+    <>
       <Header />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            <h1 className="text-xl font-semibold">Messages</h1>
-            {!smsLive && (
-              <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">
-                Stub provider — Twilio not configured
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {isDev && (
-              <SimulateInboundDialog
-                members={memberOptions}
-                onSimulated={loadConversations}
-              />
-            )}
-          </div>
-        </div>
-
-        <Card className="overflow-hidden p-0 grid grid-cols-1 md:grid-cols-[320px_1fr] h-[calc(100vh-160px)]">
-          <ConversationList
-            conversations={conversations}
-            selectedKey={selected?.key ?? null}
-            onSelect={(c) => setSelected(c)}
-          />
-
-          {selected ? (
-            <MessageThread
-              key={selected.key}
-              threadKey={selected.key}
-              toNumber={selected.phoneNumber}
-              memberId={selected.memberId}
-              memberName={selected.memberName}
-              memberOptedOutAt={selected.memberOptedOutAt}
-              onSent={loadConversations}
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-8">
-              <MessageSquare className="h-10 w-10 opacity-30 mb-3" />
-              <p className="text-sm">
-                {loaded && conversations.length === 0
-                  ? "No conversations yet — click \"Text\" on any member to start one."
-                  : "Pick a conversation on the left"}
-              </p>
+      <div className="min-h-screen">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              <h1 className="text-2xl font-bold">Messages</h1>
+              {!smsLive && (
+                <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">
+                  Stub provider — Twilio not configured
+                </Badge>
+              )}
             </div>
-          )}
-        </Card>
+            <div className="flex items-center gap-2">
+              {isDev && (
+                <SimulateInboundDialog
+                  members={memberOptions}
+                  onSimulated={loadConversations}
+                />
+              )}
+            </div>
+          </div>
+
+          <Card className="overflow-hidden p-0 grid grid-cols-1 md:grid-cols-[320px_1fr] h-[calc(100vh-220px)]">
+            <ConversationList
+              conversations={conversations}
+              selectedKey={selected?.key ?? null}
+              onSelect={(c) => setSelected(c)}
+            />
+
+            {selected ? (
+              <MessageThread
+                key={selected.key}
+                threadKey={selected.key}
+                toNumber={selected.phoneNumber}
+                memberId={selected.memberId}
+                memberName={selected.memberName}
+                memberOptedOutAt={selected.memberOptedOutAt}
+                onSent={loadConversations}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-8">
+                <MessageSquare className="h-10 w-10 opacity-30 mb-3" />
+                <p className="text-sm">
+                  {loaded && conversations.length === 0
+                    ? "No conversations yet — click \"Text\" on any member to start one."
+                    : "Pick a conversation on the left"}
+                </p>
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
