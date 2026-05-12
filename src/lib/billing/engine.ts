@@ -1104,8 +1104,11 @@ export async function settlePayment(
       membershipUpdate.join_date = today;
     }
 
-    // Set eligible_date if just became eligible
-    if (becameEligible) {
+    // Set eligible_date if currently eligible and missing the date.
+    // Covers both fresh crossings (was 59 → now 60) and returning members
+    // seeded at paid_months >= 60 whose first settlement skipped the
+    // "becameEligible" branch because they started already eligible.
+    if (nowEligible && !membership.eligible_date && membership.status !== "cancelled") {
       membershipUpdate.eligible_date = today;
     }
 
