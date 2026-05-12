@@ -46,6 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TextMemberDialog } from "@/components/sms/TextMemberDialog";
 import { PaymentDetailsSheet } from "@/components/payments/payment-details-sheet";
 import { RecordMemberDuesDialog } from "@/components/payments/record-member-dues-dialog";
 import { RecordOnboardingPaymentDialog } from "@/components/payments/record-onboarding-payment-dialog";
@@ -150,6 +151,7 @@ export function MemberDetailClient({
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [chargeCardOpen, setChargeCardOpen] = useState(false);
   const [onboardingPaymentOpen, setOnboardingPaymentOpen] = useState(false);
+  const [textDialogOpen, setTextDialogOpen] = useState(false);
 
   // State for email details sheet
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
@@ -949,10 +951,8 @@ export function MemberDetailClient({
                 )}
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" asChild>
-                  <Link href={`/messages?to=${memberData.id}`}>
-                    <MessageSquare className="h-4 w-4 mr-1" /> Text
-                  </Link>
+                <Button variant="outline" onClick={() => setTextDialogOpen(true)} disabled={!memberData.phone}>
+                  <MessageSquare className="h-4 w-4 mr-1" /> Text
                 </Button>
               <Button variant="default" onClick={() => {
                 // If onboarding invite is still pending, check if there's actually anything left to collect
@@ -1265,7 +1265,19 @@ export function MemberDetailClient({
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Phone</p>
-                        <p className="font-medium">{formatPhoneNumber(memberData.phone)}</p>
+                        {memberData.phone ? (
+                          <button
+                            type="button"
+                            onClick={() => setTextDialogOpen(true)}
+                            className="font-medium text-brand-teal hover:underline inline-flex items-center gap-1.5 group"
+                            title="Text this member"
+                          >
+                            {formatPhoneNumber(memberData.phone)}
+                            <MessageSquare className="h-3.5 w-3.5 opacity-0 group-hover:opacity-70 transition-opacity" />
+                          </button>
+                        ) : (
+                          <p className="font-medium text-muted-foreground italic">No phone on file</p>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Preferred Language</p>
@@ -2118,6 +2130,16 @@ export function MemberDetailClient({
         payment={selectedPayment}
         open={detailsSheetOpen}
         onOpenChange={setDetailsSheetOpen}
+      />
+
+      {/* Text member dialog */}
+      <TextMemberDialog
+        open={textDialogOpen}
+        onOpenChange={setTextDialogOpen}
+        memberId={memberData.id}
+        memberName={`${memberData.firstName} ${memberData.lastName}`.trim()}
+        phone={memberData.phone}
+        smsOptedOutAt={(memberData as unknown as { smsOptedOutAt?: string | null }).smsOptedOutAt ?? null}
       />
 
       {/* Collect Payment Dialog - Entry Point */}
