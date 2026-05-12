@@ -485,7 +485,11 @@ async function handleSubscriptionUpdate(
     .update({
       stripe_subscription_id: subscription.id,
       subscription_status: localStatus,
-      auto_pay_enabled: subscription.status === "active" || subscription.status === "trialing",
+      // past_due means Stripe is still retrying — auto-pay is still on.
+      // Only flip off for terminal/paused states.
+      auto_pay_enabled: !(
+        ["canceled", "unpaid", "incomplete_expired", "paused"] as Stripe.Subscription.Status[]
+      ).includes(subscription.status),
       updated_at: new Date().toISOString(),
     })
     .eq("id", metadata.membership_id);
@@ -1047,7 +1051,22 @@ async function handleInvoiceFailed(
 
   // Derive payment method type from the invoice's payment intent (legacy or new shape)
   let failedPaymentMethodType: string | null = null;
-  const failedPiId = extractInvoicePaymentIntentId(invoice);
+  let failedPiId = extractInvoicePaymentIntentId(invoice);
+
+  // Newer Stripe API versions (2025-06-30 Basil / 2026-01-28 Clover) omit the PI
+  // on invoice.payment_failed payloads — re-fetch with payments expanded so the
+  // failed payment record can be linked back to Stripe.
+  if (!failedPiId && stripe) {
+    try {
+      const fresh = (await stripe.invoices.retrieve(invoice.id, {
+        expand: ["payments"],
+      })) as InvoiceWithSubscription;
+      failedPiId = extractInvoicePaymentIntentId(fresh);
+    } catch {
+      // Non-fatal — record will lack PI ID but still be logged.
+    }
+  }
+
   if (stripe && failedPiId) {
     try {
       const pi = await stripe.paymentIntents.retrieve(failedPiId);
