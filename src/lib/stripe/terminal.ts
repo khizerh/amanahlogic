@@ -149,6 +149,34 @@ export async function collectTerminalPayment(params: {
     applicationFeeCents,
   } = params;
 
+  // Clear any stale in-progress action from an abandoned prior session.
+  // Without this, a new processPaymentIntent fails with terminal_reader_busy,
+  // and the prior PI lingers as cruft in the dashboard.
+  try {
+    const current = await stripe.terminal.readers.retrieve(readerId);
+    const action = "deleted" in current ? null : (current as Stripe.Terminal.Reader).action;
+    if (action && action.status === "in_progress") {
+      const stalePiId =
+        action.type === "process_payment_intent"
+          ? action.process_payment_intent?.payment_intent
+          : null;
+      try {
+        await stripe.terminal.readers.cancelAction(readerId);
+      } catch {
+        // Reader offline or already canceled — non-fatal.
+      }
+      if (typeof stalePiId === "string") {
+        try {
+          await stripe.paymentIntents.cancel(stalePiId);
+        } catch {
+          // PI already terminal — ignore.
+        }
+      }
+    }
+  } catch {
+    // Reader lookup failure — let processPaymentIntent below surface the real error.
+  }
+
   // Create PaymentIntent for Terminal
   const piParams: Stripe.PaymentIntentCreateParams = {
     amount: amountCents,
