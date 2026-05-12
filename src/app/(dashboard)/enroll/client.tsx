@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,8 +62,6 @@ export function EnrollClient({ organization, plans }: EnrollClientProps) {
 
   // Search/Select state
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<MemberWithMembership[]>([]);
-  const [searching, setSearching] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberWithMembership | null>(null);
 
   // Configure state
@@ -145,18 +143,17 @@ export function EnrollClient({ organization, plans }: EnrollClientProps) {
     loadMembers();
   }, []);
 
-  // Client-side search (same pattern as members page)
-  const handleSearch = () => {
-    if (!searchQuery.trim()) return;
-    setSearching(true);
-    const query = searchQuery.trim().toLowerCase();
-    const results = allMembers.filter((m) => {
-      const searchable = `${m.firstName} ${m.middleName || ""} ${m.lastName} ${m.email || ""} ${m.phone}`.toLowerCase();
-      return searchable.includes(query);
-    });
-    setSearchResults(results.slice(0, 10));
-    setSearching(false);
-  };
+  // Live client-side search — filters as the user types, no button required.
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return allMembers
+      .filter((m) => {
+        const searchable = `${m.firstName} ${m.middleName || ""} ${m.lastName} ${m.email || ""} ${m.phone}`.toLowerCase();
+        return searchable.includes(q);
+      })
+      .slice(0, 10);
+  }, [searchQuery, allMembers]);
 
   // Select member and move to configure step
   const handleSelectMember = (member: MemberWithMembership) => {
@@ -305,7 +302,6 @@ export function EnrollClient({ organization, plans }: EnrollClientProps) {
   const handleNewEnrollment = () => {
     setStep("search");
     setSearchQuery("");
-    setSearchResults([]);
     setSelectedMember(null);
     setPaymentIntentId("");
     setPaymentStatus("");
@@ -359,17 +355,12 @@ export function EnrollClient({ organization, plans }: EnrollClientProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search by name, email, or phone..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
-                <Button onClick={handleSearch} disabled={searching}>
-                  {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
-                </Button>
-              </div>
+              <Input
+                placeholder="Search by name, email, or phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
 
               {searchResults.length > 0 && (
                 <div className="space-y-2">
@@ -401,7 +392,7 @@ export function EnrollClient({ organization, plans }: EnrollClientProps) {
                 </div>
               )}
 
-              {searchResults.length === 0 && searchQuery && !searching && (
+              {searchResults.length === 0 && searchQuery && membersLoaded && (
                 <div className="text-center py-4 text-muted-foreground">
                   <p>No members found</p>
                   <Button variant="outline" size="sm" className="mt-2" asChild>
