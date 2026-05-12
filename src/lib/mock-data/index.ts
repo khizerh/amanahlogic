@@ -54,6 +54,10 @@ export const mockOrganization: Organization = {
   platformFees: { monthly: 2, biannual: 9, annual: 12 },
   passFeesToMember: false,
   terminalLocationId: null,
+  twilioPhoneNumber: null,
+  twilioBrandSid: null,
+  twilioCampaignSid: null,
+  twilioMessagingServiceSid: null,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };

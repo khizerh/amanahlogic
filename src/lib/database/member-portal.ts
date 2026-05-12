@@ -522,6 +522,10 @@ function transformOrganization(db: DbOrganizationRow): Organization {
     platformFees: db.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: db.pass_fees_to_member,
     terminalLocationId: db.terminal_location_id || null,
+    twilioPhoneNumber: (db as { twilio_phone_number?: string | null }).twilio_phone_number ?? null,
+    twilioBrandSid: (db as { twilio_brand_sid?: string | null }).twilio_brand_sid ?? null,
+    twilioCampaignSid: (db as { twilio_campaign_sid?: string | null }).twilio_campaign_sid ?? null,
+    twilioMessagingServiceSid: (db as { twilio_messaging_service_sid?: string | null }).twilio_messaging_service_sid ?? null,
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };

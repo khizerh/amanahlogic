@@ -34,6 +34,7 @@ export default function Header() {
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDisplay, setUserDisplay] = useState<string | null>(null);
+  const [unreadSms, setUnreadSms] = useState(0);
   const supabase = createClient();
 
   // Prevent hydration mismatch with Radix UI components
@@ -57,6 +58,31 @@ export default function Header() {
     };
     getUser();
   }, [supabase.auth]);
+
+  // Poll unread SMS count for the nav badge. Skips when tab is hidden so we
+  // don't burn cycles on background tabs.
+  useEffect(() => {
+    let alive = true;
+    async function fetchCount() {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const res = await fetch("/api/sms/unread-count");
+        const data = await res.json();
+        if (alive) setUnreadSms(data.count ?? 0);
+      } catch {
+        // silent — badge stays at last known value
+      }
+    }
+    fetchCount();
+    const id = setInterval(fetchCount, 60000);
+    const onFocus = () => fetchCount();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [pathname]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -168,14 +194,19 @@ export default function Header() {
                         </Link>
                         <Link
                           href="/messages"
-                          className={`text-lg font-medium px-4 py-2 rounded-md transition-colors ${
+                          className={`text-lg font-medium px-4 py-2 rounded-md transition-colors flex items-center justify-between ${
                             isMessagesActive
                               ? "bg-brand-teal text-white"
                               : "text-foreground hover:bg-accent"
                           }`}
                           onClick={() => setMobileMenuOpen(false)}
                         >
-                          Messages
+                          <span>Messages</span>
+                          {unreadSms > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                              {unreadSms > 99 ? "99+" : unreadSms}
+                            </span>
+                          )}
                         </Link>
                         <Link
                           href="/settings"
@@ -318,9 +349,14 @@ export default function Header() {
                       <NavigationMenuLink asChild active={isMessagesActive}>
                         <Link
                           href="/messages"
-                          className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
+                          className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors relative"
                         >
                           Messages
+                          {unreadSms > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                              {unreadSms > 99 ? "99+" : unreadSms}
+                            </span>
+                          )}
                         </Link>
                       </NavigationMenuLink>
                     </NavItem>

@@ -51,6 +51,10 @@ export interface Organization {
   platformFees: PlatformFees; // Per-frequency platform fees
   passFeesToMember: boolean; // If true, gross-up charges so org receives full amount
   terminalLocationId: string | null; // Stripe Terminal Location ID for in-person payments
+  twilioPhoneNumber: string | null;
+  twilioBrandSid: string | null;
+  twilioCampaignSid: string | null;
+  twilioMessagingServiceSid: string | null;
   createdAt: string;
   updatedAt: string;
 }

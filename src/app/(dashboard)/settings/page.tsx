@@ -8,6 +8,7 @@ import { SettingsPageClient } from "./client";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { AgreementTemplatesService } from "@/lib/database/agreement-templates";
 import { EmailTemplatesService } from "@/lib/database/email-templates";
+import { isSmsLive } from "@/lib/sms/provider";
 
 export default async function SettingsPage() {
   const organizationId = await getOrganizationId();
@@ -40,6 +41,7 @@ export default async function SettingsPage() {
       initialOrganization={organization}
       agreementTemplates={agreementTemplates}
       emailTemplates={emailTemplates}
+      smsLive={isSmsLive()}
     />
   );
 }

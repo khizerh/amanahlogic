@@ -38,18 +38,21 @@ import {
 import { getEmailTemplateTypeLabel } from "@/lib/utils/formatters";
 import { Organization, EmailTemplate, AgreementTemplate } from "@/lib/types";
 import { TerminalSettings } from "@/components/settings/terminal-settings";
+import { SmsSettings } from "@/components/settings/sms-settings";
 import { toast } from "sonner";
 
 interface SettingsPageClientProps {
   initialOrganization: Organization;
   agreementTemplates: AgreementTemplate[];
   emailTemplates?: EmailTemplate[];
+  smsLive: boolean;
 }
 
 export function SettingsPageClient({
   initialOrganization,
   agreementTemplates,
   emailTemplates = [],
+  smsLive,
 }: SettingsPageClientProps) {
   const [mounted, setMounted] = useState(false);
   const [organization, setOrganization] = useState<Organization>(initialOrganization);
@@ -283,6 +286,7 @@ export function SettingsPageClient({
               <TabsTrigger value="agreement">Agreement</TabsTrigger>
               <TabsTrigger value="stripe">Stripe</TabsTrigger>
               <TabsTrigger value="terminal">Terminal</TabsTrigger>
+              <TabsTrigger value="sms">SMS</TabsTrigger>
               <TabsTrigger value="emails">Email Templates</TabsTrigger>
             </TabsList>
 
@@ -868,6 +872,10 @@ export function SettingsPageClient({
             {/* Terminal Tab */}
             <TabsContent value="terminal">
               <TerminalSettings organization={organization} onOrganizationUpdate={setOrganization} />
+            </TabsContent>
+
+            <TabsContent value="sms">
+              <SmsSettings organization={organization} smsLive={smsLive} />
             </TabsContent>
 
             {/* Email Templates Tab */}

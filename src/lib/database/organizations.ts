@@ -380,6 +380,10 @@ interface DbOrganizationRow {
   platform_fees: PlatformFees | null;
   pass_fees_to_member: boolean | null;
   terminal_location_id: string | null;
+  twilio_phone_number: string | null;
+  twilio_brand_sid: string | null;
+  twilio_campaign_sid: string | null;
+  twilio_messaging_service_sid: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -411,6 +415,10 @@ function transformOrganization(dbOrg: DbOrganizationRow): Organization {
     platformFees: dbOrg.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: dbOrg.pass_fees_to_member || false,
     terminalLocationId: dbOrg.terminal_location_id || null,
+    twilioPhoneNumber: dbOrg.twilio_phone_number || null,
+    twilioBrandSid: dbOrg.twilio_brand_sid || null,
+    twilioCampaignSid: dbOrg.twilio_campaign_sid || null,
+    twilioMessagingServiceSid: dbOrg.twilio_messaging_service_sid || null,
     createdAt: dbOrg.created_at,
     updatedAt: dbOrg.updated_at,
   };
