@@ -91,6 +91,7 @@ import {
   Users,
   UserMinus,
   UserPlus,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -947,6 +948,12 @@ export function MemberDetailClient({
                   </Badge>
                 )}
               </div>
+              <div className="flex gap-2">
+                <Button variant="outline" asChild>
+                  <Link href={`/messages?to=${memberData.id}`}>
+                    <MessageSquare className="h-4 w-4 mr-1" /> Text
+                  </Link>
+                </Button>
               <Button variant="default" onClick={() => {
                 // If onboarding invite is still pending, check if there's actually anything left to collect
                 if (onboardingInvite && onboardingInvite.status === "pending") {
@@ -971,6 +978,7 @@ export function MemberDetailClient({
               }}>
                 Collect Payment
               </Button>
+              </div>
             </div>
           </div>
 

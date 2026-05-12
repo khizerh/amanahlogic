@@ -72,6 +72,7 @@ export default function Header() {
   const isPaymentsActive = pathname === "/payments" || pathname?.startsWith("/payments/");
   const isPlansActive = pathname === "/plans" || pathname?.startsWith("/plans/");
   const isEnrollActive = pathname === "/enroll" || pathname?.startsWith("/enroll/");
+  const isMessagesActive = pathname === "/messages" || pathname?.startsWith("/messages/");
 
   return (
     <>
@@ -164,6 +165,17 @@ export default function Header() {
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           Enroll
+                        </Link>
+                        <Link
+                          href="/messages"
+                          className={`text-lg font-medium px-4 py-2 rounded-md transition-colors ${
+                            isMessagesActive
+                              ? "bg-brand-teal text-white"
+                              : "text-foreground hover:bg-accent"
+                          }`}
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Messages
                         </Link>
                         <Link
                           href="/settings"
@@ -298,6 +310,17 @@ export default function Header() {
                           className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
                         >
                           Enroll
+                        </Link>
+                      </NavigationMenuLink>
+                    </NavItem>
+
+                    <NavItem>
+                      <NavigationMenuLink asChild active={isMessagesActive}>
+                        <Link
+                          href="/messages"
+                          className="text-white hover:text-white hover:bg-white/10 data-[active]:bg-white/10 h-9 px-4 py-2 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors"
+                        >
+                          Messages
                         </Link>
                       </NavigationMenuLink>
                     </NavItem>
