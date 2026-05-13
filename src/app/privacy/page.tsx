@@ -41,7 +41,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="text-gray-600">
-            Last updated: January 2026
+            Last updated: May 2026
           </motion.p>
         </div>
       </div>
@@ -73,7 +73,8 @@ export default function PrivacyPolicyPage() {
                   { href: "#data-retention", label: "5. Data Retention" },
                   { href: "#security", label: "6. Security" },
                   { href: "#contact", label: "7. Contact Information" },
-                  { href: "#updates", label: "8. Updates to This Policy" },
+                  { href: "#sms", label: "8. SMS Communications" },
+                  { href: "#updates", label: "9. Updates to This Policy" },
                 ].map((item) => (
                   <li key={item.href}>
                     <a href={item.href} className="text-[#111827] hover:underline">{item.label}</a>
@@ -192,8 +193,50 @@ export default function PrivacyPolicyPage() {
               </div>
             </section>
 
+            <section id="sms" className="mb-12 scroll-mt-24">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 pb-2 border-b border-gray-200">8. SMS Communications</h2>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                By providing your mobile number when enrolling in a membership program (online at{" "}
+                <a href="https://amanahlogic.com/join" className="text-[#111827] hover:underline">amanahlogic.com/join</a>{" "}
+                or in person on a paper enrollment form), you consent to receive SMS messages from the organization
+                operating your membership program (e.g. Masjid Muhajireen, operated by Islamic Association of
+                Immigrants) regarding your account, including payment receipts, payment failure alerts, eligibility
+                updates, and two-way support replies.
+              </p>
+              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">No sharing of mobile information</h3>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                We do not share, sell, rent, or trade your mobile number or text-message content with any third parties
+                or affiliates for marketing or promotional purposes. Mobile information is only shared with subprocessors
+                strictly required to deliver SMS on our behalf (e.g. Twilio, our messaging carrier), and only for the
+                purpose of fulfilling your account-related communications.
+              </p>
+              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Message frequency</h3>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                Message frequency varies based on your account activity (e.g. payment events, eligibility milestones,
+                replies you initiate). Most members receive only a handful of messages per month.
+              </p>
+              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Message and data rates</h3>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                <strong>Message and data rates may apply.</strong> Charges are determined by your wireless carrier; we
+                do not control or set them. Carriers are not liable for delayed or undelivered messages.
+              </p>
+              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Opting out</h3>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                You may opt out of SMS communications at any time by replying <strong>STOP</strong> (or UNSUBSCRIBE,
+                CANCEL, END, or QUIT) to any message. You will receive a one-time confirmation acknowledging your
+                opt-out, after which no further messages will be sent. To re-subscribe later, reply <strong>START</strong>{" "}
+                or contact us directly.
+              </p>
+              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Getting help</h3>
+              <p className="text-gray-700 leading-relaxed">
+                For help with SMS messages, reply <strong>HELP</strong> to any message, email{" "}
+                <a href="mailto:privacy@amanahlogic.com" className="text-[#111827] hover:underline">privacy@amanahlogic.com</a>,
+                or contact your membership organization directly.
+              </p>
+            </section>
+
             <section id="updates" className="mb-12 scroll-mt-24">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 pb-2 border-b border-gray-200">8. Updates to This Policy</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 pb-2 border-b border-gray-200">9. Updates to This Policy</h2>
               <p className="text-gray-700 leading-relaxed">
                 We may update this Privacy Policy from time to time. We will update the &ldquo;Last updated&rdquo; date
                 and notify you of material changes via email or through the Service.
