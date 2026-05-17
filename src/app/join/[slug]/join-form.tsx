@@ -473,6 +473,35 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
                       value={phone}
                       onChange={setPhone}
                     />
+                    <p className="mt-2 text-sm text-gray-600 leading-relaxed">
+                      By providing your phone number, you agree to receive SMS
+                      messages from {orgName} about your membership account
+                      &mdash; including payment receipts, payment failure
+                      alerts, eligibility milestone updates, and customer
+                      support replies. Message frequency varies. Message and
+                      data rates may apply. Reply{" "}
+                      <span className="font-semibold">STOP</span> to opt out,{" "}
+                      <span className="font-semibold">HELP</span> for help. See
+                      our{" "}
+                      <a
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-teal underline hover:no-underline"
+                      >
+                        Privacy Policy
+                      </a>{" "}
+                      and{" "}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-teal underline hover:no-underline"
+                      >
+                        Terms of Service
+                      </a>
+                      .
+                    </p>
                   </div>
 
                   <div>
