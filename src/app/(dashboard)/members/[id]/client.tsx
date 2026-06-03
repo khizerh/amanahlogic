@@ -1696,7 +1696,7 @@ export function MemberDetailClient({
                         )}
                       </Button>
                     </>
-                  ) : membership.stripeCustomerId ? (
+                  ) : membership.stripeCustomerId && (membership.paymentMethod || membership.stripeSubscriptionId) ? (
                     <>
                       <Button
                         variant="outline"
