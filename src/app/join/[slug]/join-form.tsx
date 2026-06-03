@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
@@ -89,6 +90,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
   const [emergencyName, setEmergencyName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [emergencyRelationship, setEmergencyRelationship] = useState("");
+  const [smsConsent, setSmsConsent] = useState(false);
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId);
 
@@ -172,6 +174,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
     if (err1) { toast.error(err1); setStep(0); return; }
     const err2 = validateStep2();
     if (err2) { toast.error(err2); setStep(1); return; }
+    if (!smsConsent) { toast.error("Please agree to receive SMS messages to continue."); return; }
 
     setSubmitting(true);
     try {
@@ -473,34 +476,9 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
                       value={phone}
                       onChange={setPhone}
                     />
-                    <p className="mt-2 text-sm text-gray-600 leading-relaxed">
-                      By providing your phone number, you agree to receive SMS
-                      messages from {orgName} about your membership account
-                      &mdash; including payment receipts, payment failure
-                      alerts, eligibility milestone updates, and customer
-                      support replies. Message frequency varies. Message and
-                      data rates may apply. Reply{" "}
-                      <span className="font-semibold">STOP</span> to opt out,{" "}
-                      <span className="font-semibold">HELP</span> for help. See
-                      our{" "}
-                      <a
-                        href="/privacy"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brand-teal underline hover:no-underline"
-                      >
-                        Privacy Policy
-                      </a>{" "}
-                      and{" "}
-                      <a
-                        href="/terms"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brand-teal underline hover:no-underline"
-                      >
-                        Terms of Service
-                      </a>
-                      .
+                    <p className="mt-2 text-sm text-gray-500">
+                      Used for membership account text notifications. See the
+                      SMS consent box below.
                     </p>
                   </div>
 
@@ -769,9 +747,50 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
         </motion.div>
       </AnimatePresence>
 
+      {/* SMS consent - always visible on input steps so the opt-in CTA is
+          present the moment the page loads (required for A2P 10DLC vetting) */}
+      {step < 3 && (
+        <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <label htmlFor="sms-consent" className="flex items-start gap-3 cursor-pointer">
+            <Checkbox
+              id="sms-consent"
+              checked={smsConsent}
+              onCheckedChange={(c) => setSmsConsent(c === true)}
+              className="mt-0.5"
+            />
+            <span className="text-sm text-gray-600 leading-relaxed">
+              I agree to receive SMS text messages from {orgName} about my
+              membership account &mdash; including payment receipts, payment
+              failure alerts, eligibility milestone updates, and customer
+              support replies. Message frequency varies. Message and data rates
+              may apply. Reply <span className="font-semibold">STOP</span> to opt
+              out, <span className="font-semibold">HELP</span> for help. See our{" "}
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-teal underline hover:no-underline"
+              >
+                Privacy Policy
+              </a>{" "}
+              and{" "}
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-teal underline hover:no-underline"
+              >
+                Terms of Service
+              </a>
+              .
+            </span>
+          </label>
+        </div>
+      )}
+
       {/* Navigation buttons - hidden on success screen */}
       {step < 3 && (
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
           {step > 0 ? (
             <Button type="button" variant="outline" onClick={handleBack} disabled={submitting} className="w-full sm:w-auto">
               Back
@@ -792,7 +811,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !smsConsent}
               className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
             >
               {submitting ? "Processing..." : "Submit Application"}
