@@ -350,6 +350,7 @@ export interface ReturningApplication {
   billingFrequency: BillingFrequency;
   paidMonths: number;
   enrollmentFeeStatus: 'unpaid' | 'paid' | 'waived';
+  smsOptedInAt: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
   adminNotes: string | null;

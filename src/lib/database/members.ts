@@ -37,6 +37,8 @@ export interface CreateMemberInput {
     phone: string;
   };
   preferredLanguage?: "en" | "fa";
+  /** Timestamp the member consented to SMS (optional). Null = no consent. */
+  smsOptedInAt?: string | null;
 }
 
 export interface UpdateMemberInput extends Partial<CreateMemberInput> {
@@ -248,6 +250,7 @@ export class MembersService {
         children: input.children || [],
         emergency_contact: input.emergencyContact,
         preferred_language: input.preferredLanguage || "en",
+        sms_opted_in_at: input.smsOptedInAt || null,
       })
       .select()
       .single();

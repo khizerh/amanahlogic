@@ -56,18 +56,28 @@ export async function sendSms(input: SendMessageInput): Promise<SendMessageResul
 
   if (!org) return { success: false, error: "Organization not found" };
 
-  // 2. Opt-out gate (member-side only; unknown sender / no member skips this)
-  if (input.memberId) {
+  // 2. Consent gate (member-side only; unknown sender / no member skips this).
+  // CTIA/TCPA: we may only text members who have AFFIRMATIVELY opted in, and
+  // never those who have opted out. Consent is captured at signup (optional
+  // checkbox) or by replying START. `overrideReason` bypasses the gate for
+  // carrier-mandated replies (STOP/HELP/START confirmations).
+  if (input.memberId && !input.overrideReason) {
     const { data: member } = await supabase
       .from("members")
-      .select("id, sms_opted_out_at")
+      .select("id, sms_opted_in_at, sms_opted_out_at")
       .eq("id", input.memberId)
       .single();
 
-    if (member?.sms_opted_out_at && !input.overrideReason) {
+    if (member?.sms_opted_out_at) {
       return {
         success: false,
         error: "Member has opted out of SMS. Provide overrideReason to send anyway.",
+      };
+    }
+    if (!member?.sms_opted_in_at) {
+      return {
+        success: false,
+        error: "Member has not opted in to SMS. Provide overrideReason to send anyway.",
       };
     }
   }

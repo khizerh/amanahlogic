@@ -174,7 +174,9 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
     if (err1) { toast.error(err1); setStep(0); return; }
     const err2 = validateStep2();
     if (err2) { toast.error(err2); setStep(1); return; }
-    if (!smsConsent) { toast.error("Please agree to receive SMS messages to continue."); return; }
+    // SMS consent is OPTIONAL — it must never block enrollment (CTIA/TCPA:
+    // consent to messaging cannot be a condition of service). We simply record
+    // whatever the member chose and only text those who opted in.
 
     setSubmitting(true);
     try {
@@ -198,6 +200,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
           billingFrequency,
           preferredLanguage,
           children: children.filter((c) => c.name.trim()),
+          smsConsent,
           ...(returning ? { returning: true } : {}),
         }),
       });
@@ -748,7 +751,9 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
       </AnimatePresence>
 
       {/* SMS consent - always visible on input steps so the opt-in CTA is
-          present the moment the page loads (required for A2P 10DLC vetting) */}
+          present the moment the page loads (required for A2P 10DLC vetting).
+          OPTIONAL by design: it does NOT gate the Submit button, because CTIA/
+          TCPA forbids making messaging consent a condition of enrollment. */}
       {step < 3 && (
         <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <label htmlFor="sms-consent" className="flex items-start gap-3 cursor-pointer">
@@ -759,10 +764,11 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
               className="mt-0.5"
             />
             <span className="text-sm text-gray-600 leading-relaxed">
-              I agree to receive SMS text messages from {orgName} about my
-              membership account &mdash; including payment receipts, payment
-              failure alerts, eligibility milestone updates, and customer
-              support replies. Message frequency varies. Message and data rates
+              <span className="font-semibold">Optional:</span> I agree to receive
+              SMS text messages from {orgName} about my membership account &mdash;
+              including payment receipts, payment failure alerts, eligibility
+              milestone updates, and customer support replies. This is not
+              required to enroll. Message frequency varies. Message and data rates
               may apply. Reply <span className="font-semibold">STOP</span> to opt
               out, <span className="font-semibold">HELP</span> for help. See our{" "}
               <a
@@ -811,7 +817,7 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting || !smsConsent}
+              disabled={submitting}
               className="w-full sm:w-auto bg-brand-teal hover:bg-brand-teal-hover text-white px-8"
             >
               {submitting ? "Processing..." : "Submit Application"}

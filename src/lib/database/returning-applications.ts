@@ -37,6 +37,8 @@ export interface CreateReturningApplicationInput {
   billingFrequency?: BillingFrequency;
   paidMonths?: number;
   enrollmentFeeStatus?: "unpaid" | "paid" | "waived";
+  /** Timestamp the applicant opted in to SMS (optional consent box). Null = no consent. */
+  smsOptedInAt?: string | null;
 }
 
 export interface UpdateReturningApplicationInput {
@@ -180,6 +182,7 @@ export class ReturningApplicationsService {
         billing_frequency: input.billingFrequency || "monthly",
         paid_months: input.paidMonths || 0,
         enrollment_fee_status: input.enrollmentFeeStatus || "unpaid",
+        sms_opted_in_at: input.smsOptedInAt || null,
       })
       .select()
       .single();
@@ -312,6 +315,7 @@ interface DbReturningApplicationRow {
   billing_frequency: BillingFrequency;
   paid_months: number;
   enrollment_fee_status: "unpaid" | "paid" | "waived";
+  sms_opted_in_at: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   admin_notes: string | null;
@@ -362,6 +366,7 @@ function transformApplication(row: DbReturningApplicationRow): ReturningApplicat
     billingFrequency: row.billing_frequency,
     paidMonths: row.paid_months,
     enrollmentFeeStatus: row.enrollment_fee_status,
+    smsOptedInAt: row.sms_opted_in_at,
     reviewedBy: row.reviewed_by,
     reviewedAt: row.reviewed_at,
     adminNotes: row.admin_notes,

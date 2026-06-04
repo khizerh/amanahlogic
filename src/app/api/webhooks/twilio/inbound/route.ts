@@ -122,9 +122,15 @@ export async function POST(req: Request) {
       supabase,
     });
   } else if (kind === "start" && member) {
+    // Replying START is affirmative consent: clear any opt-out AND record opt-in
+    // so the confirmation (and future messages) pass the consent gate.
     await supabase
       .from("members")
-      .update({ sms_opted_out_at: null, sms_opt_out_reason: null })
+      .update({
+        sms_opted_out_at: null,
+        sms_opt_out_reason: null,
+        sms_opted_in_at: new Date().toISOString(),
+      })
       .eq("id", member.id);
     await sendSms({
       organizationId: org.id,

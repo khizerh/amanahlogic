@@ -89,6 +89,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       billingFrequency,
       preferredLanguage,
       children,
+      smsConsent,
       returning,
     } = body as {
       firstName: string;
@@ -107,6 +108,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       billingFrequency: BillingFrequency;
       preferredLanguage?: "en" | "fa";
       children?: { id: string; name: string; dateOfBirth: string }[];
+      smsConsent?: boolean;
       returning?: boolean;
     };
 
@@ -233,6 +235,9 @@ export async function POST(request: Request, { params }: RouteParams) {
         preferredLanguage: preferredLanguage || "en",
         planId: plan.id,
         billingFrequency: billingFrequency || "monthly",
+        // Optional SMS consent — record the moment of opt-in so it can carry to
+        // the member on approval. Consent never gates enrollment (CTIA/TCPA).
+        smsOptedInAt: smsConsent ? new Date().toISOString() : null,
       },
       supabase
     );

@@ -90,6 +90,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
       children: app.children,
       emergencyContact: app.emergencyContact,
       preferredLanguage: app.preferredLanguage,
+      smsOptedInAt: app.smsOptedInAt,
     });
 
     // Create membership with admin-adjusted values
