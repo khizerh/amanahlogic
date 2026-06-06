@@ -183,6 +183,10 @@ export async function collectTerminalPayment(params: {
     currency: "usd",
     payment_method_types: ["card_present"],
     capture_method: "automatic",
+    // Opt in to saving the card for later online/recurring use. Without this,
+    // Stripe never produces card_present.generated_card, and the post-charge
+    // subscription setup (getReusablePaymentMethod) fails on every enrollment.
+    setup_future_usage: "off_session",
     description,
     metadata,
   };
