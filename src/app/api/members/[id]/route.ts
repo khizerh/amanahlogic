@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MembersService } from "@/lib/database/members";
 import { PlansService } from "@/lib/database/plans";
+import { AgreementsService } from "@/lib/database/agreements";
+import { AgreementTemplatesService } from "@/lib/database/agreement-templates";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { normalizePhoneNumber } from "@/lib/utils";
 
@@ -110,6 +112,31 @@ export async function PUT(
       ...(spouseName !== undefined && { spouseName }),
       ...(children !== undefined && { children }),
     });
+
+    // If the admin switched the member's language, re-point any UNSIGNED agreement
+    // to the matching template so they stop receiving the old language. Switching
+    // the member alone does not rewrite an already-created agreement.
+    if (
+      preferredLanguage !== undefined &&
+      (preferredLanguage === "en" || preferredLanguage === "fa") &&
+      preferredLanguage !== existing.preferredLanguage
+    ) {
+      try {
+        const unsigned = await AgreementsService.getUnsignedByMember(memberId, organizationId);
+        if (unsigned) {
+          const template = await AgreementTemplatesService.getActiveByLanguage(
+            organizationId,
+            preferredLanguage
+          );
+          if (template && template.version !== unsigned.templateVersion) {
+            await AgreementsService.updateTemplateVersion(unsigned.id, template.version);
+          }
+        }
+      } catch (e) {
+        // Non-fatal — the member's language was still updated.
+        console.error("Failed to re-point unsigned agreement to new language:", e);
+      }
+    }
 
     return NextResponse.json({ success: true, member: updatedMember });
   } catch (error) {

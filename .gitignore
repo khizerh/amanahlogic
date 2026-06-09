@@ -58,3 +58,4 @@ tmp/
 # Uploads (local file storage)
 **/public/uploads/
 /supabase/
+paid-incomplete-onboarding.csv

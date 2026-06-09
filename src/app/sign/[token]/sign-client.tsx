@@ -32,7 +32,11 @@ export default function SignClient({
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPdfEmbed, setShowPdfEmbed] = useState(true);
+  // Collapsed by default so the signature section is immediately reachable on
+  // mobile. The embedded PDF iframe is tall (500px) and traps scroll/zoom, which
+  // was burying the signature for less tech-savvy members. The document stays one
+  // tap away (header bar + "Open PDF"), and the consent checkbox attests review.
+  const [showPdfEmbed, setShowPdfEmbed] = useState(false);
 
   const isRtl = language === "fa";
 
@@ -136,6 +140,11 @@ export default function SignClient({
           </h1>
           <p className="text-slate-400 text-sm mt-1">
             {language === "fa" ? `امضا کننده: ${memberName}` : `Signer: ${memberName}`}
+          </p>
+          <p className="text-slate-300 text-sm mt-3">
+            {language === "fa"
+              ? "۱) برای خواندن قرارداد ضربه بزنید  ۲) نام و امضای خود را در پایین وارد کنید  ۳) ارسال کنید"
+              : "1) Tap to read the agreement  2) Sign below  3) Submit"}
           </p>
         </motion.div>
 

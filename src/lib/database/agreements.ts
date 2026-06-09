@@ -162,6 +162,28 @@ export class AgreementsService {
   }
 
   /**
+   * Re-point an unsigned agreement to a different template version — e.g. when an
+   * admin switches the member's preferred language before they have signed. The
+   * sign page renders language/content live from template_version, so this alone
+   * flips the agreement to the new language. No-op once signed.
+   */
+  static async updateTemplateVersion(
+    agreementId: string,
+    templateVersion: string,
+    supabase?: SupabaseClient
+  ): Promise<void> {
+    const client = supabase ?? (await createClientForContext());
+
+    const { error } = await client
+      .from("agreements")
+      .update({ template_version: templateVersion })
+      .eq("id", agreementId)
+      .is("signed_at", null);
+
+    if (error) throw error;
+  }
+
+  /**
    * Sign an agreement
    */
   static async sign(
