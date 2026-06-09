@@ -31,6 +31,8 @@ import type { Plan, BillingFrequency } from "@/lib/types";
 interface JoinFormProps {
   orgSlug: string;
   orgName: string;
+  /** Registered legal entity name, shown in the SMS consent for A2P brand match. */
+  legalBusinessName?: string;
   plans: Plan[];
   returning?: boolean;
 }
@@ -63,7 +65,7 @@ const FREQUENCY_SHORT: Record<BillingFrequency, string> = {
 // Component
 // =============================================================================
 
-export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) {
+export function JoinForm({ orgSlug, orgName, legalBusinessName, plans, returning }: JoinFormProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -765,7 +767,11 @@ export function JoinForm({ orgSlug, orgName, plans, returning }: JoinFormProps) 
             />
             <span className="text-sm text-gray-600 leading-relaxed">
               <span className="font-semibold">Optional:</span> I agree to receive
-              SMS text messages from {orgName} about my membership account &mdash;
+              SMS text messages from {orgName}
+              {legalBusinessName && legalBusinessName !== orgName
+                ? ` (operated by ${legalBusinessName})`
+                : ""}{" "}
+              about my membership account &mdash;
               including payment receipts, payment failure alerts, eligibility
               milestone updates, and customer support replies. This is not
               required to enroll. Message frequency varies. Message and data rates

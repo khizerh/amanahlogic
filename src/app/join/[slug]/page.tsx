@@ -39,7 +39,7 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
   // Fetch org by slug
   const { data: org, error: orgError } = await supabase
     .from("organizations")
-    .select("id, name, slug, email, phone")
+    .select("id, name, slug, email, phone, legal_business_name")
     .eq("slug", slug)
     .single();
 
@@ -110,6 +110,11 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
     <>
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{org.name}</h1>
+        {org.legal_business_name && org.legal_business_name !== org.name && (
+          <p className="mt-1 text-sm text-gray-500">
+            A membership program operated by {org.legal_business_name}
+          </p>
+        )}
         <p className="mt-2 text-gray-600">Become a member</p>
       </div>
 
@@ -175,6 +180,7 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
       <JoinForm
         orgSlug={org.slug}
         orgName={org.name}
+        legalBusinessName={org.legal_business_name || undefined}
         plans={plans}
         returning={false}
       />
