@@ -201,9 +201,14 @@ export async function collectTerminalPayment(params: {
 
   const paymentIntent = await stripe.paymentIntents.create(piParams);
 
-  // Hand off to the reader — this makes the reader prompt for a card
+  // Hand off to the reader — this makes the reader prompt for a card.
+  // allow_redisplay is REQUIRED by Stripe whenever a card is saved via Terminal
+  // (we set setup_future_usage above). "always" = the saved card may be reused
+  // for the member's recurring subscription. Without it the reader errors with
+  // "You must specify `allow_redisplay` as 'always' or 'limited'".
   const reader = await stripe.terminal.readers.processPaymentIntent(readerId, {
     payment_intent: paymentIntent.id,
+    process_config: { allow_redisplay: "always" },
   });
 
   return { paymentIntent, reader };
