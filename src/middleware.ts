@@ -77,6 +77,7 @@ export async function middleware(request: NextRequest) {
                         pathname === "/" ||
                         pathname === "/privacy" ||
                         pathname === "/terms" ||
+                        pathname === "/sms" ||
                         pathname === "/contact";
 
   // ==========================================================================
