@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { calculateSegments } from "@/lib/sms/segments";
 import { classifyInbound } from "@/lib/sms/keywords";
-import { sendSms } from "@/lib/sms";
 import { sendSmsInboundNotification } from "@/lib/email/send-sms-inbound-notification";
 import {
   getWebhookUrl,
@@ -18,12 +17,13 @@ import {
  *   2. Look up member by `From` phone within the org that owns the `To` number.
  *   3. Insert sms_messages row (member_id=null for unknown senders).
  *   4. Detect STOP / HELP / START keyword (trust Twilio's OptOutType when present).
- *   5. STOP: set members.sms_opted_out_at + queue confirmation auto-reply.
- *      HELP: queue help auto-reply.
- *      START: clear members.sms_opted_out_at + queue opt-in confirmation.
+ *   5. STOP: set members.sms_opted_out_at.
+ *      START: clear members.sms_opted_out_at + record sms_opted_in_at.
+ *      HELP: no-op (Twilio answers HELP at the carrier level, doesn't forward).
  *      Regular: fire admin email notification.
- *   6. Respond with empty TwiML (Twilio's Advanced Opt-Out also auto-replies
- *      at the carrier level; we use our outbound send for the audit trail).
+ *      We do NOT send our own keyword replies — Twilio's Advanced Opt-Out owns
+ *      the member-facing STOP/HELP/START responses at the carrier level.
+ *   6. Respond with empty TwiML.
  *
  * Wire this up in Twilio Console:
  *   Messaging → Services → [our service] → Integration → inbound URL
@@ -101,7 +101,16 @@ export async function POST(req: Request) {
     .select("id")
     .single();
 
-  // Keyword handling
+  // Keyword handling.
+  //
+  // Twilio's Advanced Opt-Out (enabled on the Messaging Service) owns the
+  // member-facing replies for STOP/HELP/START at the carrier level. It
+  // forwards STOP/START to this webhook so we can sync our own state, but
+  // answers HELP itself without forwarding. We therefore ONLY sync DB state
+  // here and never send our own keyword reply — that would either double-text
+  // the member (START) or fail with 21610 against a number Twilio just opted
+  // out (STOP). Customize the carrier replies in Twilio Console → Messaging →
+  // Services → Opt-Out.
   const kind = classifyInbound({ body, twilioOptOutType: params.OptOutType });
 
   if (kind === "stop" && member) {
@@ -109,21 +118,9 @@ export async function POST(req: Request) {
       .from("members")
       .update({ sms_opted_out_at: new Date().toISOString(), sms_opt_out_reason: "Replied STOP" })
       .eq("id", member.id);
-    // Fire a confirmation reply through our own send path so it's logged in
-    // sms_messages too. Twilio's Advanced Opt-Out also sends one at the
-    // carrier level — duplicate is acceptable + audit trail.
-    await sendSms({
-      organizationId: org.id,
-      memberId: member.id,
-      toNumber: fromNumber,
-      body:
-        "Masjid Muhajireen: You're unsubscribed and will receive no further texts. Reply START to resubscribe.",
-      overrideReason: "STOP keyword confirmation (required by carrier rules)",
-      supabase,
-    });
   } else if (kind === "start" && member) {
     // Replying START is affirmative consent: clear any opt-out AND record opt-in
-    // so the confirmation (and future messages) pass the consent gate.
+    // so future messages pass the consent gate.
     await supabase
       .from("members")
       .update({
@@ -132,23 +129,9 @@ export async function POST(req: Request) {
         sms_opted_in_at: new Date().toISOString(),
       })
       .eq("id", member.id);
-    await sendSms({
-      organizationId: org.id,
-      memberId: member.id,
-      toNumber: fromNumber,
-      body:
-        "Masjid Muhajireen: You're now opted in to receive membership account notifications. Reply HELP for help, STOP to opt out. Msg & data rates may apply.",
-      supabase,
-    });
   } else if (kind === "help") {
-    await sendSms({
-      organizationId: org.id,
-      memberId: member?.id ?? null,
-      toNumber: fromNumber,
-      body:
-        "Masjid Muhajireen: For help with your membership, reply to this message or visit amanahlogic.com/portal. Reply STOP to opt out.",
-      supabase,
-    });
+    // No-op: Twilio answers HELP at the carrier level and doesn't forward it.
+    // Branch kept for clarity / in case Advanced Opt-Out is ever disabled.
   } else {
     // Regular inbound — notify the admin via email.
     await sendSmsInboundNotification({
