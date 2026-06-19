@@ -1,9 +1,11 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MessageSquare, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { MessageSquare, AlertTriangle, CheckCircle2, Wallet, RefreshCw } from "lucide-react";
 import type { Organization } from "@/lib/types";
 
 interface Props {
@@ -22,6 +24,41 @@ export function SmsSettings({ organization, smsLive }: Props) {
   const brand = organization.twilioBrandSid;
   const campaign = organization.twilioCampaignSid;
   const fullyConfigured = !!(phone && msvc && brand && campaign && smsLive);
+
+  const [balance, setBalance] = useState<{ balance: string; currency: string } | null>(null);
+  const [balanceState, setBalanceState] = useState<"idle" | "loading" | "error">("idle");
+
+  const loadBalance = useCallback(async () => {
+    setBalanceState("loading");
+    try {
+      const res = await fetch("/api/sms/balance", { cache: "no-store" });
+      const data = await res.json();
+      if (data?.balance != null) {
+        setBalance({ balance: data.balance, currency: data.currency || "USD" });
+        setBalanceState("idle");
+      } else {
+        setBalance(null);
+        setBalanceState("error");
+      }
+    } catch {
+      setBalance(null);
+      setBalanceState("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (smsLive) loadBalance();
+  }, [smsLive, loadBalance]);
+
+  const formattedBalance = balance
+    ? new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: balance.currency,
+      }).format(Number(balance.balance))
+    : null;
+
+  // Surface a low-balance warning so a top-up isn't missed mid-campaign.
+  const lowBalance = balance != null && Number(balance.balance) < 10;
 
   return (
     <div className="space-y-6">
@@ -48,6 +85,49 @@ export function SmsSettings({ organization, smsLive }: Props) {
               </Badge>
             )}
           </div>
+
+          {smsLive && (
+            <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Account balance:</span>
+                {balanceState === "loading" ? (
+                  <span className="text-sm text-muted-foreground">Loading…</span>
+                ) : balanceState === "error" ? (
+                  <span className="text-sm italic text-muted-foreground">Unavailable</span>
+                ) : (
+                  <span
+                    className={`text-sm font-semibold ${lowBalance ? "text-amber-700" : ""}`}
+                  >
+                    {formattedBalance}
+                  </span>
+                )}
+                {lowBalance && (
+                  <Badge variant="outline" className="gap-1 text-amber-700 border-amber-300 bg-amber-50">
+                    <AlertTriangle className="h-3 w-3" /> Low
+                  </Badge>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadBalance}
+                disabled={balanceState === "loading"}
+                className="h-7 gap-1 text-xs"
+              >
+                <RefreshCw className={`h-3 w-3 ${balanceState === "loading" ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
+          )}
+
+          {smsLive && (
+            <p className="text-xs text-muted-foreground -mt-2">
+              Prepaid (pay-as-you-go) balance remaining on the Twilio account. Each SMS segment
+              costs ~$0.008 + carrier fees. Top up or set Auto Recharge in the Twilio Console
+              billing settings.
+            </p>
+          )}
 
           {!fullyConfigured && (
             <Alert className="border-amber-300 bg-amber-50">
