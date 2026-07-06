@@ -2139,7 +2139,7 @@ export function MemberDetailClient({
         memberId={memberData.id}
         memberName={`${memberData.firstName} ${memberData.lastName}`.trim()}
         phone={memberData.phone}
-        smsOptedOutAt={(memberData as unknown as { smsOptedOutAt?: string | null }).smsOptedOutAt ?? null}
+        smsOptedOutAt={memberData.smsOptedOutAt}
       />
 
       {/* Collect Payment Dialog - Entry Point */}

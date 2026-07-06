@@ -107,6 +107,9 @@ export interface Member {
   // Communication preferences
   preferredLanguage: CommunicationLanguage;
 
+  // SMS opt-out (set when member replies STOP; cleared on START)
+  smsOptedOutAt: string | null;
+
   // Portal
   userId: string | null;
 
