@@ -149,6 +149,8 @@ function buildChain(table: string) {
     return buildChain(table);
   });
 
+  chain.delete = vi.fn(() => buildChain(table));
+
   chain.single = vi.fn(() => Promise.resolve(dequeueResult(table)));
   chain.maybeSingle = vi.fn(() => Promise.resolve(dequeueResult(table)));
 
@@ -486,7 +488,7 @@ describe("Stripe Webhook Route POST", () => {
       expect((membershipUpdate!.data as Record<string, unknown>).auto_pay_enabled).toBe(true);
     });
 
-    it("should map past_due status and disable auto_pay", async () => {
+    it("should map past_due status and keep auto_pay on (Stripe still retrying)", async () => {
       const event = createStripeEvent("customer.subscription.updated", {
         id: "sub_past_due",
         status: "past_due",
@@ -502,7 +504,8 @@ describe("Stripe Webhook Route POST", () => {
 
       const membershipUpdate = supabaseUpdateCalls.find((c) => c.table === "memberships");
       expect((membershipUpdate!.data as Record<string, unknown>).subscription_status).toBe("past_due");
-      expect((membershipUpdate!.data as Record<string, unknown>).auto_pay_enabled).toBe(false);
+      // past_due = Stripe is still retrying, so auto-pay stays on (see route.ts).
+      expect((membershipUpdate!.data as Record<string, unknown>).auto_pay_enabled).toBe(true);
     });
 
     it("should enable auto_pay for trialing status", async () => {
