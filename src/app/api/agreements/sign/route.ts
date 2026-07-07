@@ -6,7 +6,7 @@ import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { uploadSignedPdf } from "@/lib/signing/storage";
+import { uploadSignedPdf, uploadSignatureImage } from "@/lib/signing/storage";
 import { stampAgreementPdf } from "@/lib/signing/stamp-pdf";
 import { validateSignaturePayload } from "@/lib/signing/validation";
 import type { SignAgreementPayload } from "@/lib/signing/validation";
@@ -94,11 +94,26 @@ export async function POST(req: Request) {
       throw new Error(`Failed to upload PDF: ${uploadError instanceof Error ? uploadError.message : "Unknown error"}`);
     }
 
+    // Upload the signature image to Storage instead of persisting the ~43KB base64
+    // data URI inline (keeps the agreements table small; mirrors the PDF pattern).
+    // Best-effort: the signature is already baked into the stamped PDF above, so if
+    // the upload fails we fall back to the inline data URI — signing never breaks.
+    let signatureImageUrl = payload.signatureDataUrl;
+    try {
+      signatureImageUrl = await uploadSignatureImage(
+        agreement.organizationId,
+        agreement.id,
+        payload.signatureDataUrl
+      );
+    } catch (sigError) {
+      console.error("Signature image upload error (falling back to inline):", sigError);
+    }
+
     // Update agreement record
     await AgreementsService.sign({
       agreementId: agreement.id,
       signedName: payload.signedName,
-      signatureImageUrl: payload.signatureDataUrl,
+      signatureImageUrl,
       pdfUrl,
       ipAddress: payload.ipAddress,
       userAgent: payload.userAgent,
