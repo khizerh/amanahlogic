@@ -278,6 +278,10 @@ export async function handlePaymentIntentSucceeded(
       period_label: invoiceMetadata.periodLabel,
       // Other fields
       stripe_payment_intent_id: paymentIntent.id,
+      stripe_charge_id:
+        typeof paymentIntent.latest_charge === "string"
+          ? paymentIntent.latest_charge
+          : paymentIntent.latest_charge?.id ?? null,
       stripe_payment_method_type: piPaymentMethodType,
       notes: `Stripe payment - ${invoiceMetadata.periodLabel}`,
     })

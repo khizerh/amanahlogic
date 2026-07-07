@@ -858,10 +858,11 @@ describe("Stripe Webhook Route POST", () => {
         periodLabel: "Feb 2025",
       });
 
-      // Mock paymentIntents.retrieve for stripe_payment_method_type derivation
+      // Mock paymentIntents.retrieve for stripe_payment_method_type + charge id derivation
       mockPaymentIntentsRetrieve.mockResolvedValueOnce({
         id: "pi_inv_paid",
         payment_method: "pm_card_123",
+        latest_charge: "ch_inv_paid",
       });
       mockPaymentMethodsRetrieve.mockResolvedValueOnce({
         id: "pm_card_123",
@@ -896,6 +897,10 @@ describe("Stripe Webhook Route POST", () => {
       );
       expect(paymentInsert).toBeDefined();
       expect((paymentInsert!.data as Record<string, unknown>).stripe_payment_method_type).toBe("card");
+      // Stripe identifiers must be persisted so the payment is refundable/reconcilable
+      expect((paymentInsert!.data as Record<string, unknown>).stripe_payment_intent_id).toBe("pi_inv_paid");
+      expect((paymentInsert!.data as Record<string, unknown>).stripe_charge_id).toBe("ch_inv_paid");
+      expect((paymentInsert!.data as Record<string, unknown>).stripe_invoice_id).toBe("inv_paid");
     });
 
     it("should skip $0 invoices", async () => {

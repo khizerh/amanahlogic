@@ -914,11 +914,30 @@ async function handleInvoicePaid(
     notes += " (via Connect)";
   }
 
-  // Derive payment method type from the payment intent
-  let invoicePaymentMethodType: string | null = null;
-  if (stripe && paymentIntentId) {
+  // Resolve the payment intent. Newer Stripe API versions (Basil/Clover) omit the
+  // PI from the invoice.paid payload — re-fetch with payments expanded so the row
+  // can be linked back to Stripe (mirrors handleInvoiceFailed). Without this, dues
+  // rows land with a null stripe_payment_intent_id and can't be refunded in-app.
+  let resolvedPaymentIntentId = paymentIntentId;
+  if (!resolvedPaymentIntentId && stripe) {
     try {
-      const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const fresh = (await stripe.invoices.retrieve(invoice.id, {
+        expand: ["payments"],
+      })) as InvoiceWithSubscription;
+      resolvedPaymentIntentId = extractInvoicePaymentIntentId(fresh);
+    } catch {
+      // Non-fatal — record will lack PI ID.
+    }
+  }
+
+  // Derive payment method type + charge id from the payment intent
+  let invoicePaymentMethodType: string | null = null;
+  let invoiceChargeId: string | null = null;
+  if (stripe && resolvedPaymentIntentId) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(resolvedPaymentIntentId);
+      invoiceChargeId =
+        typeof pi.latest_charge === "string" ? pi.latest_charge : pi.latest_charge?.id ?? null;
       const pmId = typeof pi.payment_method === "string" ? pi.payment_method : pi.payment_method?.id;
       if (pmId) {
         const pm = await stripe.paymentMethods.retrieve(pmId);
@@ -950,7 +969,9 @@ async function handleInvoicePaid(
       period_start: invoiceMetadata.periodStart,
       period_end: invoiceMetadata.periodEnd,
       period_label: invoiceMetadata.periodLabel,
-      stripe_payment_intent_id: paymentIntentId,
+      stripe_payment_intent_id: resolvedPaymentIntentId,
+      stripe_charge_id: invoiceChargeId,
+      stripe_invoice_id: invoice.id,
       stripe_payment_method_type: invoicePaymentMethodType,
       notes,
     })
@@ -969,7 +990,7 @@ async function handleInvoicePaid(
     paymentId: newPayment.id,
     method: "stripe",
     paidAt: new Date().toISOString(),
-    stripePaymentIntentId: paymentIntentId,
+    stripePaymentIntentId: resolvedPaymentIntentId,
     supabase,
   });
 
