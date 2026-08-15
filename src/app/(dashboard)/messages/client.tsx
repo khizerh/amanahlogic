@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
 
 interface Props {
-  memberOptions: { id: string; name: string; phone: string | null }[];
+  memberOptions: { id: string; name: string; phone: string | null; smsOptedInAt: string | null; smsOptedOutAt: string | null }[];
   smsLive: boolean;
   isDev: boolean;
 }
@@ -59,7 +59,8 @@ export function MessagesClient({ memberOptions, smsLive, isDev }: Props) {
         key: m.id,
         memberId: m.id,
         memberName: m.name,
-        memberOptedOutAt: null,
+        memberOptedInAt: m.smsOptedInAt,
+        memberOptedOutAt: m.smsOptedOutAt,
         phoneNumber: m.phone || "",
         latestBody: "",
         latestAt: new Date().toISOString(),
@@ -108,8 +109,13 @@ export function MessagesClient({ memberOptions, smsLive, isDev }: Props) {
                 toNumber={selected.phoneNumber}
                 memberId={selected.memberId}
                 memberName={selected.memberName}
+                memberOptedInAt={selected.memberOptedInAt}
                 memberOptedOutAt={selected.memberOptedOutAt}
                 onSent={loadConversations}
+                onConsentRecorded={(at) => {
+                  setSelected((prev) => (prev ? { ...prev, memberOptedInAt: at } : prev));
+                  loadConversations();
+                }}
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-8">

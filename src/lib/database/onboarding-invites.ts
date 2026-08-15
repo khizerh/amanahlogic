@@ -582,6 +582,7 @@ interface DbMemberJoinRow {
   emergency_contact: { name: string; phone: string };
   preferred_language: "en" | "fa";
   user_id: string | null;
+  sms_opted_in_at: string | null;
   sms_opted_out_at: string | null;
   created_at: string;
   updated_at: string;
@@ -697,6 +698,7 @@ function transformInvitesWithDetails(
             emergencyContact: member.emergency_contact,
             preferredLanguage: member.preferred_language,
             userId: member.user_id,
+            smsOptedInAt: member.sms_opted_in_at ?? null,
             smsOptedOutAt: member.sms_opted_out_at ?? null,
             createdAt: member.created_at,
             updatedAt: member.updated_at,

@@ -287,6 +287,8 @@ export class MembersService {
       dbUpdates.emergency_contact = updates.emergencyContact;
     if (updates.preferredLanguage !== undefined)
       dbUpdates.preferred_language = updates.preferredLanguage;
+    if (updates.smsOptedInAt !== undefined)
+      dbUpdates.sms_opted_in_at = updates.smsOptedInAt;
 
     const { data, error } = await client
       .from("members")
@@ -386,6 +388,7 @@ interface DbMemberRow {
   emergency_contact: { name: string; phone: string };
   preferred_language: "en" | "fa";
   user_id: string | null;
+  sms_opted_in_at: string | null;
   sms_opted_out_at: string | null;
   created_at: string;
   updated_at: string;
@@ -455,6 +458,7 @@ function transformMember(dbMember: DbMemberRow): Member {
     emergencyContact: dbMember.emergency_contact,
     preferredLanguage: dbMember.preferred_language,
     userId: dbMember.user_id || null,
+    smsOptedInAt: dbMember.sms_opted_in_at ?? null,
     smsOptedOutAt: dbMember.sms_opted_out_at ?? null,
     createdAt: dbMember.created_at,
     updatedAt: dbMember.updated_at,

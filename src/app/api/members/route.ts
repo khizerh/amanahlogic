@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       waiveEnrollmentFee,
       paymentMethod,
       paidMonths: rawPaidMonths,
+      smsConsent,
     } = body as {
       firstName: string;
       middleName?: string;
@@ -78,6 +79,8 @@ export async function POST(request: Request) {
       preferredLanguage: CommunicationLanguage;
       children?: { id: string; name: string; dateOfBirth: string }[];
       waiveEnrollmentFee?: boolean;
+      /** Admin confirms the member agreed (in person) to receive SMS. */
+      smsConsent?: boolean;
       paymentMethod?: "stripe" | "manual";
       paidMonths?: number;
       skipOnboarding?: boolean;
@@ -139,6 +142,7 @@ export async function POST(request: Request) {
         phone: normalizedEmergencyPhone,
       },
       preferredLanguage: preferredLanguage || "en",
+      smsOptedInAt: smsConsent === true ? new Date().toISOString() : null,
     });
 
     // Create the membership with status "pending"

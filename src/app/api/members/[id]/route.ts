@@ -78,7 +78,23 @@ export async function PUT(
       emergencyContact,
       spouseName,
       children,
+      // Admin-recorded SMS consent (e.g. member agreed in person at signup).
+      // true  → stamp sms_opted_in_at now (no-op if already set)
+      // false → clear sms_opted_in_at (admin withdraws consent)
+      // NOTE: this never touches sms_opted_out_at. A member who replied STOP
+      // must text START themselves — carriers don't let the sender undo it.
+      smsConsent,
     } = body;
+
+    if (smsConsent !== undefined && typeof smsConsent !== "boolean") {
+      return NextResponse.json({ error: "smsConsent must be a boolean" }, { status: 400 });
+    }
+    let smsOptedInAt: string | null | undefined;
+    if (smsConsent === true) {
+      smsOptedInAt = existing.smsOptedInAt ?? new Date().toISOString();
+    } else if (smsConsent === false) {
+      smsOptedInAt = null;
+    }
 
     // Block clearing email when member has portal access
     if (!email && email !== undefined && existing.userId) {
@@ -111,6 +127,7 @@ export async function PUT(
       }),
       ...(spouseName !== undefined && { spouseName }),
       ...(children !== undefined && { children }),
+      ...(smsOptedInAt !== undefined && { smsOptedInAt }),
     });
 
     // If the admin switched the member's language, re-point any UNSIGNED agreement

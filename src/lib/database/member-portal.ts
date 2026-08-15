@@ -349,6 +349,7 @@ interface DbMemberRow {
   emergency_contact: { name: string; phone: string };
   preferred_language: "en" | "fa";
   user_id: string | null;
+  sms_opted_in_at: string | null;
   sms_opted_out_at: string | null;
   created_at: string;
   updated_at: string;
@@ -460,6 +461,7 @@ function transformMember(db: DbMemberRow): Member {
     emergencyContact: db.emergency_contact,
     preferredLanguage: db.preferred_language,
     userId: db.user_id || null,
+    smsOptedInAt: db.sms_opted_in_at ?? null,
     smsOptedOutAt: db.sms_opted_out_at ?? null,
     createdAt: db.created_at,
     updatedAt: db.updated_at,

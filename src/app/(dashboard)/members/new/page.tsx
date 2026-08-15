@@ -84,6 +84,7 @@ export default function NewMemberPage() {
   const [planType, setPlanType] = useState<PlanType>("");
   const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>("monthly");
   const [preferredLanguage, setPreferredLanguage] = useState<CommunicationLanguage>("en");
+  const [smsConsent, setSmsConsent] = useState(true);
   const [children, setChildren] = useState<ChildFormData[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"manual" | "stripe">("manual");
   const [waiveEnrollmentFee, setWaiveEnrollmentFee] = useState(false);
@@ -191,6 +192,7 @@ export default function NewMemberPage() {
           waiveEnrollmentFee,
           paymentMethod,
           paidMonths,
+          smsConsent,
         }),
       });
 
@@ -366,6 +368,21 @@ export default function NewMemberPage() {
                   <p className="text-xs text-muted-foreground">
                     Emails and notifications will be sent in this language
                   </p>
+                </div>
+                <div className="flex items-start space-x-3 pt-2">
+                  <Checkbox
+                    id="smsConsent"
+                    checked={smsConsent}
+                    onCheckedChange={(checked) => setSmsConsent(checked === true)}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="smsConsent" className="font-normal cursor-pointer">
+                      Member agrees to receive text messages
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Payment reminders and updates by SMS. Uncheck if they didn&apos;t agree — you can enable it later from their profile.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -70,13 +70,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    // For payer scenarios, skip the member email check (payer has their own email)
-    if (!payerMemberId && !member.email) {
-      return NextResponse.json(
-        { error: "Cannot set up auto-pay: member has no email address" },
-        { status: 400 }
-      );
-    }
+    // NOTE: No email required here. This endpoint returns the hosted setup URL
+    // (it does not email anything), so an admin can open the link and enter the
+    // card on the member's behalf — e.g. elders who hand over a card but have no
+    // email. Emailing the link lives in /api/stripe/send-payment-setup.
 
     // If payer scenario, fetch and validate payer
     let payerMember: Awaited<ReturnType<typeof MembersService.getById>> = null;

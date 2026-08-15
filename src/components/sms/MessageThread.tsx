@@ -16,8 +16,11 @@ interface MessageThreadProps {
   toNumber: string;
   memberId: string | null;
   memberName?: string | null;
+  memberOptedInAt?: string | null;
   memberOptedOutAt?: string | null;
   onSent?: (msg: SmsMessage) => void;
+  /** Called after the admin records SMS consent from the thread banner. */
+  onConsentRecorded?: (optedInAt: string) => void;
   onUnknownLinkRequest?: () => void;
   /** Auto-refresh interval in ms; defaults to 15s. Set to 0 to disable. */
   pollMs?: number;
@@ -28,8 +31,10 @@ export function MessageThread({
   toNumber,
   memberId,
   memberName,
+  memberOptedInAt,
   memberOptedOutAt,
   onSent,
+  onConsentRecorded,
   onUnknownLinkRequest,
   pollMs = 15000,
 }: MessageThreadProps) {
@@ -39,6 +44,7 @@ export function MessageThread({
   const [sending, setSending] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [showOverride, setShowOverride] = useState(false);
+  const [recordingConsent, setRecordingConsent] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load + poll
@@ -76,10 +82,34 @@ export function MessageThread({
   const segInfo = useMemo(() => calculateSegments(body), [body]);
   const isOptedOut = !!memberOptedOutAt;
   const isUnknown = !memberId;
+  // Member exists but never consented (e.g. added by an admin, no signup checkbox).
+  const needsConsent = !!memberId && !memberOptedInAt && !isOptedOut;
+  const needsOverride = isOptedOut || needsConsent;
+
+  async function handleRecordConsent() {
+    if (!memberId || recordingConsent) return;
+    setRecordingConsent(true);
+    try {
+      const res = await fetch(`/api/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ smsConsent: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to enable SMS");
+      const optedInAt: string = data.member?.smsOptedInAt || new Date().toISOString();
+      toast.success("SMS enabled", { description: "Consent recorded for this member." });
+      onConsentRecorded?.(optedInAt);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to enable SMS");
+    } finally {
+      setRecordingConsent(false);
+    }
+  }
 
   async function handleSend() {
     if (!body.trim() || sending) return;
-    if (isOptedOut && !overrideReason.trim()) {
+    if (needsOverride && !overrideReason.trim()) {
       setShowOverride(true);
       return;
     }
@@ -164,11 +194,29 @@ export function MessageThread({
             </span>
           </div>
         )}
+        {needsConsent && (
+          <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-sm text-amber-900 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                {memberName || "This member"} hasn&apos;t opted in to SMS. If they agreed to receive texts, enable SMS
+                to record their consent — otherwise send with an override reason.
+              </span>
+            </span>
+            <Button size="sm" variant="outline" onClick={handleRecordConsent} disabled={recordingConsent} className="shrink-0">
+              {recordingConsent ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable SMS"}
+            </Button>
+          </div>
+        )}
         {showOverride && (
           <div className="px-4 py-2 bg-amber-100 border-b border-amber-300 flex items-center gap-2">
             <input
               className="flex-1 bg-white border border-amber-300 rounded px-2 py-1 text-sm"
-              placeholder="Reason for sending despite opt-out (required, audit-logged)"
+              placeholder={
+                isOptedOut
+                  ? "Reason for sending despite opt-out (required, audit-logged)"
+                  : "Reason for sending without recorded consent (required, audit-logged)"
+              }
               value={overrideReason}
               onChange={(e) => setOverrideReason(e.target.value)}
             />
@@ -199,7 +247,7 @@ export function MessageThread({
             <Button
               size="sm"
               onClick={handleSend}
-              disabled={!body.trim() || sending || (isOptedOut && !overrideReason.trim() && !showOverride)}
+              disabled={!body.trim() || sending || (needsOverride && !overrideReason.trim() && !showOverride)}
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
             </Button>

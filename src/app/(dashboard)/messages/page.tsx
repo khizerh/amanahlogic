@@ -16,6 +16,8 @@ export default async function MessagesPage() {
     id: m.id,
     name: `${m.firstName} ${m.lastName}`.trim(),
     phone: m.phone ?? null,
+    smsOptedInAt: m.smsOptedInAt ?? null,
+    smsOptedOutAt: m.smsOptedOutAt ?? null,
   }));
 
   return (

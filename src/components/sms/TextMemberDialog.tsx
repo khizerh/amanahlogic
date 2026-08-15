@@ -17,7 +17,10 @@ interface Props {
   memberId: string;
   memberName: string;
   phone: string | null;
+  smsOptedInAt?: string | null;
   smsOptedOutAt?: string | null;
+  /** Fired when the admin records SMS consent from inside the thread. */
+  onConsentRecorded?: (optedInAt: string) => void;
 }
 
 /**
@@ -30,7 +33,9 @@ export function TextMemberDialog({
   memberId,
   memberName,
   phone,
+  smsOptedInAt,
   smsOptedOutAt,
+  onConsentRecorded,
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,11 +45,15 @@ export function TextMemberDialog({
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
             <DialogTitle className="text-base">{memberName}</DialogTitle>
             {phone && <span className="text-sm text-muted-foreground">· {phone}</span>}
-            {smsOptedOutAt && (
+            {smsOptedOutAt ? (
               <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 ml-1">
                 opted out
               </Badge>
-            )}
+            ) : !smsOptedInAt ? (
+              <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 ml-1">
+                no SMS consent
+              </Badge>
+            ) : null}
           </div>
           <Link
             href={`/messages?to=${memberId}`}
@@ -59,7 +68,9 @@ export function TextMemberDialog({
             toNumber={phone}
             memberId={memberId}
             memberName={memberName}
+            memberOptedInAt={smsOptedInAt ?? null}
             memberOptedOutAt={smsOptedOutAt ?? null}
+            onConsentRecorded={onConsentRecorded}
             pollMs={open ? 15000 : 0}
           />
         ) : (

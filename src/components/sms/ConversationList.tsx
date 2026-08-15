@@ -10,6 +10,7 @@ export interface Conversation {
   key: string;
   memberId: string | null;
   memberName: string | null;
+  memberOptedInAt: string | null;
   memberOptedOutAt: string | null;
   phoneNumber: string;
   latestBody: string;

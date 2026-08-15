@@ -61,17 +61,18 @@ export async function GET() {
 
     // Pull member names for the keys we have.
     const memberIds = Array.from(byKey.values()).map((c) => c.memberId).filter(Boolean) as string[];
-    const memberMap = new Map<string, { firstName: string; lastName: string; phone: string | null; smsOptedOutAt: string | null }>();
+    const memberMap = new Map<string, { firstName: string; lastName: string; phone: string | null; smsOptedInAt: string | null; smsOptedOutAt: string | null }>();
     if (memberIds.length > 0) {
       const { data: members } = await supabase
         .from("members")
-        .select("id, first_name, last_name, phone, sms_opted_out_at")
+        .select("id, first_name, last_name, phone, sms_opted_in_at, sms_opted_out_at")
         .in("id", memberIds);
       for (const m of members || []) {
         memberMap.set(m.id, {
           firstName: m.first_name,
           lastName: m.last_name,
           phone: m.phone,
+          smsOptedInAt: m.sms_opted_in_at,
           smsOptedOutAt: m.sms_opted_out_at,
         });
       }
@@ -83,6 +84,7 @@ export async function GET() {
         key: c.key,
         memberId: c.memberId,
         memberName: m ? `${m.firstName} ${m.lastName}` : null,
+        memberOptedInAt: m?.smsOptedInAt ?? null,
         memberOptedOutAt: m?.smsOptedOutAt ?? null,
         phoneNumber: c.fromNumber,
         latestBody: c.latestBody,

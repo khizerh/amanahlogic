@@ -93,6 +93,7 @@ import {
   UserMinus,
   UserPlus,
   MessageSquare,
+  Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -152,6 +153,13 @@ export function MemberDetailClient({
   const [chargeCardOpen, setChargeCardOpen] = useState(false);
   const [onboardingPaymentOpen, setOnboardingPaymentOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
+
+  // SMS consent (admin-recorded). Local copy so the toggle updates instantly.
+  const [smsOptedInAt, setSmsOptedInAt] = useState<string | null>(initialMember.smsOptedInAt ?? null);
+  const [isTogglingSms, setIsTogglingSms] = useState(false);
+
+  // State for copying a card-setup link (admin enters card on member's behalf)
+  const [isCopyingSetupLink, setIsCopyingSetupLink] = useState(false);
 
   // State for email details sheet
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
@@ -479,6 +487,79 @@ export function MemberDetailClient({
       setIsSettingUpAutopay(false);
     }
   }, [membership, memberData.id, router]);
+
+  // Get a card-setup link and copy it — for members with no email, or when the
+  // admin is entering the card themselves (elder handed over a card in person).
+  const handleCopySetupLink = useCallback(async () => {
+    if (!membership) return;
+
+    setIsCopyingSetupLink(true);
+    try {
+      const response = await fetch("/api/stripe/setup-autopay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          memberId: memberData.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.paymentUrl) {
+        throw new Error(result.error || "Failed to create setup link");
+      }
+
+      try {
+        await navigator.clipboard.writeText(result.paymentUrl);
+        toast.success("Card setup link copied", {
+          description: "Open it in a new tab to enter the card yourself, or send it to the member. It doesn't expire.",
+          action: {
+            label: "Open",
+            onClick: () => window.open(result.paymentUrl, "_blank", "noopener"),
+          },
+          duration: 10000,
+        });
+      } catch {
+        // Clipboard can be blocked (non-HTTPS / permissions) — fall back to opening it
+        window.open(result.paymentUrl, "_blank", "noopener");
+        toast.info("Card setup link opened in a new tab");
+      }
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create setup link");
+    } finally {
+      setIsCopyingSetupLink(false);
+    }
+  }, [membership, memberData.id, router]);
+
+  // Record / withdraw SMS consent on the member's behalf (in-person agreement)
+  const handleToggleSmsConsent = useCallback(async (next: boolean) => {
+    setIsTogglingSms(true);
+    try {
+      const response = await fetch(`/api/members/${memberData.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ smsConsent: next }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update SMS consent");
+      }
+      setSmsOptedInAt(result.member?.smsOptedInAt ?? (next ? new Date().toISOString() : null));
+      toast.success(next ? "SMS enabled" : "SMS disabled", {
+        description: next
+          ? "Consent recorded — you can text this member now."
+          : "This member will no longer receive texts.",
+      });
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update SMS consent");
+    } finally {
+      setIsTogglingSms(false);
+    }
+  }, [memberData.id, router]);
 
   // Resend Stripe payment link to member via email
   const handleResendPaymentLink = useCallback(async () => {
@@ -1280,6 +1361,45 @@ export function MemberDetailClient({
                         )}
                       </div>
                       <div>
+                        <p className="text-sm text-muted-foreground">Text Messages</p>
+                        {memberData.smsOptedOutAt ? (
+                          <div>
+                            <p className="font-medium text-amber-700">Opted out (replied STOP)</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(memberData.smsOptedOutAt)} · they must text START to resume
+                            </p>
+                          </div>
+                        ) : smsOptedInAt ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-green-700">Enabled</p>
+                            <span className="text-xs text-muted-foreground">since {formatDate(smsOptedInAt)}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-muted-foreground"
+                              onClick={() => handleToggleSmsConsent(false)}
+                              disabled={isTogglingSms}
+                            >
+                              Disable
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-amber-700">Not enabled</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => handleToggleSmsConsent(true)}
+                              disabled={isTogglingSms || !memberData.phone}
+                              title="Record that this member agreed to receive texts"
+                            >
+                              {isTogglingSms ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Enable SMS"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div>
                         <p className="text-sm text-muted-foreground">Preferred Language</p>
                         <p className="font-medium">
                           {memberData.preferredLanguage === "fa" ? "Farsi" : "English"}
@@ -1815,9 +1935,32 @@ export function MemberDetailClient({
                               </>
                             )}
                           </Button>
-                          {!memberData.email && <p className="text-xs text-amber-600 mt-1">Requires email address</p>}
+                          {!memberData.email && (
+                            <p className="text-xs text-amber-600 mt-1">
+                              No email — use Copy Setup Link and enter the card yourself.
+                            </p>
+                          )}
                         </div>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopySetupLink}
+                        disabled={isCopyingSetupLink}
+                        title="Copy a card-setup link. Open it yourself to enter the member's card, or share it with them. Works without an email."
+                      >
+                        {isCopyingSetupLink ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Link2 className="h-4 w-4 mr-2" />
+                            Copy Setup Link
+                          </>
+                        )}
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -2139,7 +2282,12 @@ export function MemberDetailClient({
         memberId={memberData.id}
         memberName={`${memberData.firstName} ${memberData.lastName}`.trim()}
         phone={memberData.phone}
+        smsOptedInAt={smsOptedInAt}
         smsOptedOutAt={memberData.smsOptedOutAt}
+        onConsentRecorded={(at) => {
+          setSmsOptedInAt(at);
+          router.refresh();
+        }}
       />
 
       {/* Collect Payment Dialog - Entry Point */}
