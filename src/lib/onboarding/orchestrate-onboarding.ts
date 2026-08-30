@@ -176,7 +176,8 @@ export async function orchestrateOnboarding(
         const enrollmentFeeCents = Math.round(enrollmentFeeBase * 100);
 
         if (org?.passFeesToMember) {
-          const enrollmentFees = calculateFees(enrollmentFeeCents, platformFeeDollars, true);
+          // Platform fee applies to dues only — never to the enrollment fee
+          const enrollmentFees = calculateFees(enrollmentFeeCents, 0, true);
           enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
         } else {
           enrollmentFeeForEmail = enrollmentFeeBase;

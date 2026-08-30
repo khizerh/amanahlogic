@@ -73,7 +73,8 @@ export async function POST(req: Request) {
     if (includeEnrollmentFee && membership.enrollmentFeeStatus === "unpaid") {
       enrollmentFeeCents = Math.round(plan.enrollmentFee * 100);
       if (org.passFeesToMember) {
-        const enrollmentFees = calculateFees(enrollmentFeeCents, platformFeeDollars, true);
+        // Platform fee applies to dues only — never to the enrollment fee
+        const enrollmentFees = calculateFees(enrollmentFeeCents, 0, true);
         enrollmentFeeChargeCents = enrollmentFees.chargeAmountCents;
       } else {
         enrollmentFeeChargeCents = enrollmentFeeCents;
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
     if (org.stripeConnectId && org.stripeOnboarded) {
       applicationFeeCents = duesFees.applicationFeeCents;
       if (enrollmentFeeChargeCents > 0) {
-        const enrollFees = calculateFees(enrollmentFeeCents, platformFeeDollars, org.passFeesToMember);
+        const enrollFees = calculateFees(enrollmentFeeCents, 0, org.passFeesToMember);
         applicationFeeCents += enrollFees.applicationFeeCents;
       }
     }

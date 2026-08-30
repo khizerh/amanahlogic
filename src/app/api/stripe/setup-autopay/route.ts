@@ -188,7 +188,8 @@ export async function POST(req: Request) {
     if (includeEnrollmentFee) {
       const enrollmentFeeCents = Math.round(plan.enrollmentFee * 100);
       if (org.passFeesToMember) {
-        const enrollmentFees = calculateFees(enrollmentFeeCents, platformFeeDollars, true);
+        // Platform fee applies to dues only — never to the enrollment fee
+        const enrollmentFees = calculateFees(enrollmentFeeCents, 0, true);
         enrollmentFeeAmount = enrollmentFees.chargeAmountCents;
       } else {
         enrollmentFeeAmount = enrollmentFeeCents;

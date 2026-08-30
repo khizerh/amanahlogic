@@ -221,7 +221,8 @@ export async function POST(req: Request) {
 
     // Handle enrollment fee payment record if applicable
     if (includeEnrollmentFee && enrollmentFeeCents > 0) {
-      const enrollFees = calculateFees(enrollmentFeeCents, platformFeeDollars, org.passFeesToMember);
+      // Platform fee applies to dues only — never to the enrollment fee
+      const enrollFees = calculateFees(enrollmentFeeCents, 0, org.passFeesToMember);
 
       await supabase.from("payments").insert({
         organization_id: organizationId,

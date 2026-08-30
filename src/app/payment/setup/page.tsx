@@ -91,11 +91,11 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
   const duesFees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
   const displayDues = memberIsCurrent ? 0 : duesFees.chargeAmountCents / 100;
 
-  // Enrollment fee (always run through calculateFees to include platform fee)
+  // Enrollment fee — platform fee applies to dues only, so it's excluded here
   const enrollmentFeeAmountCents = parseInt(metadata.enrollment_fee_amount_cents || "0", 10);
   let displayEnrollmentFee: number | undefined;
   if (enrollmentFeeAmountCents > 0 && !memberIsCurrent) {
-    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, platformFeeDollars, passFeesToMember);
+    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, 0, passFeesToMember);
     displayEnrollmentFee = enrollmentFees.chargeAmountCents / 100;
   }
 

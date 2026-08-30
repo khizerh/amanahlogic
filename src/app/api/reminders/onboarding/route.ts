@@ -138,9 +138,10 @@ export async function POST() {
         let enrollmentFeeForEmail: number | undefined;
         if (invite.includesEnrollmentFee && invite.enrollmentFeeAmount > 0 && !invite.enrollmentFeePaidAt) {
           if (org.passFeesToMember) {
+            // Platform fee applies to dues only — never to the enrollment fee
             const enrollmentFees = calculateFees(
               Math.round(invite.enrollmentFeeAmount * 100),
-              platformFeeDollars,
+              0,
               true
             );
             enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;

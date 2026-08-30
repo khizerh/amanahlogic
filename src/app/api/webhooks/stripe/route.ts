@@ -1388,7 +1388,8 @@ async function handleSetupIntentSucceeded(
 
   // Handle enrollment fee if applicable
   if (enrollmentFeeAmountCents > 0) {
-    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, platformFeeDollars, passFeesToMember);
+    // Platform fee applies to dues only — never to the enrollment fee
+    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, 0, passFeesToMember);
 
     try {
       const piParams: Stripe.PaymentIntentCreateParams = {
