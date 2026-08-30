@@ -57,5 +57,7 @@ tmp/
 
 # Uploads (local file storage)
 **/public/uploads/
-/supabase/
+# Supabase CLI local state (schema.sql and seed.sql stay tracked)
+/supabase/.temp/
+/supabase/.branches/
 paid-incomplete-onboarding.csv
