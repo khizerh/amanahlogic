@@ -164,3 +164,7 @@ export async function PUT(
     );
   }
 }
+
+// The dashboard sends partial updates (e.g. { smsConsent: true }) as PATCH;
+// the handler above already treats every field as optional, so alias it.
+export { PUT as PATCH };
