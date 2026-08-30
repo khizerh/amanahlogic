@@ -1325,9 +1325,6 @@ async function handleSetupIntentSucceeded(
 
   const platformFeeDollars = getPlatformFee(org?.platform_fees as PlatformFees | null, freq);
 
-  // Calculate fees for enrollment fee (subscription fees handled by shared helper)
-  const fees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
-
   // Determine trial_end if member is current
   let trialEnd: number | undefined;
   if (memberIsCurrent && nextPaymentDueStr) {

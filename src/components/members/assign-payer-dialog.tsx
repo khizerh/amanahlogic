@@ -47,7 +47,6 @@ export function AssignPayerDialog({
   onOpenChange,
   membershipId,
   currentMemberId,
-  organizationId,
   onPayerAssigned,
 }: AssignPayerDialogProps) {
   const [members, setMembers] = useState<Member[]>([]);

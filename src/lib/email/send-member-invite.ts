@@ -1,6 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { renderMemberInvite } from "@emails/templates/MemberInvite";
-import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { createServiceRoleClient } from "@/lib/supabase/server";

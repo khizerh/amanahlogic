@@ -1,6 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { renderWelcome } from "@emails/templates/Welcome";
-import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { createServiceRoleClient } from "@/lib/supabase/server";
@@ -55,19 +54,6 @@ export async function sendWelcomeEmail(
   // Fetch org early (needed for DB template + email config)
   const org = await OrganizationsService.getById(organizationId, serviceClient);
   const orgName = org?.name ?? "Our Organization";
-
-  const frequencyText =
-    billingFrequency === "monthly"
-      ? language === "fa" ? "ماهانه" : "monthly"
-      : billingFrequency === "biannual"
-      ? language === "fa" ? "هر ۶ ماه" : "every 6 months"
-      : language === "fa" ? "سالانه" : "annually";
-
-  // Format expiry date for display (DB template gets raw value, so format it here)
-  const formattedExpiry = new Date(inviteExpiresAt).toLocaleDateString(
-    language === "fa" ? "fa-IR" : "en-US",
-    { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-  );
 
   // Always use React email templates for now.
   // DB template resolution will be enabled when orgs can customize emails.

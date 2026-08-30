@@ -17,7 +17,6 @@ import {
   type BulkReminderResults,
   type ReminderRecipient,
   type SkippedRecipient,
-  type EmailDescription,
 } from "@/components/reminders/bulk-reminder-dialog";
 import { createColumns } from "./columns";
 import { createOutstandingColumns, OutstandingPayment } from "./outstanding-columns";

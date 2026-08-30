@@ -161,9 +161,7 @@ export async function POST(req: Request) {
     const supabase = createServiceRoleClient();
     const duesFees = calculateFees(duesAmountCents, platformFeeDollars, org.passFeesToMember);
 
-    // Determine billing anniversary day from today
     const todayDate = new Date(today + "T00:00:00Z");
-    const billingAnniversaryDay = Math.min(todayDate.getDate(), 28);
 
     // Generate invoice metadata for the dues payment
     const invoiceMetadata = await generateAdHocInvoiceMetadata(

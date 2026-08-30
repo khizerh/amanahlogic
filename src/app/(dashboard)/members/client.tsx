@@ -13,7 +13,6 @@ import {
   type BulkReminderResults,
   type ReminderRecipient,
   type SkippedRecipient,
-  type EmailDescription,
 } from "@/components/reminders/bulk-reminder-dialog";
 import { Send } from "lucide-react";
 import { toast } from "sonner";

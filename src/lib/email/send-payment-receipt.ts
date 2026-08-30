@@ -1,6 +1,5 @@
 import { resend, FROM_EMAIL, isEmailConfigured, getOrgEmailConfig } from "./resend";
 import { renderPaymentReceipt } from "@emails/templates/PaymentReceipt";
-import { resolveEmailTemplate } from "./resolve-template";
 import { EmailLogsService } from "@/lib/database/email-logs";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 

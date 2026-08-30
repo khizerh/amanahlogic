@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { calculateSegments } from "@/lib/sms/segments";
 import type { SmsMessage, SmsStatus } from "@/lib/sms/types";
-import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 
 interface MessageThreadProps {
   threadKey: string;         // member id OR `unknown:+1...`

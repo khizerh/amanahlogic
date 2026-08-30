@@ -32,7 +32,6 @@ import {
 } from "lucide-react";
 import { Organization, Plan, BillingFrequency, MemberWithMembership } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatters";
-import { toast } from "sonner";
 
 // =============================================================================
 // Types
