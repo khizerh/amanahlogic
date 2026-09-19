@@ -598,7 +598,7 @@ export class PaymentsService {
       `
       )
       .eq("organization_id", organizationId)
-      .in("status", ["waiting_period", "active", "lapsed"])
+      .in("status", ["current", "lapsed"])
       .not("next_payment_due", "is", null)
       .lt("next_payment_due", threshold);
 
@@ -693,7 +693,7 @@ export class PaymentsService {
       `
       )
       .eq("organization_id", organizationId)
-      .in("status", ["waiting_period", "active", "lapsed"])
+      .in("status", ["current", "lapsed"])
       .not("next_payment_due", "is", null)
       .lt("next_payment_due", threshold);
 

@@ -446,7 +446,7 @@ export class MembershipsService {
       `
       )
       .eq("organization_id", organizationId)
-      .in("status", ["waiting_period", "active", "lapsed"])
+      .in("status", ["current", "lapsed"])
       .not("next_payment_due", "is", null)
       .lt("next_payment_due", threshold);
 
@@ -499,7 +499,7 @@ export class MembershipsService {
       )
       .eq("organization_id", organizationId)
       .eq("auto_pay_enabled", false)
-      .in("status", ["waiting_period", "active"]);
+      .eq("status", "current");
 
     if (error) throw error;
     return transformMembershipsWithDetails(data || []);
