@@ -870,11 +870,11 @@ export async function updateSubscriptionPricing(params: {
       (existingItem as unknown as { current_period_end?: number }).current_period_end ??
       (currentSub as unknown as { current_period_end?: number }).current_period_end;
     const nowSec = Math.floor(Date.now() / 1000);
-    if (paidThrough && paidThrough > nowSec + 60) {
-      updateParams.trial_end = paidThrough;
-    } else {
-      updateParams.billing_cycle_anchor = "now";
-    }
+    // Already past paid-through: end the trial in a couple of minutes so the new
+    // interval bills right away. (billing_cycle_anchor: "now" is NOT an option —
+    // with proration off it moves the anchor without ever issuing an invoice.)
+    updateParams.trial_end =
+      paidThrough && paidThrough > nowSec + 120 ? paidThrough : nowSec + 120;
   }
 
   // Update application_fee_percent for Connect
