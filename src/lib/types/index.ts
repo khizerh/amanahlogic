@@ -617,6 +617,7 @@ export interface BillingConfig {
   // Lapse/Cancel windows
   lapseDays: number; // Days overdue before lapse (default: 7)
   cancelMonths: number; // Months unpaid before cancel (default: 24)
+  autoLapse: boolean; // Whether the daily cron moves overdue members to lapsed (default: false — digest only)
 
   // Reminder schedule
   reminderSchedule: number[]; // Days after due date to send reminders (default: [3, 7, 14])
@@ -651,6 +652,7 @@ export interface OrganizationSettings {
 export const DEFAULT_BILLING_CONFIG: BillingConfig = {
   lapseDays: 7,
   cancelMonths: 24,
+  autoLapse: false,
   reminderSchedule: [3, 7, 14],
   maxReminders: 3,
   sendInvoiceReminders: true,

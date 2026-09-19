@@ -9,7 +9,7 @@ interface PaymentReminderProps {
   dueDate: string;
   daysOverdue: number;
   reminderNumber: number;
-  invoiceNumber: string;
+  invoiceNumber?: string;
   portalUrl: string;
   organizationName?: string;
   language?: "en" | "fa";
@@ -39,8 +39,8 @@ const t = {
   en: {
     urgencyLabel: (n: number) =>
       n >= 3 ? "Final Notice" : n === 2 ? "Second Reminder" : "Payment Reminder",
-    subject: (label: string, amount: string, inv: string, org: string) =>
-      `${label}: $${amount} Due - Invoice #${inv} - ${org}`,
+    subject: (label: string, amount: string, inv: string | undefined, org: string) =>
+      `${label}: $${amount} Due${inv ? ` - Invoice #${inv}` : ""} - ${org}`,
     greeting: (name: string) => `Assalamu Alaikum ${name},`,
     bodyFinal:
       "This is your final reminder. Your membership may be affected if payment is not received.",
@@ -58,8 +58,8 @@ const t = {
   fa: {
     urgencyLabel: (n: number) =>
       n >= 3 ? "اخطار نهایی" : n === 2 ? "یادآوری دوم" : "یادآوری پرداخت",
-    subject: (label: string, amount: string, inv: string, org: string) =>
-      `${label}: $${amount} - فاکتور #${inv} - ${org}`,
+    subject: (label: string, amount: string, inv: string | undefined, org: string) =>
+      `${label}: $${amount}${inv ? ` - فاکتور #${inv}` : ""} - ${org}`,
     greeting: (name: string) => `السلام علیکم ${name} عزیز،`,
     bodyFinal:
       "این آخرین یادآوری شماست. عضویت شما ممکن است تحت تأثیر قرار گیرد اگر پرداخت دریافت نشود.",
@@ -153,12 +153,14 @@ export function PaymentReminderEmail(props: PaymentReminderProps) {
       >
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
           <tbody>
-            <DetailRow
-              label={l.invoice}
-              value={`#${invoiceNumber}`}
-              color={urgency.color}
-              align={valueAlign}
-            />
+            {invoiceNumber && (
+              <DetailRow
+                label={l.invoice}
+                value={`#${invoiceNumber}`}
+                color={urgency.color}
+                align={valueAlign}
+              />
+            )}
             <DetailRow
               label={l.amountDue}
               value={`$${amount}`}

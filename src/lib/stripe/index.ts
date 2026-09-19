@@ -854,6 +854,29 @@ export async function updateSubscriptionPricing(params: {
     },
   };
 
+  // When the billing interval itself changes, Stripe does NOT start the new
+  // interval at the end of the period the member already paid for:
+  // - same unit (1 month -> 6 months): it keeps the original anchor and stretches
+  //   the current period, so months in between are never billed
+  // - different unit (month -> year): it re-anchors to now and charges immediately,
+  //   overlapping the period already paid
+  // Pin the switch to the paid-through date with a trial instead: nothing is
+  // charged until then, and the first full new-interval invoice lands on that date.
+  const oldRecurring = existingItem.price.recurring;
+  const intervalChanged =
+    oldRecurring?.interval !== interval || (oldRecurring?.interval_count ?? 1) !== intervalCount;
+  if (intervalChanged) {
+    const paidThrough =
+      (existingItem as unknown as { current_period_end?: number }).current_period_end ??
+      (currentSub as unknown as { current_period_end?: number }).current_period_end;
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (paidThrough && paidThrough > nowSec + 60) {
+      updateParams.trial_end = paidThrough;
+    } else {
+      updateParams.billing_cycle_anchor = "now";
+    }
+  }
+
   // Update application_fee_percent for Connect
   if (stripeConnectAccountId && fees.chargeAmountCents > 0) {
     updateParams.application_fee_percent =

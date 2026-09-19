@@ -13,7 +13,7 @@ interface SendPaymentReminderEmailParams {
   dueDate: string;
   daysOverdue: number;
   reminderNumber: number;
-  invoiceNumber: string;
+  invoiceNumber?: string;
   language: "en" | "fa";
 }
 
@@ -47,7 +47,7 @@ export async function sendPaymentReminderEmail(
   const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/payments`;
 
   // Fetch org early (needed for DB template + email config)
-  const org = await OrganizationsService.getById(organizationId);
+  const org = await OrganizationsService.getById(organizationId, serviceClient);
   const orgName = org?.name ?? "Our Organization";
 
   // Always use React email templates for now.

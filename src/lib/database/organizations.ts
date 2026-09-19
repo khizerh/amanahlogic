@@ -433,6 +433,7 @@ function transformSettings(dbSettings: DbOrganizationSettingsRow): OrganizationS
     billing: {
       lapseDays: billingConfig.lapseDays ?? 7,
       cancelMonths: billingConfig.cancelMonths ?? 24,
+      autoLapse: billingConfig.autoLapse ?? false,
       reminderSchedule: billingConfig.reminderSchedule ?? [3, 7, 14],
       maxReminders: billingConfig.maxReminders ?? 3,
       sendInvoiceReminders: billingConfig.sendInvoiceReminders ?? true,
