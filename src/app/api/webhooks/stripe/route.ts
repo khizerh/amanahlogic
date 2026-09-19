@@ -1057,14 +1057,17 @@ async function handleInvoiceFailed(
   const amount = (invoice.amount_due || 0) / 100;
   console.log(`[Webhook] Invoice payment failed: $${amount} for membership ${membershipId}`);
 
-  // Update subscription status to reflect payment issue
+  // Update subscription status to reflect payment issue.
+  // Only while a subscription is still attached: on the final retry Stripe fires
+  // subscription.deleted alongside this event, and we must not overwrite "canceled".
   const { error } = await supabase
     .from("memberships")
     .update({
       subscription_status: "past_due",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", membershipId);
+    .eq("id", membershipId)
+    .not("stripe_subscription_id", "is", null);
 
   if (error) {
     console.error("[Webhook] Failed to update membership after payment failure:", error);
@@ -1182,7 +1185,7 @@ async function handleInvoiceFailed(
         memberName: fullName,
         memberId: memberId!,
         organizationId: organizationId!,
-        amount: `$${amount.toFixed(2)}`,
+        amount: amount.toFixed(2), // template supplies the "$"
         failureReason: failureMessage,
         language: (member.preferred_language as "en" | "fa") || "en",
       });

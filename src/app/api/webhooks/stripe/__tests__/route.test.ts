@@ -133,7 +133,7 @@ function resetQueues() {
 
 function buildChain(table: string) {
   const chain: Record<string, unknown> = {};
-  const chainMethods = ["select", "eq", "neq", "or", "is", "in", "gte", "order", "limit"];
+  const chainMethods = ["select", "eq", "neq", "not", "or", "is", "in", "gte", "order", "limit"];
 
   for (const method of chainMethods) {
     chain[method] = vi.fn(() => chain);
