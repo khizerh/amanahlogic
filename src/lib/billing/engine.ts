@@ -990,7 +990,10 @@ export async function settlePayment(
         paid_at: paidAt,
         notes: options.notes || null,
         recorded_by: options.recordedBy || null,
-        stripe_payment_intent_id: options.stripePaymentIntentId || null,
+        // Only set when provided — never clobber an ID the row was created with
+        ...(options.stripePaymentIntentId
+          ? { stripe_payment_intent_id: options.stripePaymentIntentId }
+          : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", options.paymentId);

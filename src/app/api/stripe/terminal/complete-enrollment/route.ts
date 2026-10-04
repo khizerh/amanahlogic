@@ -213,6 +213,7 @@ export async function POST(req: Request) {
         method: "stripe",
         paidAt: new Date().toISOString(),
         notes: "In-person payment via Terminal",
+        stripePaymentIntentId: paymentIntentId,
         supabase,
       });
     }
