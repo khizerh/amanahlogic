@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { MembershipsService } from "@/lib/database/memberships";
-import { MembersService } from "@/lib/database/members";
-import { PlansService } from "@/lib/database/plans";
-import { OrganizationsService } from "@/lib/database/organizations";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
-import {
-  isStripeConfigured,
-  getOrCreateStripeCustomer,
-  createSetupIntent,
-  calculateFees,
-  getPlatformFee,
-} from "@/lib/stripe";
+import { isStripeConfigured } from "@/lib/stripe";
 import { sendPaymentSetupEmail } from "@/lib/email";
-import type { BillingFrequency } from "@/lib/types";
+import { createAutopaySetupLink, SetupLinkError } from "@/lib/billing/setup-link";
 
 interface SendPaymentSetupBody {
   membershipId: string;
@@ -23,11 +13,17 @@ interface SendPaymentSetupBody {
   includeEnrollmentFee?: boolean;
   /** Optional: ID of the member who will pay (third-party payer) */
   payerMemberId?: string;
+  /**
+   * Past-dues months to collect when the card is saved. Omitted = everything
+   * owed as of today. The server clamps it to what is owed, so an admin can
+   * waive months but never add them.
+   */
+  arrearsMonths?: number | null;
 }
 
 /**
  * POST /api/stripe/send-payment-setup
- * Creates a Stripe Checkout session and sends the payment link to the member via email
+ * Creates a SetupIntent and emails the hosted setup link to the member (or payer).
  */
 export async function POST(req: Request) {
   try {
@@ -41,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     const body: SendPaymentSetupBody = await req.json();
-    const { membershipId, memberId, includeEnrollmentFee, payerMemberId } = body;
+    const { membershipId, memberId, includeEnrollmentFee, payerMemberId, arrearsMonths } = body;
 
     if (!membershipId || !memberId) {
       return NextResponse.json(
@@ -50,161 +46,45 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get membership, member, plan, and org
-    const [membership, member, org] = await Promise.all([
-      MembershipsService.getById(membershipId),
-      MembersService.getById(memberId),
-      OrganizationsService.getById(organizationId),
-    ]);
+    const link = await createAutopaySetupLink({
+      organizationId,
+      membershipId,
+      memberId,
+      payerMemberId,
+      includeEnrollmentFee,
+      arrearsMonths,
+    });
+    const { member, payerMember, plan, arrears } = link;
 
-    if (!membership) {
-      return NextResponse.json({ error: "Membership not found" }, { status: 404 });
-    }
-
-    if (!member) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
-    }
-
-    // For payer scenarios, skip the member email check
-    if (!payerMemberId && !member.email) {
+    // For payer scenarios the payer gets the email; otherwise the member must have one.
+    const emailRecipient = payerMember || member;
+    if (!emailRecipient.email) {
       return NextResponse.json(
         { error: "Cannot send payment setup: member has no email address" },
         { status: 400 }
       );
     }
 
-    if (!org) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
-    }
-
-    // If payer scenario, fetch and validate payer
-    let payerMember: Awaited<ReturnType<typeof MembersService.getById>> = null;
-    let payerForMemberName: string | undefined;
-    if (payerMemberId) {
-      payerMember = await MembersService.getById(payerMemberId);
-      if (!payerMember) {
-        return NextResponse.json({ error: "Payer member not found" }, { status: 404 });
-      }
-      if (!payerMember.email) {
-        return NextResponse.json(
-          { error: "Payer has no email address" },
-          { status: 400 }
-        );
-      }
-      payerForMemberName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}`;
-    }
-
-    const plan = await PlansService.getById(membership.planId);
-    if (!plan) {
-      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
-    }
-
-    // Determine if member is current (paid through a future date)
-    const memberIsCurrent = membership.nextPaymentDue
-      ? new Date(membership.nextPaymentDue) > new Date()
-      : false;
-    const nextPaymentDue = memberIsCurrent ? membership.nextPaymentDue : undefined;
-
-    // Get or create Stripe customer — use PAYER's details when payer is set (Risk #1)
-    const customerMember = payerMember || member;
-    const customerId = await getOrCreateStripeCustomer({
-      memberId: customerMember.id,
-      membershipId: membership.id,
-      email: customerMember.email || undefined,
-      name: `${customerMember.firstName} ${customerMember.middleName ? `${customerMember.middleName} ` : ''}${customerMember.lastName}`,
-      organizationId,
-    });
-
-    // Calculate dues amount based on billing frequency
-    const billingFrequency = membership.billingFrequency || "monthly";
-    let priceAmount: number;
-    switch (billingFrequency) {
-      case "biannual":
-        priceAmount = plan.pricing.biannual;
-        break;
-      case "annual":
-        priceAmount = plan.pricing.annual;
-        break;
-      default:
-        priceAmount = plan.pricing.monthly;
-    }
-
-    // Calculate fees for email display
-    const platformFeeDollars = getPlatformFee(org.platformFees, billingFrequency as BillingFrequency);
-    const fees = calculateFees(
-      Math.round(priceAmount * 100),
-      platformFeeDollars,
-      org.passFeesToMember || false
-    );
-
-    // Determine if enrollment fee should be included
-    // Default: include if not paid, unless explicitly set to false
-    const shouldIncludeEnrollmentFee =
-      includeEnrollmentFee !== undefined
-        ? includeEnrollmentFee
-        : membership.enrollmentFeeStatus === "unpaid";
-
-    // Calculate enrollment fee for email display
-    let enrollmentFeeForEmail: number | undefined;
-
-    if (shouldIncludeEnrollmentFee) {
-      const enrollmentFeeBase = plan.enrollmentFee;
-      const enrollmentFeeCents = Math.round(enrollmentFeeBase * 100);
-
-      if (org.passFeesToMember) {
-        // Platform fee applies to dues only — never to the enrollment fee
-        const enrollmentFees = calculateFees(enrollmentFeeCents, 0, true);
-        enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
-      } else {
-        enrollmentFeeForEmail = enrollmentFeeBase;
-      }
-    }
-
-    // Create SetupIntent (no expiration, unlike Checkout Sessions)
-    const setupResult = await createSetupIntent({
-      customerId,
-      membershipId: membership.id,
-      memberId: member.id,
-      organizationId,
-      planName: plan.name,
-      duesAmountCents: Math.round(priceAmount * 100),
-      enrollmentFeeAmountCents: shouldIncludeEnrollmentFee ? Math.round(plan.enrollmentFee * 100) : 0,
-      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
-      passFeesToMember: org.passFeesToMember || false,
-      stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
-      memberIsCurrent,
-      nextPaymentDue: nextPaymentDue || undefined,
-      payerMemberId,
-      payerForMemberName,
-    });
-
-    // Update membership with customer ID
-    await MembershipsService.update({
-      id: membershipId,
-      stripeCustomerId: customerId,
-      ...(payerMemberId && { payerMemberId }),
-    });
-
     // Create onboarding invite record
     await OnboardingInvitesService.create({
       organizationId,
-      membershipId: membership.id,
+      membershipId: link.membership.id,
       memberId: member.id,
       paymentMethod: "stripe",
-      stripeSetupIntentId: setupResult.setupIntentId,
-      enrollmentFeeAmount: shouldIncludeEnrollmentFee ? plan.enrollmentFee : 0,
-      includesEnrollmentFee: shouldIncludeEnrollmentFee,
-      duesAmount: priceAmount,
-      billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
-      plannedAmount: priceAmount,
+      stripeSetupIntentId: link.setupIntentId,
+      enrollmentFeeAmount: link.includesEnrollmentFee ? plan.enrollmentFee : 0,
+      includesEnrollmentFee: link.includesEnrollmentFee,
+      duesAmount: link.duesChargeCents / 100,
+      billingFrequency: link.billingFrequency,
+      plannedAmount: link.duesChargeCents / 100,
       sentAt: new Date().toISOString(),
     });
 
     // Format first charge date for the email
     let firstChargeDate: string | undefined;
-    if (nextPaymentDue) {
-      const lang = member.preferredLanguage || "en";
-      const date = new Date(nextPaymentDue);
+    if (link.nextPaymentDue) {
+      const lang = emailRecipient.preferredLanguage || "en";
+      const date = new Date(link.nextPaymentDue);
       firstChargeDate = date.toLocaleDateString(lang === "fa" ? "fa-IR" : "en-US", {
         year: "numeric",
         month: "long",
@@ -212,21 +92,23 @@ export async function POST(req: Request) {
       });
     }
 
-    // Send email to payer (if set) or member
-    const emailRecipient = payerMember || member;
+    const memberFullName = `${member.firstName} ${member.middleName ? `${member.middleName} ` : ""}${member.lastName}`;
     const emailResult = await sendPaymentSetupEmail({
-      to: emailRecipient.email!,
+      to: emailRecipient.email,
       memberName: emailRecipient.firstName,
       memberId: emailRecipient.id,
       organizationId,
-      checkoutUrl: setupResult.url,
+      checkoutUrl: link.url,
       planName: plan.name,
-      enrollmentFee: enrollmentFeeForEmail,
-      duesAmount: fees.chargeAmountCents / 100,
-      billingFrequency,
+      enrollmentFee: link.includesEnrollmentFee ? link.enrollmentFeeChargeCents / 100 : undefined,
+      duesAmount: link.duesChargeCents / 100,
+      billingFrequency: link.billingFrequency,
       language: emailRecipient.preferredLanguage || "en",
       firstChargeDate,
-      payingForName: payerMember ? `${member.firstName} ${member.middleName ? `${member.middleName} ` : ''}${member.lastName}` : undefined,
+      payingForName: payerMember ? memberFullName : undefined,
+      arrearsAmount: arrears.arrearsMonths > 0 ? arrears.chargeAmountCents / 100 : undefined,
+      arrearsMonths: arrears.arrearsMonths > 0 ? arrears.arrearsMonths : undefined,
+      arrearsPeriod: arrears.arrearsMonths > 0 ? arrears.periodLabel : undefined,
     });
 
     if (!emailResult.success) {
@@ -236,21 +118,26 @@ export async function POST(req: Request) {
         success: true,
         warning: "SetupIntent created but email failed to send",
         emailError: emailResult.error,
-        paymentUrl: setupResult.url,
-        setupIntentId: setupResult.setupIntentId,
-        includesEnrollmentFee: shouldIncludeEnrollmentFee,
+        paymentUrl: link.url,
+        setupIntentId: link.setupIntentId,
+        includesEnrollmentFee: link.includesEnrollmentFee,
+        arrears,
       });
     }
 
     return NextResponse.json({
       success: true,
-      message: `Payment setup link sent to ${member.email}`,
-      paymentUrl: setupResult.url,
-      setupIntentId: setupResult.setupIntentId,
-      includesEnrollmentFee: shouldIncludeEnrollmentFee,
+      message: `Payment setup link sent to ${emailRecipient.email}`,
+      paymentUrl: link.url,
+      setupIntentId: link.setupIntentId,
+      includesEnrollmentFee: link.includesEnrollmentFee,
       emailSent: true,
+      arrears,
     });
   } catch (error) {
+    if (error instanceof SetupLinkError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error sending payment setup:", error);
     const message = error instanceof Error ? error.message : "Failed to send payment setup";
     return NextResponse.json({ error: message }, { status: 500 });

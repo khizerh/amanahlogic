@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Profile | Member Portal",
 };
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Users } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
@@ -12,6 +13,7 @@ import { MembersService } from "@/lib/database/members";
 import { StripePortalButton } from "./StripePortalButton";
 import { EditableProfile } from "./EditableProfile";
 import { formatPhoneNumber } from "@/lib/utils";
+import { formatPaymentMethodExpiry } from "@/lib/utils/payment-method";
 
 function calculateAge(dateOfBirth: string): number {
   const today = new Date();
@@ -181,11 +183,13 @@ export default async function MemberProfilePage() {
                         : membership.paymentMethod.bankName || "Bank Account"}
                     </Badge>
                     <span className="text-sm font-medium">
-                      ending in {membership.paymentMethod.last4}
+                      {membership.paymentMethod.brand === "link"
+                        ? membership.paymentMethod.email || ""
+                        : `ending in ${membership.paymentMethod.last4}`}
                     </span>
-                    {membership.paymentMethod.expiryMonth && membership.paymentMethod.expiryYear && (
+                    {formatPaymentMethodExpiry(membership.paymentMethod) && (
                       <span className="text-sm text-muted-foreground">
-                        (expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear})
+                        (expires {formatPaymentMethodExpiry(membership.paymentMethod)})
                       </span>
                     )}
                   </div>
@@ -202,7 +206,13 @@ export default async function MemberProfilePage() {
               <div className="text-sm text-muted-foreground">
                 <p>No automatic payment method on file.</p>
                 <p className="mt-2">
-                  Contact {organization.name} to set up automatic payments.
+                  {membership.stripeCustomerId ? (
+                    <Link href="/portal/payments" className="text-primary underline underline-offset-2">
+                      Set up auto-pay on the Payments page
+                    </Link>
+                  ) : (
+                    <>Contact {organization.name} to set up automatic payments.</>
+                  )}
                 </p>
               </div>
             )}

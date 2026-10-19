@@ -8,6 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { MemberPortalService } from "@/lib/database/member-portal";
 import { PaymentsClient } from "./PaymentsClient";
+import { BillingActions } from "./BillingActions";
+import { monthsOwed, arrearsPeriodLabel } from "@/lib/billing/arrears";
+import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 
 export default async function MemberPaymentsPage() {
   const headersList = await headers();
@@ -36,16 +39,33 @@ export default async function MemberPaymentsPage() {
   ]);
 
   const organizationName = portalData?.organization.name || "Organization";
-  const isPending = portalData?.membership?.status === "pending";
-  const isManualPayment = !portalData?.membership?.stripeCustomerId;
+  const membership = portalData?.membership ?? null;
+  const isPending = membership?.status === "pending";
+  const isManualPayment = !membership?.stripeCustomerId;
+
+  // Months behind, for the billing card. Pending members haven't started yet.
+  const today = getTodayInOrgTimezone(portalData?.organization.timezone || "America/Los_Angeles");
+  const owed = membership && !isPending ? monthsOwed(membership.nextPaymentDue, today) : 0;
+  const pastDue = owed > 0 ? { months: owed, period: arrearsPeriodLabel(membership?.nextPaymentDue, owed) } : null;
 
   return (
-    <PaymentsClient
-      paymentHistory={paymentHistory}
-      organizationName={organizationName}
-      isPending={isPending}
-      isManualPayment={isManualPayment}
-      paidMonths={portalData?.membership?.paidMonths ?? paymentHistory.totalMonthsCredited}
-    />
+    <div className="space-y-6">
+      {membership && !isPending && (
+        <BillingActions
+          organizationName={organizationName}
+          autoPayEnabled={!!membership.autoPayEnabled}
+          canRestartAutoPay={!!membership.stripeCustomerId && !membership.autoPayEnabled}
+          isPayerManaged={!!membership.payerMemberId}
+          pastDue={pastDue}
+        />
+      )}
+      <PaymentsClient
+        paymentHistory={paymentHistory}
+        organizationName={organizationName}
+        isPending={isPending}
+        isManualPayment={isManualPayment}
+        paidMonths={membership?.paidMonths ?? paymentHistory.totalMonthsCredited}
+      />
+    </div>
   );
 }

@@ -54,6 +54,8 @@ import { CollectPaymentDialog } from "@/components/payments/collect-payment-dial
 import { ChargeCardSheet } from "@/components/payments/charge-card-sheet";
 import { ChangeFrequencySheet } from "@/components/payments/change-frequency-sheet";
 import { AssignPayerDialog } from "@/components/members/assign-payer-dialog";
+import { PastDuesDialog } from "@/components/payments/past-dues-dialog";
+import { monthsOwed, todayLocalYmd } from "@/lib/billing/arrears";
 import Link from "next/link";
 import {
   formatCurrency,
@@ -96,6 +98,7 @@ import {
   Link2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatPaymentMethodLabel } from "@/lib/utils/payment-method";
 
 interface MemberDetailClientProps {
   initialMember: MemberWithMembership;
@@ -107,6 +110,8 @@ interface MemberDetailClientProps {
   onboardingInvite: OnboardingInviteWithMember | null;
   portalInviteUrl: string | null;
   passFeesToMember: boolean;
+  /** One month of dues as the member is charged, fees included (dollars). */
+  monthlyDuesCharge: number;
   payerMember: { id: string; firstName: string; middleName: string | null; lastName: string } | null;
   sponsoredMembers: Array<{
     membershipId: string;
@@ -135,6 +140,7 @@ export function MemberDetailClient({
   onboardingInvite,
   portalInviteUrl: initialPortalInviteUrl,
   passFeesToMember,
+  monthlyDuesCharge,
   payerMember,
   sponsoredMembers,
   sponsoredPayments,
@@ -187,6 +193,9 @@ export function MemberDetailClient({
 
   // State for resending Stripe payment link
   const [isResendingPaymentLink, setIsResendingPaymentLink] = useState(false);
+
+  // Which card-setup action is waiting on the past-dues prompt
+  const [pastDuesPrompt, setPastDuesPrompt] = useState<"resend" | "setup" | "copy" | null>(null);
 
   // State for pausing/resuming subscription
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
@@ -456,7 +465,7 @@ export function MemberDetailClient({
   }, [membership, router]);
 
   // Set up recurring payment (send email to member with payment link)
-  const handleSetupAutopay = useCallback(async () => {
+  const handleSetupAutopay = useCallback(async (arrearsMonths?: number) => {
     if (!membership) return;
 
     setIsSettingUpAutopay(true);
@@ -467,6 +476,7 @@ export function MemberDetailClient({
         body: JSON.stringify({
           membershipId: membership.id,
           memberId: memberData.id,
+          ...(arrearsMonths !== undefined && { arrearsMonths }),
         }),
       });
 
@@ -490,7 +500,7 @@ export function MemberDetailClient({
 
   // Get a card-setup link and copy it — for members with no email, or when the
   // admin is entering the card themselves (elder handed over a card in person).
-  const handleCopySetupLink = useCallback(async () => {
+  const handleCopySetupLink = useCallback(async (arrearsMonths?: number) => {
     if (!membership) return;
 
     setIsCopyingSetupLink(true);
@@ -501,6 +511,7 @@ export function MemberDetailClient({
         body: JSON.stringify({
           membershipId: membership.id,
           memberId: memberData.id,
+          ...(arrearsMonths !== undefined && { arrearsMonths }),
         }),
       });
 
@@ -562,7 +573,7 @@ export function MemberDetailClient({
   }, [memberData.id, router]);
 
   // Resend Stripe payment link to member via email
-  const handleResendPaymentLink = useCallback(async () => {
+  const handleResendPaymentLink = useCallback(async (arrearsMonths?: number) => {
     if (!membership) return;
 
     setIsResendingPaymentLink(true);
@@ -573,6 +584,7 @@ export function MemberDetailClient({
         body: JSON.stringify({
           membershipId: membership.id,
           memberId: memberData.id,
+          ...(arrearsMonths !== undefined && { arrearsMonths }),
         }),
       });
 
@@ -591,6 +603,30 @@ export function MemberDetailClient({
       setIsResendingPaymentLink(false);
     }
   }, [membership, memberData.id]);
+
+  // Past-dues gate. When the member is behind, every card-setup action asks
+  // how many months to collect before the link goes out; otherwise it fires
+  // straight away. Default is everything owed; admins can only waive.
+  const owedMonths = monthsOwed(membership?.nextPaymentDue, todayLocalYmd());
+  const runLinkAction = useCallback(
+    (action: "resend" | "setup" | "copy", arrearsMonths?: number) => {
+      setPastDuesPrompt(null);
+      if (action === "resend") return handleResendPaymentLink(arrearsMonths);
+      if (action === "setup") return handleSetupAutopay(arrearsMonths);
+      return handleCopySetupLink(arrearsMonths);
+    },
+    [handleResendPaymentLink, handleSetupAutopay, handleCopySetupLink]
+  );
+  const startLinkAction = useCallback(
+    (action: "resend" | "setup" | "copy") => {
+      if (owedMonths > 0) {
+        setPastDuesPrompt(action);
+        return;
+      }
+      void runLinkAction(action);
+    },
+    [owedMonths, runLinkAction]
+  );
 
   // Pause or resume subscription
   const handleSubscriptionAction = useCallback(async (action: "pause" | "resume") => {
@@ -1630,9 +1666,7 @@ export function MemberDetailClient({
                     {membership.autoPayEnabled && membership.paymentMethod ? (
                       <div>
                         <p className="font-medium">
-                          {membership.paymentMethod.type === 'card'
-                            ? `${membership.paymentMethod.brand?.toUpperCase() || 'Card'} **** ${membership.paymentMethod.last4}`
-                            : `${membership.paymentMethod.bankName || 'Bank Account'} **** ${membership.paymentMethod.last4}`}
+                          {formatPaymentMethodLabel(membership.paymentMethod, { mask: '****' })}
                         </p>
                         {membership.paymentMethod.type === 'card' && membership.paymentMethod.expiryMonth && (
                           <p className="text-xs text-muted-foreground">
@@ -1821,7 +1855,7 @@ export function MemberDetailClient({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleResendPaymentLink}
+                        onClick={() => startLinkAction("resend")}
                         disabled={isResendingPaymentLink}
                       >
                         {isResendingPaymentLink ? (
@@ -1860,7 +1894,7 @@ export function MemberDetailClient({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleResendPaymentLink}
+                        onClick={() => startLinkAction("resend")}
                         disabled={isResendingPaymentLink}
                       >
                         {isResendingPaymentLink ? (
@@ -1920,7 +1954,7 @@ export function MemberDetailClient({
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={handleSetupAutopay}
+                            onClick={() => startLinkAction("setup")}
                             disabled={isSettingUpAutopay || !memberData.email}
                           >
                             {isSettingUpAutopay ? (
@@ -1945,7 +1979,7 @@ export function MemberDetailClient({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleCopySetupLink}
+                        onClick={() => startLinkAction("copy")}
                         disabled={isCopyingSetupLink}
                         title="Copy a card-setup link. Open it yourself to enter the member's card, or share it with them. Works without an email."
                       >
@@ -2640,6 +2674,23 @@ export function MemberDetailClient({
           </div>
         </DialogContent>
       </Dialog>
+      {/* Past dues prompt before a card-setup link goes out */}
+      {membership && (
+        <PastDuesDialog
+          open={pastDuesPrompt !== null}
+          onOpenChange={(open) => {
+            if (!open) setPastDuesPrompt(null);
+          }}
+          owedMonths={owedMonths}
+          nextPaymentDue={membership.nextPaymentDue}
+          monthlyCharge={monthlyDuesCharge}
+          confirmLabel={pastDuesPrompt === "copy" ? "Copy Link" : "Send Link"}
+          isSubmitting={isResendingPaymentLink || isSettingUpAutopay || isCopyingSetupLink}
+          onConfirm={(months) => {
+            if (pastDuesPrompt) void runLinkAction(pastDuesPrompt, months);
+          }}
+        />
+      )}
       {/* Assign Payer Dialog */}
       {membership && (
         <AssignPayerDialog

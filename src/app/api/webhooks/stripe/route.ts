@@ -8,7 +8,16 @@ import {
   getTodayInOrgTimezone,
   parseDateInOrgTimezone,
 } from "@/lib/billing/invoice-generator";
-import { calculateFees, reverseCalculateBaseAmount, createMembershipSubscription, getPlatformFee } from "@/lib/stripe";
+import {
+  calculateFees,
+  reverseCalculateBaseAmount,
+  createMembershipSubscription,
+  getPlatformFee,
+  calculateArrearsCharge,
+  describePaymentMethod,
+  recoverPastDueSubscriptions,
+} from "@/lib/stripe";
+import { monthsOwed, clampArrearsMonths, arrearsPeriodLabel } from "@/lib/billing/arrears";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 import { sendPaymentFailedEmail } from "@/lib/email/send-payment-failed";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
@@ -200,6 +209,30 @@ export async function POST(req: Request) {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         await handleSubscriptionUpdate(subscription, supabase);
+        // Customer Portal "update payment method" lands here as a new
+        // default_payment_method. If Stripe had given up on this subscription,
+        // settle what it left open.
+        const prev = (event.data as { previous_attributes?: Record<string, unknown> }).previous_attributes;
+        if (event.type === "customer.subscription.updated" && prev && "default_payment_method" in prev) {
+          await handlePaymentMethodReplaced(
+            typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
+            typeof subscription.default_payment_method === "string"
+              ? subscription.default_payment_method
+              : subscription.default_payment_method?.id ?? null
+          );
+        }
+        break;
+      }
+
+      case "customer.updated": {
+        // Same recovery, keyed off the customer-level default (portal flows
+        // that don't touch the subscription directly).
+        const customer = event.data.object as Stripe.Customer;
+        const prev = (event.data as { previous_attributes?: Record<string, unknown> }).previous_attributes;
+        if (prev && "invoice_settings" in prev) {
+          const def = customer.invoice_settings?.default_payment_method;
+          await handlePaymentMethodReplaced(customer.id, typeof def === "string" ? def : def?.id ?? null);
+        }
         break;
       }
 
@@ -281,6 +314,35 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
+}
+
+/** Add whole months to a YYYY-MM-DD string, keeping the day. */
+function shiftYmdByMonths(ymd: string, months: number): string {
+  const [y, m, d] = ymd.slice(0, 10).split("-").map(Number);
+  const total = m - 1 + months;
+  const year = y + Math.floor(total / 12);
+  const month = (total % 12) + 1;
+  return `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * A customer put a new payment method on file. If Stripe had exhausted retries
+ * on one of their subscriptions (dunning = leave past_due), point it at the new
+ * method and pay the open invoices. Never fails the webhook: a decline on the
+ * new card is logged and the daily overdue cron keeps chasing.
+ */
+async function handlePaymentMethodReplaced(customerId: string, paymentMethodId: string | null) {
+  try {
+    const result = await recoverPastDueSubscriptions({ customerId, paymentMethodId });
+    if (result.subscriptionsChecked > 0) {
+      console.log(
+        `[Webhook] Past-due recovery for ${customerId}: paid ${result.invoicesPaid.length} invoice(s)` +
+          (result.invoicesFailed.length ? `, ${result.invoicesFailed.length} failed (${result.invoicesFailed[0].error})` : "")
+      );
+    }
+  } catch (err) {
+    console.error(`[Webhook] Past-due recovery failed for ${customerId}:`, err);
   }
 }
 
@@ -389,20 +451,7 @@ async function handleCheckoutCompleted(
 
         if (pmId) {
           const pm = await stripe.paymentMethods.retrieve(pmId);
-          const pmDetails: Record<string, unknown> = {
-            type: pm.type === "us_bank_account" ? "us_bank_account" : "card",
-            last4: pm.card?.last4 || pm.us_bank_account?.last4 || pm.link?.email?.slice(-4) || "****",
-          };
-          if (pm.card) {
-            pmDetails.brand = pm.card.brand;
-            pmDetails.expiryMonth = pm.card.exp_month;
-            pmDetails.expiryYear = pm.card.exp_year;
-          } else if (pm.type === "link") {
-            pmDetails.brand = "link";
-          }
-          if (pm.us_bank_account) {
-            pmDetails.bankName = pm.us_bank_account.bank_name;
-          }
+          const pmDetails = describePaymentMethod(pm);
 
           membershipUpdate.payment_method = pmDetails;
           console.log(`[Webhook] Saved payment method (${pm.type} ****${pmDetails.last4}) for membership ${metadata.membership_id}`);
@@ -1169,6 +1218,17 @@ async function handleInvoiceFailed(
   }
 
   // Send failure email so the member can update their card / retry.
+  //
+  // Stripe retries a failed invoice several times over ~2 weeks and fires this
+  // event on EVERY attempt (Hedayat got nine in fourteen days). One email on
+  // the first failure, one when Stripe gives up, silence in between.
+  const attemptCount = invoice.attempt_count ?? 1;
+  const isFinalAttempt = invoice.next_payment_attempt === null || invoice.next_payment_attempt === undefined;
+  if (attemptCount > 1 && !isFinalAttempt) {
+    console.log(`[Webhook] Skipping payment-failed email for invoice ${invoice.id} (attempt ${attemptCount}, Stripe will retry)`);
+    return;
+  }
+
   try {
     const { data: member } = await supabase
       .from("members")
@@ -1279,20 +1339,7 @@ async function handleSetupIntentSucceeded(
 
   // Get payment method details for display
   const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
-  const pmDetails: Record<string, unknown> = {
-    type: pm.type === "us_bank_account" ? "us_bank_account" : "card",
-    last4: pm.card?.last4 || pm.us_bank_account?.last4 || pm.link?.email?.slice(-4) || "****",
-  };
-  if (pm.card) {
-    pmDetails.brand = pm.card.brand;
-    pmDetails.expiryMonth = pm.card.exp_month;
-    pmDetails.expiryYear = pm.card.exp_year;
-  } else if (pm.type === "link") {
-    pmDetails.brand = "link";
-  }
-  if (pm.us_bank_account) {
-    pmDetails.bankName = pm.us_bank_account.bank_name;
-  }
+  const pmDetails = describePaymentMethod(pm);
 
   // Parse metadata values
   const enrollmentFeeAmountCents = parseInt(enrollmentFeeAmountCentsStr || "0", 10);
@@ -1303,7 +1350,7 @@ async function handleSetupIntentSucceeded(
   // the payment link was sent.
   const { data: currentMembership } = await supabase
     .from("memberships")
-    .select("billing_frequency, plan:plans(pricing, name)")
+    .select("billing_frequency, next_payment_due, plan:plans(pricing, name)")
     .eq("id", membershipId)
     .single();
 
@@ -1345,9 +1392,172 @@ async function handleSetupIntentSucceeded(
   const payerMemberId = metadata.payer_member_id;
   const payerForMemberName = metadata.payer_for_member_name;
 
+  const connectId = stripeConnectAccountId || org?.stripe_connect_id;
+  const connectEnabled = !!(connectId && org?.stripe_onboarded);
+
+  // ---------------------------------------------------------------------------
+  // Past dues. The link carried the admin-approved month count; re-derive what
+  // is owed NOW and never collect more than that (member may have paid cash
+  // since the link went out). Charged before the subscription is created so
+  // the ledger settles before the first invoice.paid can race it. A decline
+  // here does not block the subscription: going-forward auto-pay still starts
+  // and the failed back_dues row is flagged for the admin.
+  // ---------------------------------------------------------------------------
+  const orgTimezone = org?.timezone || "America/Los_Angeles";
+  const owedMonths = memberIsCurrent
+    ? 0
+    : monthsOwed(currentMembership?.next_payment_due, getTodayInOrgTimezone(orgTimezone));
+  const arrearsRequested = metadata.arrears_months !== undefined ? parseInt(metadata.arrears_months, 10) : 0;
+  const arrearsMonths = clampArrearsMonths(arrearsRequested, owedMonths);
+  const waivedMonths = metadata.arrears_months !== undefined ? owedMonths - arrearsMonths : 0;
+  const arrearsPeriod = arrearsPeriodLabel(currentMembership?.next_payment_due, arrearsMonths);
+
+  if (arrearsMonths > 0 && memberId) {
+    const monthlyDuesCents = Math.round((currentPlan?.pricing?.monthly || 0) * 100);
+    const arrearsFees = calculateArrearsCharge({
+      months: arrearsMonths,
+      monthlyDuesCents,
+      platformFeeMonthlyDollars: getPlatformFee(org?.platform_fees as PlatformFees | null, "monthly"),
+      passFeesToMember,
+    });
+
+    if (arrearsFees.chargeAmountCents > 0) {
+      const { data: arrearsPayment, error: arrearsInsertError } = await supabase
+        .from("payments")
+        .insert({
+          organization_id: organizationId,
+          membership_id: membershipId,
+          member_id: memberId,
+          type: "back_dues",
+          method: "stripe",
+          status: "pending",
+          amount: arrearsFees.baseAmountCents / 100,
+          stripe_fee: arrearsFees.breakdown.stripeFee,
+          platform_fee: arrearsFees.breakdown.platformFee,
+          total_charged: arrearsFees.breakdown.chargeAmount,
+          net_amount: arrearsFees.netAmountCents / 100,
+          months_credited: arrearsMonths,
+          period_label: arrearsPeriod,
+          stripe_payment_method_type: pm.type,
+          notes: `Past dues (${arrearsMonths} ${arrearsMonths === 1 ? "month" : "months"}: ${arrearsPeriod}) collected at card setup`,
+        })
+        .select("id")
+        .single();
+
+      if (arrearsInsertError || !arrearsPayment) {
+        console.error("[Webhook] Failed to create back_dues payment record:", arrearsInsertError);
+      } else {
+        try {
+          const piParams: Stripe.PaymentIntentCreateParams = {
+            amount: arrearsFees.chargeAmountCents,
+            currency: "usd",
+            customer: customerId,
+            payment_method: paymentMethodId,
+            off_session: true,
+            confirm: true,
+            description: `${planName || "Membership"} Past Dues (${arrearsPeriod})`,
+            ...(customerEmail && { receipt_email: customerEmail }),
+            metadata: {
+              membership_id: membershipId,
+              member_id: memberId,
+              organization_id: organizationId,
+              type: "back_dues",
+              months: String(arrearsMonths),
+            },
+          };
+          if (connectEnabled) {
+            piParams.application_fee_amount = arrearsFees.applicationFeeCents;
+            piParams.transfer_data = { destination: connectId! };
+          }
+
+          const arrearsPI = await stripe.paymentIntents.create(piParams);
+          const arrearsChargeId =
+            typeof arrearsPI.latest_charge === "string" ? arrearsPI.latest_charge : arrearsPI.latest_charge?.id ?? null;
+          await supabase
+            .from("payments")
+            .update({ stripe_payment_intent_id: arrearsPI.id, stripe_charge_id: arrearsChargeId })
+            .eq("id", arrearsPayment.id);
+          console.log(`[Webhook] Created past-dues PaymentIntent ${arrearsPI.id} (${arrearsPI.status}) for ${arrearsMonths} months`);
+
+          if (arrearsPI.status === "succeeded") {
+            const settled = await settlePayment({
+              paymentId: arrearsPayment.id,
+              method: "stripe",
+              paidAt: new Date().toISOString(),
+              stripePaymentIntentId: arrearsPI.id,
+              supabase,
+            });
+            if (!settled.success) {
+              console.error("[Webhook] Failed to settle past-dues payment:", settled.error);
+            } else {
+              console.log(`[Webhook] Past dues settled: ${arrearsPayment.id}, new paid_months: ${settled.newPaidMonths}`);
+            }
+          }
+          // Otherwise (ACH "processing") payment_intent.succeeded settles the pending row.
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[Webhook] Past-dues charge failed for membership ${membershipId}:`, message);
+          await supabase
+            .from("payments")
+            .update({
+              status: "failed",
+              requires_review: true,
+              notes: `Past dues (${arrearsMonths} months: ${arrearsPeriod}) declined at card setup - ${message}. Subscription was still started; collect manually.`,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", arrearsPayment.id);
+        }
+      }
+    }
+  }
+
+  // Months the admin chose not to collect still have to move the ledger past
+  // the gap, or the member sits "overdue" forever. A $0 back_dues row keeps the
+  // audit trail and advances next_payment_due through the engine.
+  if (waivedMonths > 0 && memberId) {
+    const waivedPeriod = arrearsPeriodLabel(
+      currentMembership?.next_payment_due && arrearsMonths > 0
+        ? shiftYmdByMonths(currentMembership.next_payment_due, arrearsMonths)
+        : currentMembership?.next_payment_due,
+      waivedMonths
+    );
+    const { data: waivedPayment } = await supabase
+      .from("payments")
+      .insert({
+        organization_id: organizationId,
+        membership_id: membershipId,
+        member_id: memberId,
+        type: "back_dues",
+        method: "stripe",
+        status: "pending",
+        amount: 0,
+        stripe_fee: 0,
+        platform_fee: 0,
+        total_charged: 0,
+        net_amount: 0,
+        months_credited: waivedMonths,
+        period_label: waivedPeriod,
+        notes: `Waived ${waivedMonths} ${waivedMonths === 1 ? "month" : "months"} of past dues (${waivedPeriod}) by admin at card setup - no charge`,
+      })
+      .select("id")
+      .single();
+    if (waivedPayment) {
+      const settled = await settlePayment({
+        paymentId: waivedPayment.id,
+        method: "stripe",
+        paidAt: new Date().toISOString(),
+        supabase,
+      });
+      if (!settled.success) {
+        console.error("[Webhook] Failed to settle waived past-dues row:", settled.error);
+      } else {
+        console.log(`[Webhook] Waived ${waivedMonths} months for membership ${membershipId}`);
+      }
+    }
+  }
+
   // Create subscription using shared helper
   console.log(`[Webhook] Creating subscription for membership ${membershipId}`);
-  const connectId = stripeConnectAccountId || org?.stripe_connect_id;
   const { subscription } = await createMembershipSubscription({
     customerId,
     paymentMethodId,
@@ -1410,10 +1620,9 @@ async function handleSetupIntentSucceeded(
       };
 
       // Add Connect params
-      const connectId = stripeConnectAccountId || org?.stripe_connect_id;
-      if (connectId && org?.stripe_onboarded) {
+      if (connectEnabled) {
         piParams.application_fee_amount = enrollmentFees.applicationFeeCents;
-        piParams.transfer_data = { destination: connectId };
+        piParams.transfer_data = { destination: connectId! };
       }
 
       const enrollmentPI = await stripe.paymentIntents.create(piParams);

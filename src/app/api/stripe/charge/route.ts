@@ -14,6 +14,7 @@ import {
   calculateFees,
   type ConnectParams,
 } from "@/lib/stripe";
+import { formatPaymentMethodLabel } from "@/lib/utils/payment-method";
 import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 
@@ -128,7 +129,7 @@ export async function POST(req: Request) {
     const netAmount = fees.netAmountCents / 100;
 
     // Build notes
-    let notes = `${description} | Charged ${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`;
+    let notes = `${description} | Charged ${formatPaymentMethodLabel({ type: "card", brand: paymentMethod.brand, last4: paymentMethod.last4, email: paymentMethod.email })}`;
     if (org.passFeesToMember) {
       notes += ` | Base: $${amount.toFixed(2)} + Fees: $${fees.breakdown.totalFees.toFixed(2)}`;
     }
@@ -226,7 +227,7 @@ export async function POST(req: Request) {
           organizationId,
           amount: `$${chargeAmount.toFixed(2)}`,
           paymentDate: paidAt,
-          paymentMethod: `${paymentMethod.brand?.toUpperCase() || "Card"} •••• ${paymentMethod.last4}`,
+          paymentMethod: `${formatPaymentMethodLabel({ type: "card", brand: paymentMethod.brand, last4: paymentMethod.last4, email: paymentMethod.email })}`,
           periodLabel: description,
           language: member.preferredLanguage || "en",
         });

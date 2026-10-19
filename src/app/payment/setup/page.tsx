@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 import { calculateFees, getPlatformFee } from "@/lib/stripe";
+import { quoteArrears } from "@/lib/billing/setup-link";
 import type { PlatformFees, BillingFrequency } from "@/lib/types";
 import { SetupClient } from "./SetupClient";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,7 +56,7 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
       .single(),
     supabase
       .from("organizations")
-      .select("id, name, platform_fees, pass_fees_to_member")
+      .select("id, name, platform_fees, pass_fees_to_member, timezone")
       .eq("id", metadata.organization_id)
       .single(),
   ]);
@@ -99,6 +100,30 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
     displayEnrollmentFee = enrollmentFees.chargeAmountCents / 100;
   }
 
+  // Past dues. Links sent before this existed carry no arrears_months and
+  // collect nothing extra; otherwise the admin-approved count is clamped to
+  // what is owed right now (the webhook applies the same rule when charging).
+  let displayArrears: { amount: number; months: number; period: string } | undefined;
+  if (!memberIsCurrent && metadata.arrears_months !== undefined) {
+    const arrears = quoteArrears({
+      membership: { nextPaymentDue: membership.next_payment_due },
+      plan: { pricing: plan?.pricing ?? { monthly: 0, biannual: 0, annual: 0 } },
+      org: {
+        platformFees: org.platform_fees as PlatformFees,
+        passFeesToMember,
+        timezone: org.timezone || "America/Los_Angeles",
+      },
+      requestedMonths: parseInt(metadata.arrears_months, 10),
+    });
+    if (arrears.arrearsMonths > 0) {
+      displayArrears = {
+        amount: arrears.chargeAmountCents / 100,
+        months: arrears.arrearsMonths,
+        period: arrears.periodLabel,
+      };
+    }
+  }
+
   const frequencyText =
     billingFrequency === "monthly"
       ? "monthly"
@@ -119,6 +144,7 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
       planName={planName}
       duesAmount={displayDues}
       enrollmentFee={displayEnrollmentFee}
+      arrears={displayArrears}
       billingFrequency={frequencyText}
       nextPaymentDue={nextPaymentDue}
     />

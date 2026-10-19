@@ -153,11 +153,12 @@ export type SubscriptionStatus = 'active' | 'trialing' | 'paused' | 'canceled' |
 
 export interface PaymentMethodDetails {
   type: PaymentMethodType;
-  last4: string;
-  brand?: string; // For cards: visa, mastercard, amex, etc.
+  last4: string; // Empty for Link wallets (no card number to show)
+  brand?: string; // For cards: visa, mastercard, amex, etc. "link" for Link wallets
   bankName?: string; // For bank accounts
   expiryMonth?: number; // For cards
   expiryYear?: number; // For cards
+  email?: string; // For Link wallets
 }
 
 // -----------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import {
   ChevronRight,
   AlertTriangle,
 } from "lucide-react";
+import { formatPaymentMethodLabel } from "@/lib/utils/payment-method";
 
 interface CollectPaymentDialogProps {
   member: MemberWithMembership | null;
@@ -148,9 +149,7 @@ export function CollectPaymentDialog({
               <div className="flex-1 min-w-0">
                 <p className="font-medium">Charge Card on File</p>
                 <p className="text-sm text-muted-foreground">
-                  {membership.paymentMethod.type === "card"
-                    ? `${membership.paymentMethod.brand?.toUpperCase() || 'Card'} •••• ${membership.paymentMethod.last4}`
-                    : `${membership.paymentMethod.bankName || 'Bank Account'} •••• ${membership.paymentMethod.last4}`}
+                  {formatPaymentMethodLabel(membership.paymentMethod)}
                 </p>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />

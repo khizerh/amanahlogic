@@ -21,6 +21,10 @@ const {
   mockCalculateFees,
   mockReverseCalculateBaseAmount,
   mockSendPaymentReceiptEmail,
+  mockSendPaymentFailedEmail,
+  mockCalculateArrearsCharge,
+  mockDescribePaymentMethod,
+  mockRecoverPastDueSubscriptions,
   mockGetByCheckoutSessionId,
   mockGetBySetupIntentId,
   mockRecordFullPayment,
@@ -49,6 +53,10 @@ const {
     mockCalculateFees: vi.fn(),
     mockReverseCalculateBaseAmount: vi.fn(),
     mockSendPaymentReceiptEmail: vi.fn(),
+    mockSendPaymentFailedEmail: vi.fn(),
+    mockCalculateArrearsCharge: vi.fn(),
+    mockDescribePaymentMethod: vi.fn(() => ({ type: "card", last4: "4242", brand: "visa" })),
+    mockRecoverPastDueSubscriptions: vi.fn(),
     mockGetByCheckoutSessionId: vi.fn(),
     mockGetBySetupIntentId: vi.fn(),
     mockRecordFullPayment: vi.fn(),
@@ -181,11 +189,18 @@ vi.mock("@/lib/billing/invoice-generator", () => ({
 vi.mock("@/lib/stripe", () => ({
   calculateFees: (...args: unknown[]) => mockCalculateFees(...args),
   reverseCalculateBaseAmount: (...args: unknown[]) => mockReverseCalculateBaseAmount(...args),
+  calculateArrearsCharge: (...args: unknown[]) => mockCalculateArrearsCharge(...args),
+  describePaymentMethod: (...args: unknown[]) => mockDescribePaymentMethod(...args),
+  recoverPastDueSubscriptions: (...args: unknown[]) => mockRecoverPastDueSubscriptions(...args),
   getPlatformFee: (fees: Record<string, number> | null | undefined, freq: string) => fees?.[freq] || 0,
 }));
 
 vi.mock("@/lib/email/send-payment-receipt", () => ({
   sendPaymentReceiptEmail: (...args: unknown[]) => mockSendPaymentReceiptEmail(...args),
+}));
+
+vi.mock("@/lib/email/send-payment-failed", () => ({
+  sendPaymentFailedEmail: (...args: unknown[]) => mockSendPaymentFailedEmail(...args),
 }));
 
 vi.mock("@/lib/database/onboarding-invites", () => ({
@@ -216,7 +231,8 @@ function createMockRequest(body = "mock_body"): Request {
 function createStripeEvent(
   type: string,
   dataObject: Record<string, unknown> = {},
-  overrides: Partial<Stripe.Event> = {}
+  overrides: Partial<Stripe.Event> = {},
+  previousAttributes?: Record<string, unknown>
 ): Stripe.Event {
   return {
     id: `evt_test_${Date.now()}`,
@@ -226,6 +242,7 @@ function createStripeEvent(
         metadata: {},
         ...dataObject,
       },
+      ...(previousAttributes ? { previous_attributes: previousAttributes } : {}),
     },
     ...overrides,
   } as unknown as Stripe.Event;
@@ -1106,6 +1123,134 @@ describe("Stripe Webhook Route POST", () => {
 
       const membershipUpdate = supabaseUpdateCalls.find((c) => c.table === "memberships");
       expect(membershipUpdate).toBeUndefined();
+    });
+
+    describe("payment-failed email throttle", () => {
+      const future = Math.floor(Date.now() / 1000) + 86400;
+
+      function setup(attemptCount: number, nextAttempt: number | null) {
+        const event = createStripeEvent("invoice.payment_failed", {
+          id: "inv_throttle",
+          subscription: "sub_throttle",
+          amount_due: 5000,
+          attempt_count: attemptCount,
+          next_payment_attempt: nextAttempt,
+          metadata: { membership_id: "mem_t", organization_id: "org_t", member_id: "member_t" },
+          last_finalization_error: { message: "Card declined" },
+        });
+        mockConstructEvent.mockReturnValueOnce(event);
+        enqueueResult("stripe_webhook_events", { data: null });
+        enqueueResult("memberships", { data: null, error: null });
+        enqueueResult("payments", { data: null, error: null });
+        enqueueResult("members", {
+          data: { first_name: "A", middle_name: null, last_name: "B", email: "a@b.com", preferred_language: "en" },
+        });
+        enqueueResult("stripe_webhook_events", { data: null, error: null });
+      }
+
+      it("skips the email on a mid-sequence retry but still records the failure", async () => {
+        setup(2, future);
+        await POST(createMockRequest());
+
+        expect(mockSendPaymentFailedEmail).not.toHaveBeenCalled();
+        const membershipUpdate = supabaseUpdateCalls.find((c) => c.table === "memberships");
+        expect((membershipUpdate!.data as Record<string, unknown>).subscription_status).toBe("past_due");
+        expect(supabaseInsertCalls.some((c) => c.table === "payments" && (c.data as Record<string, unknown>).status === "failed")).toBe(true);
+      });
+
+      it("sends the email on the first attempt", async () => {
+        setup(1, future);
+        await POST(createMockRequest());
+        expect(mockSendPaymentFailedEmail).toHaveBeenCalledTimes(1);
+        expect(mockSendPaymentFailedEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "a@b.com" }));
+      });
+
+      it("sends the email on the final attempt (no next attempt)", async () => {
+        setup(4, null);
+        await POST(createMockRequest());
+        expect(mockSendPaymentFailedEmail).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe("payment method replacement recovery", () => {
+    it("customer.updated with new default PM triggers recovery", async () => {
+      const event = createStripeEvent(
+        "customer.updated",
+        { id: "cus_1", invoice_settings: { default_payment_method: "pm_new" } },
+        {},
+        { invoice_settings: { default_payment_method: "pm_old" } }
+      );
+      mockConstructEvent.mockReturnValueOnce(event);
+      mockRecoverPastDueSubscriptions.mockResolvedValue({ subscriptionsChecked: 0, invoicesPaid: [], invoicesFailed: [] });
+      enqueueResult("stripe_webhook_events", { data: null });
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      expect(mockRecoverPastDueSubscriptions).toHaveBeenCalledWith({ customerId: "cus_1", paymentMethodId: "pm_new" });
+      expect(NextResponse.json).toHaveBeenCalledWith({ received: true });
+    });
+
+    it("customer.updated without invoice_settings change does not trigger recovery", async () => {
+      const event = createStripeEvent(
+        "customer.updated",
+        { id: "cus_1", invoice_settings: { default_payment_method: "pm_new" } },
+        {},
+        { email: "old@example.com" }
+      );
+      mockConstructEvent.mockReturnValueOnce(event);
+      enqueueResult("stripe_webhook_events", { data: null });
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      expect(mockRecoverPastDueSubscriptions).not.toHaveBeenCalled();
+      expect(NextResponse.json).toHaveBeenCalledWith({ received: true });
+    });
+
+    it("customer.subscription.updated with new default PM updates membership and triggers recovery", async () => {
+      const event = createStripeEvent(
+        "customer.subscription.updated",
+        {
+          id: "sub_pm",
+          status: "past_due",
+          customer: "cus_1",
+          default_payment_method: "pm_new",
+          metadata: { membership_id: "mem_pm" },
+        },
+        {},
+        { default_payment_method: "pm_old" }
+      );
+      mockConstructEvent.mockReturnValueOnce(event);
+      mockRecoverPastDueSubscriptions.mockResolvedValue({ subscriptionsChecked: 0, invoicesPaid: [], invoicesFailed: [] });
+      enqueueResult("stripe_webhook_events", { data: null });
+      enqueueResult("memberships", { data: null, error: null });
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      expect(supabaseUpdateCalls.some((c) => c.table === "memberships")).toBe(true);
+      expect(mockRecoverPastDueSubscriptions).toHaveBeenCalledWith({ customerId: "cus_1", paymentMethodId: "pm_new" });
+    });
+
+    it("customer.subscription.updated without previous_attributes does not trigger recovery", async () => {
+      const event = createStripeEvent("customer.subscription.updated", {
+        id: "sub_pm2",
+        status: "past_due",
+        customer: "cus_1",
+        default_payment_method: "pm_new",
+        metadata: { membership_id: "mem_pm" },
+      });
+      mockConstructEvent.mockReturnValueOnce(event);
+      enqueueResult("stripe_webhook_events", { data: null });
+      enqueueResult("memberships", { data: null, error: null });
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      expect(supabaseUpdateCalls.some((c) => c.table === "memberships")).toBe(true);
+      expect(mockRecoverPastDueSubscriptions).not.toHaveBeenCalled();
     });
   });
 

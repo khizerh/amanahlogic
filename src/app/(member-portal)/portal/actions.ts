@@ -10,6 +10,7 @@ import {
   isStripeResourceMissingError,
 } from "@/lib/stripe";
 import type { MemberDashboardData, MemberPaymentHistory } from "@/lib/database/member-portal";
+import { createAutopaySetupLink, SetupLinkError } from "@/lib/billing/setup-link";
 
 /**
  * Get member context from request headers (set by middleware)
@@ -177,5 +178,63 @@ export async function getStripePortalUrl(): Promise<{
   } catch (error) {
     console.error("Error getting Stripe portal:", error);
     return { success: false, error: "Failed to access payment portal" };
+  }
+}
+
+/**
+ * Self-serve restart after Stripe cancelled the member's subscription for
+ * non-payment. Returns the hosted card-setup URL; past dues owed as of today
+ * are included automatically (the member sees the breakdown before paying).
+ *
+ * Members on a live subscription use getStripePortalUrl() instead; members
+ * whose dues are paid by someone else are sent back to the organization.
+ */
+export async function getAutopaySetupUrl(): Promise<{
+  success: boolean;
+  url?: string;
+  error?: string;
+}> {
+  try {
+    const context = await getMemberContext();
+    if (!context) {
+      return { success: false, error: "Not authenticated" };
+    }
+
+    if (!isStripeConfigured()) {
+      return { success: false, error: "Payment system is not configured" };
+    }
+
+    const supabase = createServiceRoleClient();
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("id, payer_member_id, auto_pay_enabled, stripe_subscription_id")
+      .eq("member_id", context.memberId)
+      .eq("organization_id", context.organizationId)
+      .single();
+
+    if (!membership) {
+      return { success: false, error: "Membership not found" };
+    }
+    if (membership.payer_member_id) {
+      return { success: false, error: "Your dues are managed by another member. Contact your organization for billing questions." };
+    }
+    if (membership.auto_pay_enabled && membership.stripe_subscription_id) {
+      return { success: false, error: "Auto-pay is already active. Use Manage Payment Method to change your card." };
+    }
+
+    const link = await createAutopaySetupLink({
+      organizationId: context.organizationId,
+      membershipId: membership.id,
+      memberId: context.memberId,
+      client: supabase,
+    });
+
+    return { success: true, url: link.url };
+  } catch (error) {
+    if (error instanceof SetupLinkError) {
+      return { success: false, error: error.message };
+    }
+    console.error("Error creating autopay setup link:", error);
+    return { success: false, error: "Failed to start payment setup" };
   }
 }

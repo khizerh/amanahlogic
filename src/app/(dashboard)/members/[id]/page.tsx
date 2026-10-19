@@ -16,6 +16,7 @@ import {
 } from "@/lib/database/agreement-templates";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { OrganizationsService } from "@/lib/database/organizations";
+import { calculateFees, getPlatformFee } from "@/lib/stripe";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import Header from "@/components/Header";
@@ -123,6 +124,16 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
     }
   }
 
+  // One month of dues as the member is charged (fees included) — the past-dues
+  // prompt uses it to show what a resend link will collect.
+  const monthlyDuesCents = Math.round((memberData?.plan?.pricing?.monthly ?? 0) * 100);
+  const monthlyDuesCharge =
+    calculateFees(
+      monthlyDuesCents,
+      getPlatformFee(org?.platformFees, "monthly"),
+      org?.passFeesToMember ?? false
+    ).chargeAmountCents / 100;
+
   return (
     <MemberDetailClient
       initialMember={memberData}
@@ -134,6 +145,7 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
       onboardingInvite={onboardingInvite}
       portalInviteUrl={portalInviteUrl}
       passFeesToMember={org?.passFeesToMember ?? false}
+      monthlyDuesCharge={monthlyDuesCharge}
       payerMember={payerMember}
       sponsoredMembers={sponsoredMembers}
       sponsoredPayments={sponsoredPayments}

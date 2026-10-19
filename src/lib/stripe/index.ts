@@ -1,7 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
-import type { PlatformFees, BillingFrequency } from "@/lib/types";
+import type { PlatformFees, BillingFrequency, PaymentMethodDetails } from "@/lib/types";
 
 // Initialize Stripe client
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -258,6 +258,13 @@ export async function createSetupIntent(params: {
   nextPaymentDue?: string;
   payerMemberId?: string;
   payerForMemberName?: string;
+  /**
+   * Whole months of past dues the admin approved for collection when the card
+   * is saved (see src/lib/billing/arrears.ts). The webhook re-derives what is
+   * owed at charge time and never collects more than that, so this is a cap
+   * the admin can only lower, not a trusted amount.
+   */
+  arrearsMonths?: number;
 }): Promise<{ setupIntentId: string; clientSecret: string; url: string }> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
@@ -278,6 +285,7 @@ export async function createSetupIntent(params: {
     nextPaymentDue,
     payerMemberId,
     payerForMemberName,
+    arrearsMonths,
   } = params;
 
   const setupIntent = await stripe.setupIntents.create({
@@ -298,6 +306,7 @@ export async function createSetupIntent(params: {
       ...(nextPaymentDue && { next_payment_due: nextPaymentDue }),
       ...(payerMemberId && { payer_member_id: payerMemberId }),
       ...(payerForMemberName && { payer_for_member_name: payerForMemberName }),
+      ...(arrearsMonths !== undefined && { arrears_months: String(arrearsMonths) }),
     },
   });
 
@@ -647,6 +656,30 @@ export function calculateFees(
 }
 
 /**
+ * Fees for a one-off past-dues charge covering `months` whole months.
+ *
+ * Priced at the plan's MONTHLY rate regardless of the membership's billing
+ * frequency: arrears are counted in months, and the per-month platform fee
+ * applies to each. Stripe's fixed 30¢ is only paid once because it is a single
+ * transaction, so this is slightly cheaper for the member than paying the
+ * months one at a time.
+ */
+export function calculateArrearsCharge(params: {
+  months: number;
+  monthlyDuesCents: number;
+  platformFeeMonthlyDollars: number;
+  passFeesToMember: boolean;
+}): FeeCalculation & { months: number } {
+  const months = Math.max(0, Math.floor(params.months));
+  const fees = calculateFees(
+    months * params.monthlyDuesCents,
+    months * params.platformFeeMonthlyDollars,
+    params.passFeesToMember
+  );
+  return { ...fees, months };
+}
+
+/**
  * Reverse calculate base amount from a charge amount
  * Used by webhook to determine original dues amount from the charged amount
  *
@@ -950,7 +983,7 @@ export async function cancelSubscription(subscriptionId: string): Promise<boolea
  */
 export async function getCustomerDefaultPaymentMethod(
   customerId: string
-): Promise<{ id: string; type: string; last4: string; brand?: string } | null> {
+): Promise<{ id: string; type: string; last4: string; brand?: string; email?: string } | null> {
   if (!stripe) {
     throw new Error("Stripe is not configured");
   }
@@ -975,21 +1008,144 @@ export async function getCustomerDefaultPaymentMethod(
       return null;
     }
 
-    const pm = paymentMethods.data[0];
-    return {
-      id: pm.id,
-      type: pm.type,
-      last4: pm.card?.last4 || "****",
-      brand: pm.card?.brand,
-    };
+    return summarizeDefaultPaymentMethod(paymentMethods.data[0]);
   }
 
   const paymentMethod = await stripe.paymentMethods.retrieve(defaultPaymentMethodId);
 
+  return summarizeDefaultPaymentMethod(paymentMethod);
+}
+
+function summarizeDefaultPaymentMethod(pm: Stripe.PaymentMethod) {
+  if (pm.type === "link") {
+    return { id: pm.id, type: pm.type, last4: "", brand: "link", email: pm.link?.email ?? undefined };
+  }
   return {
-    id: paymentMethod.id,
-    type: paymentMethod.type,
-    last4: paymentMethod.card?.last4 || "****",
-    brand: paymentMethod.card?.brand,
+    id: pm.id,
+    type: pm.type,
+    last4: pm.card?.last4 || "****",
+    brand: pm.card?.brand,
   };
+}
+
+/**
+ * Shape a Stripe PaymentMethod into what we store on memberships.payment_method.
+ *
+ * Link wallets have no card number to show; the old code sliced the Link
+ * email's last 4 characters, which rendered as "LINK **** .com". Link is
+ * stored as brand "link" with an empty last4 and the wallet email so the UI
+ * can say "Link (name@example.com)".
+ */
+export function describePaymentMethod(pm: Stripe.PaymentMethod): PaymentMethodDetails {
+  if (pm.type === "us_bank_account") {
+    return {
+      type: "us_bank_account",
+      last4: pm.us_bank_account?.last4 || "****",
+      bankName: pm.us_bank_account?.bank_name ?? undefined,
+    };
+  }
+  if (pm.type === "link") {
+    return {
+      type: "card",
+      brand: "link",
+      last4: "",
+      email: pm.link?.email ?? undefined,
+    };
+  }
+  return {
+    type: "card",
+    last4: pm.card?.last4 || "****",
+    brand: pm.card?.brand ?? undefined,
+    expiryMonth: pm.card?.exp_month,
+    expiryYear: pm.card?.exp_year,
+  };
+}
+
+export interface PastDueRecoveryResult {
+  subscriptionsChecked: number;
+  invoicesPaid: string[];
+  invoicesFailed: Array<{ invoiceId: string; error: string }>;
+}
+
+/**
+ * After a customer puts a new payment method on file (Customer Portal, or an
+ * admin-sent setup link), settle anything Stripe gave up on.
+ *
+ * With dunning set to "leave subscription past_due" instead of "cancel",
+ * exhausted invoices stay open and Stripe never touches them again. This
+ * points every past_due/unpaid subscription at the new payment method and pays
+ * its open invoices oldest-first. Each successful payment fires invoice.paid,
+ * which the webhook already turns into a payments row, so arrears for members
+ * with a live subscription are collected with no app-side math.
+ *
+ * Declines are recorded, not thrown: a second bad card must not fail the
+ * webhook that delivered the first good one.
+ */
+export async function recoverPastDueSubscriptions(params: {
+  customerId: string;
+  /** New default payment method. When omitted, the customer default is used. */
+  paymentMethodId?: string | null;
+}): Promise<PastDueRecoveryResult> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured");
+  }
+
+  const result: PastDueRecoveryResult = {
+    subscriptionsChecked: 0,
+    invoicesPaid: [],
+    invoicesFailed: [],
+  };
+
+  let paymentMethodId = params.paymentMethodId ?? null;
+  if (!paymentMethodId) {
+    const customer = await stripe.customers.retrieve(params.customerId);
+    if (!customer.deleted) {
+      const def = customer.invoice_settings?.default_payment_method;
+      paymentMethodId = typeof def === "string" ? def : def?.id ?? null;
+    }
+  }
+  if (!paymentMethodId) return result;
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: params.customerId,
+    status: "all",
+    limit: 20,
+  });
+
+  for (const sub of subscriptions.data) {
+    if (sub.status !== "past_due" && sub.status !== "unpaid") continue;
+    if (!sub.metadata?.membership_id) continue; // not one of ours
+    result.subscriptionsChecked += 1;
+
+    const currentDefault =
+      typeof sub.default_payment_method === "string"
+        ? sub.default_payment_method
+        : sub.default_payment_method?.id ?? null;
+    if (currentDefault !== paymentMethodId) {
+      await stripe.subscriptions.update(sub.id, { default_payment_method: paymentMethodId });
+    }
+
+    const openInvoices = await stripe.invoices.list({
+      subscription: sub.id,
+      status: "open",
+      limit: 24,
+    });
+    // Oldest first so paid_months/next_payment_due advance in order.
+    const ordered = [...openInvoices.data].sort((a, b) => a.created - b.created);
+    for (const invoice of ordered) {
+      try {
+        await stripe.invoices.pay(invoice.id, { payment_method: paymentMethodId });
+        result.invoicesPaid.push(invoice.id);
+      } catch (err) {
+        result.invoicesFailed.push({
+          invoiceId: invoice.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // A decline here means the new card is bad too; stop hammering it.
+        break;
+      }
+    }
+  }
+
+  return result;
 }

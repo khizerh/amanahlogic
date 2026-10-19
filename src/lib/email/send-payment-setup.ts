@@ -16,6 +16,11 @@ interface SendPaymentSetupEmailParams {
   billingFrequency: string;
   language: "en" | "fa";
   firstChargeDate?: string;
+  /** Past dues collected when the card is saved (fees included), if any */
+  arrearsAmount?: number;
+  arrearsMonths?: number;
+  /** e.g. "Sep 2026" or "Feb – Aug 2026" */
+  arrearsPeriod?: string;
   /** When sending to a payer, the name of the member they're paying for */
   payingForName?: string;
 }
@@ -46,11 +51,15 @@ export async function sendPaymentSetupEmail(
     language,
     firstChargeDate,
     payingForName,
+    arrearsAmount,
+    arrearsMonths,
+    arrearsPeriod,
   } = params;
   const serviceClient = createServiceRoleClient();
 
-  // Fetch org early (needed for DB template + email config)
-  const org = await OrganizationsService.getById(organizationId);
+  // Fetch org early (needed for DB template + email config). Service client:
+  // this also runs from the member portal, where the session can't read orgs.
+  const org = await OrganizationsService.getById(organizationId, serviceClient);
   const orgName = org?.name ?? "Our Organization";
 
   // Always use React email templates for now.
@@ -66,6 +75,9 @@ export async function sendPaymentSetupEmail(
     language,
     firstChargeDate,
     payingForName,
+    arrearsAmount,
+    arrearsMonths,
+    arrearsPeriod,
   });
 
   // Create email log entry (queued status)

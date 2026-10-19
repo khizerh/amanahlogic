@@ -148,6 +148,8 @@ vi.mock("stripe", async (importOriginal) => {
 import Stripe from "stripe";
 import {
   calculateFees,
+  calculateArrearsCharge,
+  describePaymentMethod,
   reverseCalculateBaseAmount,
   isStripeConfigured,
   isStripeConfigurationError,
@@ -1577,6 +1579,99 @@ describe("Stripe Integration", () => {
   });
 
   // ==========================================================================
+  // ==========================================================================
+  // calculateArrearsCharge
+  // ==========================================================================
+  describe("calculateArrearsCharge", () => {
+    it("returns months 0 and a zero charge for 0 months", () => {
+      const r = calculateArrearsCharge({
+        months: 0,
+        monthlyDuesCents: 4000,
+        platformFeeMonthlyDollars: 1,
+        passFeesToMember: false,
+      });
+      expect(r.months).toBe(0);
+      expect(r.baseAmountCents).toBe(0);
+      expect(r.platformFeeCents).toBe(0);
+      expect(r.chargeAmountCents).toBe(0);
+    });
+
+    it("charges base + platform fee per month when org absorbs Stripe fees", () => {
+      const r = calculateArrearsCharge({
+        months: 3,
+        monthlyDuesCents: 4000,
+        platformFeeMonthlyDollars: 1,
+        passFeesToMember: false,
+      });
+      expect(r.months).toBe(3);
+      expect(r.baseAmountCents).toBe(12000);
+      expect(r.platformFeeCents).toBe(300);
+      expect(r.chargeAmountCents).toBe(12300);
+      expect(r.applicationFeeCents).toBe(300 + r.stripeFeeCents);
+    });
+
+    it("grosses up with a single 30c fixed fee when passing fees to member", () => {
+      const r = calculateArrearsCharge({
+        months: 3,
+        monthlyDuesCents: 4000,
+        platformFeeMonthlyDollars: 1,
+        passFeesToMember: true,
+      });
+      expect(r.netAmountCents).toBe(12000);
+      expect(r.chargeAmountCents).toBe(calculateFees(12000, 3, true).chargeAmountCents);
+    });
+
+    it("floors fractional and clamps negative months", () => {
+      const base = { monthlyDuesCents: 4000, platformFeeMonthlyDollars: 1, passFeesToMember: false };
+      expect(calculateArrearsCharge({ ...base, months: 2.7 }).months).toBe(2);
+      expect(calculateArrearsCharge({ ...base, months: -1 }).months).toBe(0);
+    });
+  });
+
+  // ==========================================================================
+  // describePaymentMethod
+  // ==========================================================================
+  describe("describePaymentMethod", () => {
+    it("describes a card", () => {
+      const pm = {
+        type: "card",
+        card: { last4: "4242", brand: "visa", exp_month: 12, exp_year: 2030 },
+      } as unknown as Stripe.PaymentMethod;
+      expect(describePaymentMethod(pm)).toEqual({
+        type: "card",
+        last4: "4242",
+        brand: "visa",
+        expiryMonth: 12,
+        expiryYear: 2030,
+      });
+    });
+
+    it("describes a US bank account", () => {
+      const pm = {
+        type: "us_bank_account",
+        us_bank_account: { last4: "6789", bank_name: "STRIPE TEST BANK" },
+      } as unknown as Stripe.PaymentMethod;
+      expect(describePaymentMethod(pm)).toEqual({
+        type: "us_bank_account",
+        last4: "6789",
+        bankName: "STRIPE TEST BANK",
+      });
+    });
+
+    it("describes a Link wallet", () => {
+      const pm = {
+        type: "link",
+        link: { email: "a@b.com" },
+      } as unknown as Stripe.PaymentMethod;
+      expect(describePaymentMethod(pm)).toEqual({
+        type: "card",
+        brand: "link",
+        last4: "",
+        email: "a@b.com",
+      });
+    });
+  });
+
   // INTEGRATION SCENARIOS
   // ==========================================================================
   describe("Integration scenarios", () => {

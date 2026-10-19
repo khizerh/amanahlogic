@@ -14,6 +14,8 @@ interface SetupClientProps {
   planName: string;
   duesAmount: number;
   enrollmentFee?: number;
+  /** Past dues collected today alongside the first dues payment */
+  arrears?: { amount: number; months: number; period: string };
   billingFrequency: string;
   nextPaymentDue?: string;
 }
@@ -55,6 +57,7 @@ interface SetupFormProps {
   planName: string;
   duesAmount: number;
   enrollmentFee?: number;
+  arrears?: { amount: number; months: number; period: string };
   billingFrequency: string;
   nextPaymentDue?: string;
 }
@@ -64,6 +67,7 @@ function SetupForm({
   planName,
   duesAmount,
   enrollmentFee,
+  arrears,
   billingFrequency,
   nextPaymentDue,
 }: SetupFormProps) {
@@ -140,6 +144,15 @@ function SetupForm({
                 <span className="font-medium">{formatCurrency(enrollmentFee)}</span>
               </div>
             )}
+            {arrears && arrears.months > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">
+                  Past Dues ({arrears.months} {arrears.months === 1 ? "month" : "months"}
+                  {arrears.period ? `: ${arrears.period}` : ""})
+                </span>
+                <span className="font-medium">{formatCurrency(arrears.amount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">First Dues Payment ({billingFrequency})</span>
               <span className="font-medium">{formatCurrency(duesAmount)}</span>
@@ -147,7 +160,7 @@ function SetupForm({
             <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
               <span className="text-gray-900 font-semibold">Total Due Today</span>
               <span className="font-semibold text-gray-900">
-                {formatCurrency(duesAmount + (enrollmentFee || 0))}
+                {formatCurrency(duesAmount + (enrollmentFee || 0) + (arrears?.amount || 0))}
               </span>
             </div>
           </>
@@ -183,6 +196,8 @@ function SetupForm({
       <p className="text-xs text-gray-500 text-center">
         {isCurrent && nextPaymentDue
           ? `Your card will be saved. Automatic payments begin ${formatNextPaymentDate(nextPaymentDue)}.`
+          : arrears && arrears.months > 0
+          ? `Your past dues of ${formatCurrency(arrears.amount)}${enrollmentFee ? `, enrollment fee of ${formatCurrency(enrollmentFee)}` : ""} and first dues of ${formatCurrency(duesAmount)} will be charged today. Your card will be saved for automatic future payments.`
           : enrollmentFee !== undefined && enrollmentFee > 0
           ? `Your enrollment fee of ${formatCurrency(enrollmentFee)} and first dues of ${formatCurrency(duesAmount)} will be charged today. Your card will be saved for automatic future payments.`
           : `Your first dues of ${formatCurrency(duesAmount)} will be charged today. Your card will be saved for automatic future payments.`}

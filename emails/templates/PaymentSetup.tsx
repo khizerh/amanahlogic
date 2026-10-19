@@ -15,6 +15,11 @@ interface PaymentSetupProps {
   firstChargeDate?: string;
   /** When a payer is paying for another member, the beneficiary's name */
   payingForName?: string;
+  /** Past dues collected when the card is saved (fees included), if any */
+  arrearsAmount?: number;
+  arrearsMonths?: number;
+  /** e.g. "Sep 2026" or "Feb – Aug 2026" */
+  arrearsPeriod?: string;
 }
 
 function formatCurrency(amount: number): string {
@@ -42,9 +47,13 @@ const t = {
     summaryTitle: "Payment Summary",
     plan: "Plan",
     enrollmentFee: "Enrollment Fee (one-time)",
+    pastDues: (months: number, period: string) =>
+      `Past Dues (${months} ${months === 1 ? "month" : "months"}${period ? `: ${period}` : ""})`,
     recurringDues: (freq: string) => `Recurring Dues (${freq})`,
     cta: "Complete Payment Setup",
     nextSteps: "What happens next:",
+    pastDuesCharge: (amount: string) =>
+      `Your past dues of ${amount} will be charged immediately`,
     enrollmentCharge: "Your enrollment fee will be charged immediately",
     cardSaved: "Your card will be saved for automatic future payments",
     firstCharge: (date: string) => `Automatic payments begin ${date}`,
@@ -59,9 +68,13 @@ const t = {
     summaryTitle: "خلاصه پرداخت",
     plan: "طرح",
     enrollmentFee: "هزینه ثبت‌نام (یکبار)",
+    pastDues: (months: number, period: string) =>
+      `حق عضویت معوقه (${months} ماه${period ? `: ${period}` : ""})`,
     recurringDues: (freq: string) => `حق عضویت (${freq})`,
     cta: "تکمیل تنظیمات پرداخت",
     nextSteps: "مراحل بعدی:",
+    pastDuesCharge: (amount: string) =>
+      `حق عضویت معوقه شما به مبلغ ${amount} فوراً کسر می‌شود`,
     enrollmentCharge: "هزینه ثبت‌نام شما فوراً کسر می‌شود",
     cardSaved: "کارت شما برای پرداخت‌های خودکار آینده ذخیره می‌شود",
     firstCharge: (date: string) => `پرداخت‌های خودکار از ${date} شروع می‌شود`,
@@ -99,8 +112,12 @@ export function PaymentSetupEmail(props: PaymentSetupProps) {
     language = "en",
     firstChargeDate,
     payingForName,
+    arrearsAmount,
+    arrearsMonths,
+    arrearsPeriod,
   } = props;
   const l = t[language];
+  const hasArrears = !!arrearsAmount && !!arrearsMonths && arrearsMonths > 0;
   const freqText = getFrequencyText(billingFrequency, language);
   const valueAlign = language === "fa" ? "left" : "right";
 
@@ -135,6 +152,13 @@ export function PaymentSetupEmail(props: PaymentSetupProps) {
                 align={valueAlign}
               />
             ) : null}
+            {hasArrears ? (
+              <SummaryRow
+                label={l.pastDues(arrearsMonths!, arrearsPeriod ?? "")}
+                value={formatCurrency(arrearsAmount!)}
+                align={valueAlign}
+              />
+            ) : null}
             <SummaryRow
               label={l.recurringDues(freqText)}
               value={formatCurrency(duesAmount)}
@@ -147,6 +171,7 @@ export function PaymentSetupEmail(props: PaymentSetupProps) {
         <strong>{l.nextSteps}</strong>
       </Text>
       <ul style={styles.list}>
+        {hasArrears ? <li>{l.pastDuesCharge(formatCurrency(arrearsAmount!))}</li> : null}
         {enrollmentFee ? <li>{l.enrollmentCharge}</li> : null}
         <li>{l.cardSaved}</li>
         {firstChargeDate ? <li>{l.firstCharge(firstChargeDate)}</li> : null}

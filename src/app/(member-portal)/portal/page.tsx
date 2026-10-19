@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Dashboard | Member Portal",
 };
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, CheckCircle2, Clock, CreditCard, Calendar, TrendingUp, PauseCircle, Users } from "lucide-react";
@@ -17,6 +18,7 @@ import { AgreementSigningLinksService } from "@/lib/database/agreement-links";
 import { stripe, calculateFees, getPlatformFee } from "@/lib/stripe";
 import type { BillingFrequency } from "@/lib/types";
 import { StripePortalButton } from "./profile/StripePortalButton";
+import { formatPaymentMethodExpiry } from "@/lib/utils/payment-method";
 
 function formatDate(dateString: string | null, timeZone?: string): string {
   if (!dateString) return "N/A";
@@ -401,12 +403,14 @@ export default async function MemberDashboardPage() {
                           : membership.paymentMethod.bankName || "Bank Account"}
                       </Badge>
                       <span className="text-sm font-medium">
-                        ending in {membership.paymentMethod.last4}
+                        {membership.paymentMethod.brand === "link"
+                          ? membership.paymentMethod.email || ""
+                          : `ending in ${membership.paymentMethod.last4}`}
                       </span>
                     </div>
-                    {membership.paymentMethod.expiryMonth && membership.paymentMethod.expiryYear && (
+                    {formatPaymentMethodExpiry(membership.paymentMethod) && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Expires {membership.paymentMethod.expiryMonth}/{membership.paymentMethod.expiryYear}
+                        Expires {formatPaymentMethodExpiry(membership.paymentMethod)}
                       </p>
                     )}
                   </div>
@@ -415,7 +419,14 @@ export default async function MemberDashboardPage() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No automatic payment method on file. Contact {organization.name} to set up automatic payments.
+                No automatic payment method on file.{" "}
+                {membership.stripeCustomerId ? (
+                  <Link href="/portal/payments" className="text-primary underline underline-offset-2">
+                    Set up auto-pay on the Payments page
+                  </Link>
+                ) : (
+                  <>Contact {organization.name} to set up automatic payments.</>
+                )}
               </p>
             )}
           </CardContent>

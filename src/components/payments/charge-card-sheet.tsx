@@ -26,6 +26,7 @@ import {
   Lock,
   Zap,
 } from "lucide-react";
+import { formatPaymentMethodLabel } from "@/lib/utils/payment-method";
 
 interface ChargeCardSheetProps {
   member: MemberWithMembership | null;
@@ -177,11 +178,13 @@ export function ChargeCardSheet({
             </div>
             <div className="space-y-1">
               <p className="text-2xl font-mono tracking-wider">
-                •••• •••• •••• {paymentMethod.last4}
+                {paymentMethod.brand === "link" ? "Link" : `•••• •••• •••• ${paymentMethod.last4}`}
               </p>
               <p className="text-sm opacity-70">
                 {paymentMethod.type === "card"
-                  ? `${paymentMethod.brand?.toUpperCase() || 'Card'} ${paymentMethod.expiryMonth}/${paymentMethod.expiryYear}`
+                  ? paymentMethod.brand === "link"
+                    ? formatPaymentMethodLabel(paymentMethod)
+                    : `${paymentMethod.brand?.toUpperCase() || 'Card'} ${paymentMethod.expiryMonth}/${paymentMethod.expiryYear}`
                   : paymentMethod.bankName || 'Bank Account'}
               </p>
             </div>
