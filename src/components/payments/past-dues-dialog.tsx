@@ -24,6 +24,11 @@ interface PastDuesDialogProps {
   monthlyCharge: number;
   /** Label for the confirm button, e.g. "Send Link" or "Copy Link". */
   confirmLabel: string;
+  /**
+   * "link": the amount is collected when the member saves a card via the link.
+   * "charge": the card already on file is charged the moment the admin confirms.
+   */
+  mode?: "link" | "charge";
   isSubmitting?: boolean;
   onConfirm: (arrearsMonths: number) => void;
 }
@@ -41,6 +46,7 @@ export function PastDuesDialog({
   nextPaymentDue,
   monthlyCharge,
   confirmLabel,
+  mode = "link",
   isSubmitting,
   onConfirm,
 }: PastDuesDialogProps) {
@@ -63,8 +69,10 @@ export function PastDuesDialog({
           <DialogTitle>Collect past dues?</DialogTitle>
           <DialogDescription>
             This member is {owedMonths} {owedMonths === 1 ? "month" : "months"} behind
-            {owedLabel ? ` (${owedLabel})` : ""}. The link will charge past dues together with
-            the first regular payment when the card is saved. Lower the number to waive months.
+            {owedLabel ? ` (${owedLabel})` : ""}.{" "}
+            {mode === "charge"
+              ? "The card on file will be charged for these months as soon as you confirm. Lower the number to waive months; waived months are forgiven and the member stops showing as overdue."
+              : "The link will charge past dues together with the first regular payment when the card is saved. Lower the number to waive months."}
           </DialogDescription>
         </DialogHeader>
 
@@ -91,10 +99,12 @@ export function PastDuesDialog({
                 {clamped > 0 ? `≈ ${formatCurrency(approxTotal)}` : "—"}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">First regular payment</span>
-              <span className="font-medium">{formatCurrency(monthlyCharge)}</span>
-            </div>
+            {mode === "link" && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">First regular payment</span>
+                <span className="font-medium">{formatCurrency(monthlyCharge)}</span>
+              </div>
+            )}
             {waived > 0 && (
               <div className="flex justify-between text-amber-700">
                 <span>Waived</span>
@@ -104,8 +114,9 @@ export function PastDuesDialog({
               </div>
             )}
             <p className="text-xs text-muted-foreground pt-1">
-              The member sees this breakdown on the setup page before entering a card. Exact
-              fees are computed at charge time.
+              {mode === "charge"
+                ? "Charged as one payment. Exact fees are computed at charge time; the member gets a receipt."
+                : "The member sees this breakdown on the setup page before entering a card. Exact fees are computed at charge time."}
             </p>
           </div>
         </div>

@@ -13,11 +13,11 @@ import {
   reverseCalculateBaseAmount,
   createMembershipSubscription,
   getPlatformFee,
-  calculateArrearsCharge,
   describePaymentMethod,
   recoverPastDueSubscriptions,
 } from "@/lib/stripe";
-import { monthsOwed, clampArrearsMonths, arrearsPeriodLabel } from "@/lib/billing/arrears";
+import { monthsOwed, clampArrearsMonths } from "@/lib/billing/arrears";
+import { chargeArrears } from "@/lib/billing/collect-arrears";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 import { sendPaymentFailedEmail } from "@/lib/email/send-payment-failed";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
@@ -315,15 +315,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
-}
-
-/** Add whole months to a YYYY-MM-DD string, keeping the day. */
-function shiftYmdByMonths(ymd: string, months: number): string {
-  const [y, m, d] = ymd.slice(0, 10).split("-").map(Number);
-  const total = m - 1 + months;
-  const year = y + Math.floor(total / 12);
-  const month = (total % 12) + 1;
-  return `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 /**
@@ -1410,150 +1401,29 @@ async function handleSetupIntentSucceeded(
   const arrearsRequested = metadata.arrears_months !== undefined ? parseInt(metadata.arrears_months, 10) : 0;
   const arrearsMonths = clampArrearsMonths(arrearsRequested, owedMonths);
   const waivedMonths = metadata.arrears_months !== undefined ? owedMonths - arrearsMonths : 0;
-  const arrearsPeriod = arrearsPeriodLabel(currentMembership?.next_payment_due, arrearsMonths);
 
-  if (arrearsMonths > 0 && memberId) {
-    const monthlyDuesCents = Math.round((currentPlan?.pricing?.monthly || 0) * 100);
-    const arrearsFees = calculateArrearsCharge({
-      months: arrearsMonths,
-      monthlyDuesCents,
+  if ((arrearsMonths > 0 || waivedMonths > 0) && memberId) {
+    const arrearsResult = await chargeArrears({
+      stripe,
+      supabase,
+      organizationId,
+      membershipId,
+      memberId,
+      customerId,
+      paymentMethodId,
+      paymentMethodType: pm.type,
+      receiptEmail: customerEmail,
+      planName: planName || "Membership",
+      monthlyDuesCents: Math.round((currentPlan?.pricing?.monthly || 0) * 100),
       platformFeeMonthlyDollars: getPlatformFee(org?.platform_fees as PlatformFees | null, "monthly"),
       passFeesToMember,
+      connectAccountId: connectEnabled ? connectId : null,
+      nextPaymentDue: currentMembership?.next_payment_due ?? null,
+      arrearsMonths,
+      waivedMonths,
+      origin: "at card setup",
     });
-
-    if (arrearsFees.chargeAmountCents > 0) {
-      const { data: arrearsPayment, error: arrearsInsertError } = await supabase
-        .from("payments")
-        .insert({
-          organization_id: organizationId,
-          membership_id: membershipId,
-          member_id: memberId,
-          type: "back_dues",
-          method: "stripe",
-          status: "pending",
-          amount: arrearsFees.baseAmountCents / 100,
-          stripe_fee: arrearsFees.breakdown.stripeFee,
-          platform_fee: arrearsFees.breakdown.platformFee,
-          total_charged: arrearsFees.breakdown.chargeAmount,
-          net_amount: arrearsFees.netAmountCents / 100,
-          months_credited: arrearsMonths,
-          period_label: arrearsPeriod,
-          stripe_payment_method_type: pm.type,
-          notes: `Past dues (${arrearsMonths} ${arrearsMonths === 1 ? "month" : "months"}: ${arrearsPeriod}) collected at card setup`,
-        })
-        .select("id")
-        .single();
-
-      if (arrearsInsertError || !arrearsPayment) {
-        console.error("[Webhook] Failed to create back_dues payment record:", arrearsInsertError);
-      } else {
-        try {
-          const piParams: Stripe.PaymentIntentCreateParams = {
-            amount: arrearsFees.chargeAmountCents,
-            currency: "usd",
-            customer: customerId,
-            payment_method: paymentMethodId,
-            off_session: true,
-            confirm: true,
-            description: `${planName || "Membership"} Past Dues (${arrearsPeriod})`,
-            ...(customerEmail && { receipt_email: customerEmail }),
-            metadata: {
-              membership_id: membershipId,
-              member_id: memberId,
-              organization_id: organizationId,
-              type: "back_dues",
-              months: String(arrearsMonths),
-            },
-          };
-          if (connectEnabled) {
-            piParams.application_fee_amount = arrearsFees.applicationFeeCents;
-            piParams.transfer_data = { destination: connectId! };
-          }
-
-          const arrearsPI = await stripe.paymentIntents.create(piParams);
-          const arrearsChargeId =
-            typeof arrearsPI.latest_charge === "string" ? arrearsPI.latest_charge : arrearsPI.latest_charge?.id ?? null;
-          await supabase
-            .from("payments")
-            .update({ stripe_payment_intent_id: arrearsPI.id, stripe_charge_id: arrearsChargeId })
-            .eq("id", arrearsPayment.id);
-          console.log(`[Webhook] Created past-dues PaymentIntent ${arrearsPI.id} (${arrearsPI.status}) for ${arrearsMonths} months`);
-
-          if (arrearsPI.status === "succeeded") {
-            const settled = await settlePayment({
-              paymentId: arrearsPayment.id,
-              method: "stripe",
-              paidAt: new Date().toISOString(),
-              stripePaymentIntentId: arrearsPI.id,
-              supabase,
-            });
-            if (!settled.success) {
-              console.error("[Webhook] Failed to settle past-dues payment:", settled.error);
-            } else {
-              console.log(`[Webhook] Past dues settled: ${arrearsPayment.id}, new paid_months: ${settled.newPaidMonths}`);
-            }
-          }
-          // Otherwise (ACH "processing") payment_intent.succeeded settles the pending row.
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error(`[Webhook] Past-dues charge failed for membership ${membershipId}:`, message);
-          await supabase
-            .from("payments")
-            .update({
-              status: "failed",
-              requires_review: true,
-              notes: `Past dues (${arrearsMonths} months: ${arrearsPeriod}) declined at card setup - ${message}. Subscription was still started; collect manually.`,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", arrearsPayment.id);
-        }
-      }
-    }
-  }
-
-  // Months the admin chose not to collect still have to move the ledger past
-  // the gap, or the member sits "overdue" forever. A $0 back_dues row keeps the
-  // audit trail and advances next_payment_due through the engine.
-  if (waivedMonths > 0 && memberId) {
-    const waivedPeriod = arrearsPeriodLabel(
-      currentMembership?.next_payment_due && arrearsMonths > 0
-        ? shiftYmdByMonths(currentMembership.next_payment_due, arrearsMonths)
-        : currentMembership?.next_payment_due,
-      waivedMonths
-    );
-    const { data: waivedPayment } = await supabase
-      .from("payments")
-      .insert({
-        organization_id: organizationId,
-        membership_id: membershipId,
-        member_id: memberId,
-        type: "back_dues",
-        method: "stripe",
-        status: "pending",
-        amount: 0,
-        stripe_fee: 0,
-        platform_fee: 0,
-        total_charged: 0,
-        net_amount: 0,
-        months_credited: waivedMonths,
-        period_label: waivedPeriod,
-        notes: `Waived ${waivedMonths} ${waivedMonths === 1 ? "month" : "months"} of past dues (${waivedPeriod}) by admin at card setup - no charge`,
-      })
-      .select("id")
-      .single();
-    if (waivedPayment) {
-      const settled = await settlePayment({
-        paymentId: waivedPayment.id,
-        method: "stripe",
-        paidAt: new Date().toISOString(),
-        supabase,
-      });
-      if (!settled.success) {
-        console.error("[Webhook] Failed to settle waived past-dues row:", settled.error);
-      } else {
-        console.log(`[Webhook] Waived ${waivedMonths} months for membership ${membershipId}`);
-      }
-    }
+    console.log(`[Webhook] Past dues for membership ${membershipId}: ${arrearsResult.status}, charged ${arrearsResult.chargedMonths}, waived ${arrearsResult.waivedMonths}`);
   }
 
   // Create subscription using shared helper

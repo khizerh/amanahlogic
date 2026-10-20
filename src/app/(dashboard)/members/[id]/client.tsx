@@ -195,7 +195,8 @@ export function MemberDetailClient({
   const [isResendingPaymentLink, setIsResendingPaymentLink] = useState(false);
 
   // Which card-setup action is waiting on the past-dues prompt
-  const [pastDuesPrompt, setPastDuesPrompt] = useState<"resend" | "setup" | "copy" | null>(null);
+  const [pastDuesPrompt, setPastDuesPrompt] = useState<"resend" | "setup" | "copy" | "collect" | null>(null);
+  const [isCollectingPastDues, setIsCollectingPastDues] = useState(false);
 
   // State for pausing/resuming subscription
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
@@ -604,18 +605,62 @@ export function MemberDetailClient({
     }
   }, [membership, memberData.id]);
 
+  // Collect past dues from a member already on auto-pay: charges the card on
+  // file for N months and waives the rest. No link involved.
+  const handleCollectPastDues = useCallback(async (arrearsMonths?: number) => {
+    if (!membership) return;
+
+    setIsCollectingPastDues(true);
+    try {
+      const response = await fetch("/api/stripe/collect-past-dues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          membershipId: membership.id,
+          memberId: memberData.id,
+          ...(arrearsMonths !== undefined && { arrearsMonths }),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to collect past dues");
+      }
+
+      const r = result.result as { chargedMonths: number; chargeAmountCents: number; waivedMonths: number; status: string };
+      const parts: string[] = [];
+      if (r.chargedMonths > 0) {
+        parts.push(`${r.status === "processing" ? "Charging" : "Charged"} ${formatCurrency(r.chargeAmountCents / 100)} for ${r.chargedMonths} ${r.chargedMonths === 1 ? "month" : "months"}`);
+      }
+      if (r.waivedMonths > 0) {
+        parts.push(`waived ${r.waivedMonths} ${r.waivedMonths === 1 ? "month" : "months"}`);
+      }
+      toast.success("Past dues settled", {
+        description: `${parts.join(", ")}. Next payment due ${formatDate(result.nextPaymentDue)}.`,
+      });
+
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to collect past dues");
+    } finally {
+      setIsCollectingPastDues(false);
+    }
+  }, [membership, memberData.id, router]);
+
   // Past-dues gate. When the member is behind, every card-setup action asks
   // how many months to collect before the link goes out; otherwise it fires
   // straight away. Default is everything owed; admins can only waive.
   const owedMonths = monthsOwed(membership?.nextPaymentDue, todayLocalYmd());
   const runLinkAction = useCallback(
-    (action: "resend" | "setup" | "copy", arrearsMonths?: number) => {
+    (action: "resend" | "setup" | "copy" | "collect", arrearsMonths?: number) => {
       setPastDuesPrompt(null);
       if (action === "resend") return handleResendPaymentLink(arrearsMonths);
       if (action === "setup") return handleSetupAutopay(arrearsMonths);
+      if (action === "collect") return handleCollectPastDues(arrearsMonths);
       return handleCopySetupLink(arrearsMonths);
     },
-    [handleResendPaymentLink, handleSetupAutopay, handleCopySetupLink]
+    [handleResendPaymentLink, handleSetupAutopay, handleCopySetupLink, handleCollectPastDues]
   );
   const startLinkAction = useCallback(
     (action: "resend" | "setup" | "copy") => {
@@ -1772,6 +1817,27 @@ export function MemberDetailClient({
                           </>
                         )}
                       </Button>
+                      {owedMonths > 0 && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => setPastDuesPrompt("collect")}
+                          disabled={isCollectingPastDues}
+                          title="Charge the card on file for months owed from before auto-pay started. You can waive some or all."
+                        >
+                          {isCollectingPastDues ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Collecting...
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              Collect Past Dues ({owedMonths} {owedMonths === 1 ? "mo" : "mos"})
+                            </>
+                          )}
+                        </Button>
+                      )}
                       {membership.subscriptionStatus === 'active' ? (
                         <Button
                           variant="outline"
@@ -2684,8 +2750,11 @@ export function MemberDetailClient({
           owedMonths={owedMonths}
           nextPaymentDue={membership.nextPaymentDue}
           monthlyCharge={monthlyDuesCharge}
-          confirmLabel={pastDuesPrompt === "copy" ? "Copy Link" : "Send Link"}
-          isSubmitting={isResendingPaymentLink || isSettingUpAutopay || isCopyingSetupLink}
+          confirmLabel={
+            pastDuesPrompt === "collect" ? "Charge Card" : pastDuesPrompt === "copy" ? "Copy Link" : "Send Link"
+          }
+          mode={pastDuesPrompt === "collect" ? "charge" : "link"}
+          isSubmitting={isResendingPaymentLink || isSettingUpAutopay || isCopyingSetupLink || isCollectingPastDues}
           onConfirm={(months) => {
             if (pastDuesPrompt) void runLinkAction(pastDuesPrompt, months);
           }}
