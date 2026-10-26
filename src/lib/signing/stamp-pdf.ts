@@ -162,16 +162,20 @@ async function stampDariPdf(
   const signaturePage = pdfDoc.addPage([612, 792]); // US Letter
   const { width, height } = signaturePage.getSize();
 
+  // NOTE: pdf-lib's standard fonts are WinAnsi-only and cannot encode Arabic
+  // script (throws "WinAnsi cannot encode"), and pdf-lib does no RTL shaping,
+  // so the stamped overlay is English-only. The Dari template PDF itself
+  // already carries the Dari agreement text.
   // Header - center aligned
-  signaturePage.drawText("SIGNATURE / امضاء", {
-    x: width / 2 - 80,
+  signaturePage.drawText("SIGNATURE", {
+    x: width / 2 - 55,
     y: height - 100,
     size: 18,
     font: fontBold,
     color: rgb(0, 0, 0),
   });
 
-  // Agreement text (bilingual)
+  // Agreement text
   signaturePage.drawText("I agree to the terms and conditions of this membership agreement.", {
     x: 50,
     y: height - 160,
@@ -180,16 +184,8 @@ async function stampDariPdf(
     color: rgb(0, 0, 0),
   });
 
-  signaturePage.drawText("من با شرایط و مقررات این قرارداد عضویت موافقم.", {
-    x: 50,
-    y: height - 180,
-    size: 11,
-    font,
-    color: rgb(0, 0, 0),
-  });
-
   // Signature label
-  signaturePage.drawText("Member Signature / امضای عضو:", {
+  signaturePage.drawText("Member Signature:", {
     x: 50,
     y: height - 240,
     size: 12,
@@ -209,7 +205,7 @@ async function stampDariPdf(
   });
 
   // Signed name
-  signaturePage.drawText(`Name / نام: ${options.member.name}`, {
+  signaturePage.drawText(`Name: ${options.member.name}`, {
     x: 50,
     y: height - 360,
     size: 12,
@@ -217,7 +213,7 @@ async function stampDariPdf(
   });
 
   // Date
-  signaturePage.drawText(`Date / تاریخ: ${options.signedDate}`, {
+  signaturePage.drawText(`Date: ${options.signedDate}`, {
     x: 50,
     y: height - 385,
     size: 12,
