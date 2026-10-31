@@ -611,6 +611,7 @@ interface DbMembershipJoinRow {
   subscription_status: SubscriptionStatus | null;
   payment_method: PaymentMethodDetails | null;
   payer_member_id: string | null;
+  payer_relationship?: string | null;
   created_at: string;
   updated_at: string;
   plan?: DbPlanJoinRow | DbPlanJoinRow[];
@@ -728,6 +729,7 @@ function transformInvitesWithDetails(
             subscriptionStatus: membership.subscription_status,
             paymentMethod: membership.payment_method,
             payerMemberId: membership.payer_member_id || null,
+            payerRelationship: (membership.payer_relationship as Membership["payerRelationship"]) || null,
             createdAt: membership.created_at,
             updatedAt: membership.updated_at,
           }

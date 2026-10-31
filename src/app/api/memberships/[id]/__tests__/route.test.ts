@@ -7,10 +7,16 @@ const {
   mockGetOrganizationId,
   mockGetById,
   mockUpdate,
+  mockOrgGetById,
+  mockPlanGetById,
+  mockUpdateSubscriptionPricing,
 } = vi.hoisted(() => ({
   mockGetOrganizationId: vi.fn(),
   mockGetById: vi.fn(),
   mockUpdate: vi.fn(),
+  mockOrgGetById: vi.fn(),
+  mockPlanGetById: vi.fn(),
+  mockUpdateSubscriptionPricing: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -38,6 +44,18 @@ vi.mock("@/lib/database/memberships", () => ({
     getById: mockGetById,
     update: mockUpdate,
   },
+}));
+
+vi.mock("@/lib/database/organizations", () => ({
+  OrganizationsService: { getById: mockOrgGetById },
+}));
+
+vi.mock("@/lib/database/plans", () => ({
+  PlansService: { getById: mockPlanGetById },
+}));
+
+vi.mock("@/lib/stripe", () => ({
+  updateSubscriptionPricing: mockUpdateSubscriptionPricing,
 }));
 
 // ---------------------------------------------------------------------------
@@ -143,7 +161,99 @@ describe("PUT /api/memberships/[id]", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({
-      error: "At least one field (enrollmentFeeStatus, paidMonths, or planId) is required",
+      error: "At least one field (enrollmentFeeStatus, paidMonths, planId, or payerRelationship) is required",
+    });
+  });
+
+  describe("payerRelationship", () => {
+    const org = {
+      id: "org-1",
+      platformFees: { monthly: 2, biannual: 9, annual: 12 },
+      platformFeeDiscounts: { child: 50 },
+      passFeesToMember: true,
+      stripeConnectId: "acct_1",
+    };
+    const plan = { id: "plan-1", name: "Single", pricing: { monthly: 20, biannual: 120, annual: 240 } };
+    const sponsored = {
+      ...mockMembership,
+      payerMemberId: "member-dad",
+      payerRelationship: null,
+      billingFrequency: "monthly",
+      stripeSubscriptionId: "sub_1",
+      subscriptionStatus: "active",
+    };
+
+    beforeEach(() => {
+      mockOrgGetById.mockResolvedValue(org);
+      mockPlanGetById.mockResolvedValue(plan);
+      mockUpdateSubscriptionPricing.mockResolvedValue({});
+    });
+
+    it("rejects an unknown relationship", async () => {
+      mockGetById.mockResolvedValue(sponsored);
+      const res = await PUT(makeRequest({ payerRelationship: "kid" }), routeParams);
+      expect(res.status).toBe(400);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a relationship on a membership with no payer", async () => {
+      mockGetById.mockResolvedValue({ ...sponsored, payerMemberId: null });
+      const res = await PUT(makeRequest({ payerRelationship: "child" }), routeParams);
+      expect(res.status).toBe(400);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("saves without touching Stripe when there is no live subscription", async () => {
+      mockGetById.mockResolvedValue({ ...sponsored, stripeSubscriptionId: null, subscriptionStatus: null });
+      mockUpdate.mockResolvedValue({ ...sponsored, payerRelationship: "child" });
+      const res = await PUT(makeRequest({ payerRelationship: "child" }), routeParams);
+      expect(res.status).toBe(200);
+      expect(mockUpdateSubscriptionPricing).not.toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalledWith({ id: "membership-1", payerRelationship: "child" });
+    });
+
+    it("reprices a live subscription at the discounted fee before saving", async () => {
+      mockGetById.mockResolvedValue(sponsored);
+      mockUpdate.mockResolvedValue({ ...sponsored, payerRelationship: "child" });
+      const res = await PUT(makeRequest({ payerRelationship: "child" }), routeParams);
+      expect(res.status).toBe(200);
+      expect(mockUpdateSubscriptionPricing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subscriptionId: "sub_1",
+          newDuesAmountCents: 2000,
+          newBillingFrequency: "monthly",
+          platformFeeDollars: 1,
+          passFeesToMember: true,
+        })
+      );
+      expect(mockUpdate).toHaveBeenCalledWith({ id: "membership-1", payerRelationship: "child" });
+      expect(res.body).toMatchObject({ stripeUpdated: true });
+    });
+
+    it("skips repricing when the fee does not move", async () => {
+      mockGetById.mockResolvedValue({ ...sponsored, payerRelationship: "spouse" });
+      mockUpdate.mockResolvedValue({ ...sponsored, payerRelationship: "sibling" });
+      const res = await PUT(makeRequest({ payerRelationship: "sibling" }), routeParams);
+      expect(res.status).toBe(200);
+      expect(mockUpdateSubscriptionPricing).not.toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalledWith({ id: "membership-1", payerRelationship: "sibling" });
+    });
+
+    it("does not save when Stripe repricing fails", async () => {
+      mockGetById.mockResolvedValue(sponsored);
+      mockUpdateSubscriptionPricing.mockRejectedValue(new Error("stripe down"));
+      const res = await PUT(makeRequest({ payerRelationship: "child" }), routeParams);
+      expect(res.status).toBe(502);
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("is a no-op when the relationship is unchanged", async () => {
+      mockGetById.mockResolvedValue({ ...sponsored, payerRelationship: "child" });
+      mockUpdate.mockResolvedValue({ ...sponsored, payerRelationship: "child" });
+      const res = await PUT(makeRequest({ payerRelationship: "child" }), routeParams);
+      expect(res.status).toBe(200);
+      expect(mockUpdateSubscriptionPricing).not.toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalledWith({ id: "membership-1" });
     });
   });
 

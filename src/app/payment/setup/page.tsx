@@ -1,8 +1,9 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
-import { calculateFees, getPlatformFee } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
+import { calculateFees } from "@/lib/stripe";
 import { quoteArrears } from "@/lib/billing/setup-link";
-import type { PlatformFees, BillingFrequency } from "@/lib/types";
+import type { PlatformFees, BillingFrequency, Membership, PlatformFeeDiscounts } from "@/lib/types";
 import { SetupClient } from "./SetupClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { XCircle } from "lucide-react";
@@ -56,7 +57,7 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
       .single(),
     supabase
       .from("organizations")
-      .select("id, name, platform_fees, pass_fees_to_member, timezone")
+      .select("id, name, platform_fees, pass_fees_to_member, platform_fee_discounts, timezone")
       .eq("id", metadata.organization_id)
       .single(),
   ]);
@@ -88,7 +89,13 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
   }
 
   const duesAmountCents = Math.round(baseDuesAmount * 100);
-  const platformFeeDollars = getPlatformFee(org.platform_fees as PlatformFees | null, billingFrequency as BillingFrequency);
+  const feeContext = {
+    platformFees: org.platform_fees as PlatformFees | null,
+    platformFeeDiscounts: org.platform_fee_discounts as PlatformFeeDiscounts | null,
+    payerMemberId: (membership.payer_member_id as string | null) ?? metadata.payer_member_id ?? null,
+    payerRelationship: membership.payer_relationship as string | null,
+  };
+  const platformFeeDollars = resolvePlatformFee(feeContext, billingFrequency as BillingFrequency);
   const duesFees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
   const displayDues = memberIsCurrent ? 0 : duesFees.chargeAmountCents / 100;
 
@@ -106,10 +113,15 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
   let displayArrears: { amount: number; months: number; period: string } | undefined;
   if (!memberIsCurrent && metadata.arrears_months !== undefined) {
     const arrears = quoteArrears({
-      membership: { nextPaymentDue: membership.next_payment_due },
+      membership: {
+        nextPaymentDue: membership.next_payment_due,
+        payerMemberId: feeContext.payerMemberId,
+        payerRelationship: feeContext.payerRelationship as Membership["payerRelationship"],
+      },
       plan: { pricing: plan?.pricing ?? { monthly: 0, biannual: 0, annual: 0 } },
       org: {
         platformFees: org.platform_fees as PlatformFees,
+        platformFeeDiscounts: feeContext.platformFeeDiscounts ?? {},
         passFeesToMember,
         timezone: org.timezone || "America/Los_Angeles",
       },

@@ -16,8 +16,8 @@ import {
   getOrCreateStripeCustomer,
   createSetupIntent,
   calculateFees,
-  getPlatformFee,
 } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import type { Member, Membership, Plan, Organization, BillingFrequency } from "@/lib/types";
 
 // =============================================================================
@@ -163,7 +163,15 @@ export async function orchestrateOnboarding(
       });
 
       // Calculate fees for email display
-      const platformFeeDollars = getPlatformFee(org?.platformFees, billingFrequency as BillingFrequency);
+      const platformFeeDollars = resolvePlatformFee(
+        {
+          platformFees: org?.platformFees,
+          platformFeeDiscounts: org?.platformFeeDiscounts,
+          payerMemberId: membership.payerMemberId,
+          payerRelationship: membership.payerRelationship,
+        },
+        billingFrequency as BillingFrequency
+      );
       const fees = calculateFees(
         Math.round(priceAmount * 100),
         platformFeeDollars,

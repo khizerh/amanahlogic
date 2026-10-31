@@ -5,7 +5,8 @@ import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
-import { updateSubscriptionPricing, getPlatformFee, cancelSetupIntent } from "@/lib/stripe";
+import { updateSubscriptionPricing, cancelSetupIntent } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import type { BillingFrequency, PlatformFees } from "@/lib/types";
 
 interface ChangeFrequencyBody {
@@ -66,7 +67,15 @@ export async function POST(req: Request) {
 
         if (plan && org) {
           const newDuesAmountCents = Math.round((plan.pricing[newFrequency] || 0) * 100);
-          const platformFeeDollars = getPlatformFee(org.platformFees as PlatformFees | null, newFrequency);
+          const platformFeeDollars = resolvePlatformFee(
+            {
+              platformFees: org.platformFees as PlatformFees | null,
+              platformFeeDiscounts: org.platformFeeDiscounts,
+              payerMemberId: membership.payerMemberId,
+              payerRelationship: membership.payerRelationship,
+            },
+            newFrequency
+          );
 
           await updateSubscriptionPricing({
             subscriptionId: membership.stripeSubscriptionId,

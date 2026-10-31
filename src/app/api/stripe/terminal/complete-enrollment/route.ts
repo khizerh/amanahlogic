@@ -10,9 +10,9 @@ import {
   getOrCreateStripeCustomer,
   createMembershipSubscription,
   calculateFees,
-  getPlatformFee,
   stripe,
 } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { getReusablePaymentMethod } from "@/lib/stripe/terminal";
 import { settlePayment } from "@/lib/billing/engine";
 import {
@@ -82,8 +82,13 @@ export async function POST(req: Request) {
     const billingFrequency = (membership.billingFrequency || "monthly") as BillingFrequency;
     const duesAmount = plan.pricing[billingFrequency] || plan.pricing.monthly;
     const duesAmountCents = Math.round(duesAmount * 100);
-    const platformFeeDollars = getPlatformFee(
-      org.platformFees as PlatformFees | null,
+    const platformFeeDollars = resolvePlatformFee(
+      {
+        platformFees: org.platformFees as PlatformFees | null,
+        platformFeeDiscounts: org.platformFeeDiscounts,
+        payerMemberId: membership.payerMemberId,
+        payerRelationship: membership.payerRelationship,
+      },
       billingFrequency
     );
 

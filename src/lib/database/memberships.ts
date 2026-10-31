@@ -52,6 +52,7 @@ export interface UpdateMembershipInput extends Partial<CreateMembershipInput> {
   subscriptionStatus?: SubscriptionStatus | null;
   paymentMethod?: PaymentMethodDetails | null;
   payerMemberId?: string | null;
+  payerRelationship?: Membership["payerRelationship"];
 }
 
 // =============================================================================
@@ -238,6 +239,7 @@ export class MembershipsService {
     paidMonths: number;
     autoPayEnabled: boolean;
     subscriptionStatus: string | null;
+    payerRelationship: string | null;
   }>> {
     const client = supabase ?? (await createClientForContext());
 
@@ -251,6 +253,7 @@ export class MembershipsService {
         paid_months,
         auto_pay_enabled,
         subscription_status,
+        payer_relationship,
         member:members!memberships_member_id_fkey(id, first_name, middle_name, last_name),
         plan:plans(name)
       `)
@@ -274,6 +277,7 @@ export class MembershipsService {
         paidMonths: row.paid_months as number,
         autoPayEnabled: row.auto_pay_enabled as boolean,
         subscriptionStatus: (row.subscription_status as string) || null,
+        payerRelationship: (row.payer_relationship as string) || null,
       };
     });
   }
@@ -358,6 +362,8 @@ export class MembershipsService {
       dbUpdates.payment_method = updates.paymentMethod;
     if (updates.payerMemberId !== undefined)
       dbUpdates.payer_member_id = updates.payerMemberId;
+    if (updates.payerRelationship !== undefined)
+      dbUpdates.payer_relationship = updates.payerRelationship;
 
     const { data, error } = await client
       .from("memberships")
@@ -644,6 +650,7 @@ interface DbMembershipRow {
   subscription_status: SubscriptionStatus | null;
   payment_method: PaymentMethodDetails | null;
   payer_member_id: string | null;
+  payer_relationship: Membership["payerRelationship"] | null;
   created_at: string;
   updated_at: string;
 }
@@ -749,6 +756,7 @@ function transformMembership(dbMembership: DbMembershipRow): Membership {
     subscriptionStatus: dbMembership.subscription_status,
     paymentMethod: dbMembership.payment_method,
     payerMemberId: dbMembership.payer_member_id,
+    payerRelationship: dbMembership.payer_relationship ?? null,
     createdAt: dbMembership.created_at,
     updatedAt: dbMembership.updated_at,
   };

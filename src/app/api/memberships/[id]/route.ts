@@ -3,8 +3,9 @@ import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
-import { updateSubscriptionPricing, getPlatformFee } from "@/lib/stripe";
-import type { BillingFrequency, PlatformFees } from "@/lib/types";
+import { updateSubscriptionPricing } from "@/lib/stripe";
+import { resolvePlatformFee, isPayerRelationship, PAYER_RELATIONSHIPS } from "@/lib/billing/platform-fee";
+import type { BillingFrequency, Membership } from "@/lib/types";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -42,18 +43,40 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { enrollmentFeeStatus, paidMonths, planId } = body as {
+    const { enrollmentFeeStatus, paidMonths, planId, payerRelationship } = body as {
       enrollmentFeeStatus?: string;
       paidMonths?: number;
       planId?: string;
+      payerRelationship?: string;
     };
 
     // Must provide at least one field
-    if (enrollmentFeeStatus === undefined && paidMonths === undefined && planId === undefined) {
+    if (
+      enrollmentFeeStatus === undefined &&
+      paidMonths === undefined &&
+      planId === undefined &&
+      payerRelationship === undefined
+    ) {
       return NextResponse.json(
-        { error: "At least one field (enrollmentFeeStatus, paidMonths, or planId) is required" },
+        { error: "At least one field (enrollmentFeeStatus, paidMonths, planId, or payerRelationship) is required" },
         { status: 400 }
       );
+    }
+
+    // Validate payerRelationship: only meaningful on a payer-managed membership
+    if (payerRelationship !== undefined) {
+      if (!isPayerRelationship(payerRelationship)) {
+        return NextResponse.json(
+          { error: `payerRelationship must be one of: ${PAYER_RELATIONSHIPS.join(", ")}` },
+          { status: 400 }
+        );
+      }
+      if (!membership.payerMemberId) {
+        return NextResponse.json(
+          { error: "This membership has no payer. Assign a payer first." },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate enrollmentFeeStatus
@@ -97,20 +120,90 @@ export async function PUT(request: Request, { params }: RouteParams) {
       updateInput.planId = planId;
     }
 
+    const relationshipChanging =
+      payerRelationship !== undefined && payerRelationship !== membership.payerRelationship;
+    if (relationshipChanging) {
+      updateInput.payerRelationship = payerRelationship as Membership["payerRelationship"];
+    }
+
+    const hasLiveSub =
+      !!membership.stripeSubscriptionId &&
+      (membership.subscriptionStatus === "active" || membership.subscriptionStatus === "trialing");
+
+    // A relationship change can move the platform fee. The webhook prices every
+    // invoice from the row, so the Stripe price must change in the same request
+    // or the next invoice gets booked at the wrong split. Stripe first, DB second.
+    let stripeUpdated = false;
+    if (relationshipChanging && hasLiveSub && planId === undefined) {
+      const [org, plan] = await Promise.all([
+        OrganizationsService.getById(organizationId),
+        PlansService.getById(membership.planId),
+      ]);
+      if (!org || !plan) {
+        return NextResponse.json({ error: "Organization or plan not found" }, { status: 404 });
+      }
+      const billingFrequency = (membership.billingFrequency || "monthly") as BillingFrequency;
+      const feeBefore = resolvePlatformFee(
+        {
+          platformFees: org.platformFees,
+          platformFeeDiscounts: org.platformFeeDiscounts,
+          payerMemberId: membership.payerMemberId,
+          payerRelationship: membership.payerRelationship,
+        },
+        billingFrequency
+      );
+      const feeAfter = resolvePlatformFee(
+        {
+          platformFees: org.platformFees,
+          platformFeeDiscounts: org.platformFeeDiscounts,
+          payerMemberId: membership.payerMemberId,
+          payerRelationship,
+        },
+        billingFrequency
+      );
+      if (feeBefore !== feeAfter) {
+        try {
+          await updateSubscriptionPricing({
+            subscriptionId: membership.stripeSubscriptionId!,
+            newDuesAmountCents: Math.round((plan.pricing[billingFrequency] || 0) * 100),
+            newBillingFrequency: billingFrequency,
+            passFeesToMember: org.passFeesToMember || false,
+            platformFeeDollars: feeAfter,
+            planName: plan.name,
+            stripeConnectAccountId: org.stripeConnectId || undefined,
+          });
+          stripeUpdated = true;
+        } catch (error) {
+          console.error("Failed to reprice Stripe subscription for relationship change:", error);
+          return NextResponse.json(
+            { error: "Could not update the Stripe subscription price. Relationship not changed." },
+            { status: 502 }
+          );
+        }
+      }
+    }
+
     const updated = await MembershipsService.update(updateInput);
 
     // Sync Stripe subscription if plan changed and subscription exists
-    let stripeUpdated = false;
-    if (planId !== undefined && newPlan && membership.stripeSubscriptionId && (membership.subscriptionStatus === "active" || membership.subscriptionStatus === "trialing")) {
+    if (planId !== undefined && newPlan && hasLiveSub) {
       try {
         const org = await OrganizationsService.getById(organizationId);
         if (org) {
           const billingFrequency = (membership.billingFrequency || "monthly") as BillingFrequency;
           const newDuesAmountCents = Math.round((newPlan.pricing[billingFrequency] || 0) * 100);
-          const platformFeeDollars = getPlatformFee(org.platformFees as PlatformFees | null, billingFrequency);
+          const platformFeeDollars = resolvePlatformFee(
+            {
+              platformFees: org.platformFees,
+              platformFeeDiscounts: org.platformFeeDiscounts,
+              payerMemberId: membership.payerMemberId,
+              payerRelationship: updated.payerRelationship,
+            },
+            billingFrequency
+          );
 
           await updateSubscriptionPricing({
-            subscriptionId: membership.stripeSubscriptionId,
+            subscriptionId: membership.stripeSubscriptionId!,
             newDuesAmountCents,
             newBillingFrequency: billingFrequency,
             passFeesToMember: org.passFeesToMember || false,

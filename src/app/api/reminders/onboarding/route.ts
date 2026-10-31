@@ -5,7 +5,8 @@ import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { MembersService } from "@/lib/database/members";
 import { sendPaymentSetupEmail } from "@/lib/email/send-payment-setup";
-import { stripe, isStripeConfigured, calculateFees, getPlatformFee } from "@/lib/stripe";
+import { stripe, isStripeConfigured, calculateFees } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import type { BillingFrequency } from "@/lib/types";
 
 /**
@@ -127,7 +128,15 @@ export async function POST() {
 
         // Calculate fees for email display
         const billingFrequency = (invite.billingFrequency || "monthly") as BillingFrequency;
-        const platformFeeDollars = getPlatformFee(org.platformFees, billingFrequency);
+        const platformFeeDollars = resolvePlatformFee(
+          {
+            platformFees: org.platformFees,
+            platformFeeDiscounts: org.platformFeeDiscounts,
+            payerMemberId: invite.membership.payerMemberId,
+            payerRelationship: invite.membership.payerRelationship,
+          },
+          billingFrequency
+        );
         const fees = calculateFees(
           Math.round(invite.duesAmount * 100),
           platformFeeDollars,

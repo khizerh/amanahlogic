@@ -11,8 +11,21 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RefreshCw, Search, Check } from "lucide-react";
 import { toast } from "sonner";
+import {
+  PAYER_RELATIONSHIPS,
+  PAYER_RELATIONSHIP_LABELS,
+  type PayerRelationship,
+} from "@/lib/billing/platform-fee";
 
 interface Member {
   id: string;
@@ -54,12 +67,14 @@ export function AssignPayerDialog({
   const [isAssigning, setIsAssigning] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [relationship, setRelationship] = useState<PayerRelationship | "">("");
 
   // Fetch members when dialog opens
   useEffect(() => {
     if (!open) {
       setSearchQuery("");
       setSelectedMember(null);
+      setRelationship("");
       return;
     }
 
@@ -100,7 +115,7 @@ export function AssignPayerDialog({
   }, [members, currentMemberId, searchQuery]);
 
   const handleAssign = useCallback(async () => {
-    if (!selectedMember) return;
+    if (!selectedMember || !relationship) return;
 
     setIsAssigning(true);
     try {
@@ -110,6 +125,7 @@ export function AssignPayerDialog({
         body: JSON.stringify({
           membershipId,
           payerMemberId: selectedMember.id,
+          relationship,
         }),
       });
 
@@ -134,7 +150,7 @@ export function AssignPayerDialog({
     } finally {
       setIsAssigning(false);
     }
-  }, [selectedMember, membershipId, onPayerAssigned]);
+  }, [selectedMember, relationship, membershipId, onPayerAssigned]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -200,6 +216,31 @@ export function AssignPayerDialog({
               })
             )}
           </div>
+
+          {/* Relationship: who this member is to the payer. Drives the platform-fee discount. */}
+          <div className="space-y-1.5">
+            <Label htmlFor="payer-relationship">
+              This member is the payer&apos;s…
+            </Label>
+            <Select
+              value={relationship}
+              onValueChange={(v) => setRelationship(v as PayerRelationship)}
+            >
+              <SelectTrigger id="payer-relationship">
+                <SelectValue placeholder="Select relationship" />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYER_RELATIONSHIPS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {PAYER_RELATIONSHIP_LABELS[r]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Child sponsorships may get a reduced platform fee, per your organization&apos;s settings.
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
@@ -208,7 +249,7 @@ export function AssignPayerDialog({
           </Button>
           <Button
             onClick={handleAssign}
-            disabled={!selectedMember || isAssigning}
+            disabled={!selectedMember || !relationship || isAssigning}
           >
             {isAssigning ? (
               <>

@@ -173,10 +173,12 @@ CREATE TABLE IF NOT EXISTS public.memberships (
   updated_at timestamp with time zone DEFAULT now(),
   enrollment_fee_status text DEFAULT 'unpaid'::text NOT NULL,
   payer_member_id uuid,
+  payer_relationship text,
   CONSTRAINT memberships_billing_anniversary_day_check CHECK (((billing_anniversary_day >= 1) AND (billing_anniversary_day <= 28))),
   CONSTRAINT memberships_billing_frequency_check CHECK ((billing_frequency = ANY (ARRAY['monthly'::text, 'biannual'::text, 'annual'::text]))),
   CONSTRAINT memberships_enrollment_fee_status_check CHECK ((enrollment_fee_status = ANY (ARRAY['unpaid'::text, 'paid'::text, 'waived'::text]))),
   CONSTRAINT memberships_member_id_key UNIQUE (member_id),
+  CONSTRAINT memberships_payer_relationship_check CHECK (((payer_relationship IS NULL) OR (payer_relationship = ANY (ARRAY['child'::text, 'parent'::text, 'spouse'::text, 'sibling'::text, 'other'::text])))),
   CONSTRAINT memberships_pkey PRIMARY KEY (id),
   CONSTRAINT memberships_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'current'::text, 'lapsed'::text, 'cancelled'::text]))),
   CONSTRAINT memberships_subscription_status_check CHECK ((subscription_status = ANY (ARRAY['active'::text, 'trialing'::text, 'past_due'::text, 'canceled'::text, 'unpaid'::text, 'incomplete'::text, 'incomplete_expired'::text, 'paused'::text])))
@@ -245,6 +247,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   twilio_campaign_sid text,
   twilio_messaging_service_sid text,
   legal_business_name text,
+  platform_fee_discounts jsonb DEFAULT '{}'::jsonb NOT NULL,
   CONSTRAINT organizations_pkey PRIMARY KEY (id),
   CONSTRAINT organizations_slug_key UNIQUE (slug)
 );
@@ -938,6 +941,8 @@ COMMENT ON COLUMN public.memberships.billing_anniversary_day IS 'Day of month (1
 
 COMMENT ON COLUMN public.memberships.paid_months IS 'Total months paid towards eligibility (60 months required)';
 
+COMMENT ON COLUMN public.memberships.payer_relationship IS 'Who the member is to their payer (child = payer pays for their kid). Drives platform-fee discounts; NULL when no payer or unknown.';
+
 COMMENT ON COLUMN public.memberships.payment_method IS 'JSON: {type, last4, brand?, bankName?, expiryMonth?, expiryYear?}';
 
 COMMENT ON COLUMN public.memberships.status IS 'Membership lifecycle: pending → awaiting_signature → waiting_period → active | lapsed | cancelled';
@@ -953,6 +958,8 @@ COMMENT ON COLUMN public.organization_settings.billing_config IS 'JSON: {lapseDa
 COMMENT ON COLUMN public.organizations.address IS 'JSON object: {street, city, state, zip}';
 
 COMMENT ON COLUMN public.organizations.legal_business_name IS 'Registered legal entity name (for A2P 10DLC brand match); shown on public opt-in pages when set. May differ from display name.';
+
+COMMENT ON COLUMN public.organizations.platform_fee_discounts IS 'Percent off the platform fee keyed by payer_relationship, e.g. {"child": 50}. Only applies to payer-managed memberships.';
 
 COMMENT ON COLUMN public.payments.months_credited IS 'Number of membership months this payment credits';
 

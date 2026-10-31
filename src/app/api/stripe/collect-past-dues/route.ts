@@ -6,7 +6,8 @@ import { MembersService } from "@/lib/database/members";
 import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { stripe, isStripeConfigured, getPlatformFee } from "@/lib/stripe";
+import { stripe, isStripeConfigured } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 import { monthsOwed, clampArrearsMonths, arrearsPeriodLabel } from "@/lib/billing/arrears";
 import { chargeArrears } from "@/lib/billing/collect-arrears";
@@ -108,7 +109,15 @@ export async function POST(req: Request) {
       receiptEmail: member.email,
       planName: plan.name,
       monthlyDuesCents: Math.round((plan.pricing?.monthly || 0) * 100),
-      platformFeeMonthlyDollars: getPlatformFee(org.platformFees, "monthly"),
+      platformFeeMonthlyDollars: resolvePlatformFee(
+        {
+          platformFees: org.platformFees,
+          platformFeeDiscounts: org.platformFeeDiscounts,
+          payerMemberId: membership.payerMemberId,
+          payerRelationship: membership.payerRelationship,
+        },
+        "monthly"
+      ),
       passFeesToMember: org.passFeesToMember || false,
       connectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : null,
       nextPaymentDue: membership.nextPaymentDue,

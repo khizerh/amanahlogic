@@ -16,7 +16,8 @@ import {
 } from "@/lib/database/agreement-templates";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { OrganizationsService } from "@/lib/database/organizations";
-import { calculateFees, getPlatformFee } from "@/lib/stripe";
+import { calculateFees } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import Header from "@/components/Header";
@@ -130,7 +131,15 @@ export default async function MemberDetailPage({ params }: MemberDetailPageProps
   const monthlyDuesCharge =
     calculateFees(
       monthlyDuesCents,
-      getPlatformFee(org?.platformFees, "monthly"),
+      resolvePlatformFee(
+        {
+          platformFees: org?.platformFees,
+          platformFeeDiscounts: org?.platformFeeDiscounts,
+          payerMemberId: memberData?.membership?.payerMemberId,
+          payerRelationship: memberData?.membership?.payerRelationship,
+        },
+        "monthly"
+      ),
       org?.passFeesToMember ?? false
     ).chargeAmountCents / 100;
 

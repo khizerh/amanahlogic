@@ -12,7 +12,6 @@ import {
   calculateFees,
   reverseCalculateBaseAmount,
   createMembershipSubscription,
-  getPlatformFee,
   describePaymentMethod,
   recoverPastDueSubscriptions,
 } from "@/lib/stripe";
@@ -21,7 +20,8 @@ import { chargeArrears } from "@/lib/billing/collect-arrears";
 import { sendPaymentReceiptEmail } from "@/lib/email/send-payment-receipt";
 import { sendPaymentFailedEmail } from "@/lib/email/send-payment-failed";
 import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
-import type { BillingFrequency, PaymentMethod, PlatformFees } from "@/lib/types";
+import type { BillingFrequency, PaymentMethod, PlatformFees, PlatformFeeDiscounts } from "@/lib/types";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 
 export const runtime = "nodejs";
 
@@ -606,11 +606,19 @@ async function handleInvoiceCreated(
     return;
   }
 
-  // Look up membership by subscription ID
-  let membership: { id: string; organization_id: string; billing_frequency: string | null } | null = null;
+  // Look up membership by subscription ID. Payer fields feed the platform-fee
+  // discount: the fee here must match what was baked into the subscription price.
+  type FeeMembership = {
+    id: string;
+    organization_id: string;
+    billing_frequency: string | null;
+    payer_member_id?: string | null;
+    payer_relationship?: string | null;
+  };
+  let membership: FeeMembership | null = null;
   const { data: membershipBySubId } = await supabase
     .from("memberships")
-    .select("id, organization_id, billing_frequency")
+    .select("id, organization_id, billing_frequency, payer_member_id, payer_relationship")
     .eq("stripe_subscription_id", subscriptionId)
     .single();
 
@@ -648,10 +656,22 @@ async function handleInvoiceCreated(
     return;
   }
 
+  // Metadata fallbacks don't carry payer fields — read them from the row, which
+  // exists even when stripe_subscription_id hasn't been written yet.
+  if (membership.payer_member_id === undefined) {
+    const { data: payerRow } = await supabase
+      .from("memberships")
+      .select("payer_member_id, payer_relationship")
+      .eq("id", membership.id)
+      .maybeSingle();
+    membership.payer_member_id = payerRow?.payer_member_id ?? null;
+    membership.payer_relationship = payerRow?.payer_relationship ?? null;
+  }
+
   // Get org's Connect and fee settings
   const { data: org } = await supabase
     .from("organizations")
-    .select("stripe_connect_id, stripe_onboarded, platform_fees, pass_fees_to_member")
+    .select("stripe_connect_id, stripe_onboarded, platform_fees, pass_fees_to_member, platform_fee_discounts")
     .eq("id", membership.organization_id)
     .single();
 
@@ -669,7 +689,15 @@ async function handleInvoiceCreated(
   }
 
   const billingFrequency = (membership.billing_frequency || "monthly") as BillingFrequency;
-  const platformFeeDollars = getPlatformFee(org.platform_fees as PlatformFees | null, billingFrequency);
+  const platformFeeDollars = resolvePlatformFee(
+    {
+      platformFees: org.platform_fees as PlatformFees | null,
+      platformFeeDiscounts: org.platform_fee_discounts as PlatformFeeDiscounts | null,
+      payerMemberId: membership.payer_member_id,
+      payerRelationship: membership.payer_relationship,
+    },
+    billingFrequency
+  );
   const passFeesToMember = org.pass_fees_to_member || false;
 
   // Determine the base amount for fee calculation
@@ -863,7 +891,7 @@ async function handleInvoicePaid(
   // Get membership details for months calculation
   const { data: membershipData } = await supabase
     .from("memberships")
-    .select("billing_frequency, plan:plans(pricing)")
+    .select("billing_frequency, payer_member_id, payer_relationship, plan:plans(pricing)")
     .eq("id", membershipId)
     .single();
 
@@ -875,7 +903,7 @@ async function handleInvoicePaid(
   // Get organization for timezone, platform fees, and fee settings
   const { data: org } = await supabase
     .from("organizations")
-    .select("timezone, platform_fees, stripe_connect_id, pass_fees_to_member")
+    .select("timezone, platform_fees, stripe_connect_id, pass_fees_to_member, platform_fee_discounts")
     .eq("id", organizationId)
     .single();
 
@@ -886,7 +914,15 @@ async function handleInvoicePaid(
 
   // Resolve billing frequency first so we can get the correct per-frequency platform fee
   const billingFrequency = membershipData.billing_frequency as BillingFrequency;
-  const platformFeeDollars = getPlatformFee(org?.platform_fees as PlatformFees | null, billingFrequency);
+  const platformFeeDollars = resolvePlatformFee(
+    {
+      platformFees: org?.platform_fees as PlatformFees | null,
+      platformFeeDiscounts: org?.platform_fee_discounts as PlatformFeeDiscounts | null,
+      payerMemberId: membershipData.payer_member_id,
+      payerRelationship: membershipData.payer_relationship,
+    },
+    billingFrequency
+  );
 
   // Determine base amount (dues) vs total charged
   // In both modes, the charge includes the platform fee, so we always reverse calculate
@@ -1341,7 +1377,7 @@ async function handleSetupIntentSucceeded(
   // the payment link was sent.
   const { data: currentMembership } = await supabase
     .from("memberships")
-    .select("billing_frequency, next_payment_due, plan:plans(pricing, name)")
+    .select("billing_frequency, next_payment_due, payer_member_id, payer_relationship, plan:plans(pricing, name)")
     .eq("id", membershipId)
     .single();
 
@@ -1360,11 +1396,20 @@ async function handleSetupIntentSucceeded(
   // Get org for fee calculation
   const { data: org } = await supabase
     .from("organizations")
-    .select("timezone, platform_fees, stripe_connect_id, stripe_onboarded, pass_fees_to_member")
+    .select("timezone, platform_fees, stripe_connect_id, stripe_onboarded, pass_fees_to_member, platform_fee_discounts")
     .eq("id", organizationId)
     .single();
 
-  const platformFeeDollars = getPlatformFee(org?.platform_fees as PlatformFees | null, freq);
+  // Payer-relationship discount. The payer is saved on the row before the link
+  // goes out (payer route path B / setup-link), so the row is the source of truth;
+  // SetupIntent metadata is only a fallback for the payer id.
+  const feeContext = {
+    platformFees: org?.platform_fees as PlatformFees | null,
+    platformFeeDiscounts: org?.platform_fee_discounts as PlatformFeeDiscounts | null,
+    payerMemberId: currentMembership?.payer_member_id ?? metadata.payer_member_id ?? null,
+    payerRelationship: currentMembership?.payer_relationship ?? null,
+  };
+  const platformFeeDollars = resolvePlatformFee(feeContext, freq);
 
   // Determine trial_end if member is current
   let trialEnd: number | undefined;
@@ -1415,7 +1460,7 @@ async function handleSetupIntentSucceeded(
       receiptEmail: customerEmail,
       planName: planName || "Membership",
       monthlyDuesCents: Math.round((currentPlan?.pricing?.monthly || 0) * 100),
-      platformFeeMonthlyDollars: getPlatformFee(org?.platform_fees as PlatformFees | null, "monthly"),
+      platformFeeMonthlyDollars: resolvePlatformFee(feeContext, "monthly"),
       passFeesToMember,
       connectAccountId: connectEnabled ? connectId : null,
       nextPaymentDue: currentMembership?.next_payment_due ?? null,

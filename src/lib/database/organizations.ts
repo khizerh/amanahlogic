@@ -8,6 +8,7 @@ import type {
   BillingConfig,
   Address,
   PlatformFees,
+  PlatformFeeDiscounts,
 } from "@/lib/types";
 
 // =============================================================================
@@ -25,6 +26,7 @@ export interface CreateOrganizationInput {
   stripeOnboarded?: boolean;
   platformFees?: PlatformFees;
   passFeesToMember?: boolean;
+  platformFeeDiscounts?: PlatformFeeDiscounts;
 }
 
 export interface UpdateOrganizationInput
@@ -150,10 +152,14 @@ export class OrganizationsService {
     const client = supabase ?? (await createClientForContext());
     const { id, ...updates } = input;
 
-    if (updates.platformFees !== undefined || updates.passFeesToMember !== undefined) {
+    if (
+      updates.platformFees !== undefined ||
+      updates.passFeesToMember !== undefined ||
+      updates.platformFeeDiscounts !== undefined
+    ) {
       const { data: currentOrg, error: currentOrgError } = await client
         .from("organizations")
-        .select("platform_fees, pass_fees_to_member")
+        .select("platform_fees, pass_fees_to_member, platform_fee_discounts")
         .eq("id", id)
         .single();
 
@@ -169,8 +175,13 @@ export class OrganizationsService {
       const passFeesChanging =
         updates.passFeesToMember !== undefined &&
         updates.passFeesToMember !== (currentOrg?.pass_fees_to_member ?? false);
+      // Discounts are baked into subscription prices the same way the fee is.
+      const discountsChanging =
+        updates.platformFeeDiscounts !== undefined &&
+        JSON.stringify(updates.platformFeeDiscounts) !==
+          JSON.stringify((currentOrg?.platform_fee_discounts as PlatformFeeDiscounts | null) || {});
 
-      if (platformFeesChanging || passFeesChanging) {
+      if (platformFeesChanging || passFeesChanging || discountsChanging) {
         const { count, error: activeSubsError } = await client
           .from("memberships")
           .select("id", { count: "exact", head: true })
@@ -203,6 +214,8 @@ export class OrganizationsService {
       dbUpdates.platform_fees = updates.platformFees;
     if (updates.passFeesToMember !== undefined)
       dbUpdates.pass_fees_to_member = updates.passFeesToMember;
+    if (updates.platformFeeDiscounts !== undefined)
+      dbUpdates.platform_fee_discounts = updates.platformFeeDiscounts;
 
     const { data, error } = await client
       .from("organizations")
@@ -379,6 +392,7 @@ interface DbOrganizationRow {
   stripe_onboarded: boolean;
   platform_fees: PlatformFees | null;
   pass_fees_to_member: boolean | null;
+  platform_fee_discounts: PlatformFeeDiscounts | null;
   terminal_location_id: string | null;
   twilio_phone_number: string | null;
   twilio_brand_sid: string | null;
@@ -414,6 +428,7 @@ function transformOrganization(dbOrg: DbOrganizationRow): Organization {
     stripeOnboarded: dbOrg.stripe_onboarded,
     platformFees: dbOrg.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: dbOrg.pass_fees_to_member || false,
+    platformFeeDiscounts: dbOrg.platform_fee_discounts || {},
     terminalLocationId: dbOrg.terminal_location_id || null,
     twilioPhoneNumber: dbOrg.twilio_phone_number || null,
     twilioBrandSid: dbOrg.twilio_brand_sid || null,

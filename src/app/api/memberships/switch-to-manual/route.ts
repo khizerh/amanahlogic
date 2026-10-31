@@ -102,6 +102,7 @@ export async function POST(req: Request) {
       subscriptionStatus: null,
       paymentMethod: null,
       payerMemberId: null,
+      payerRelationship: null,
     });
 
     return NextResponse.json({

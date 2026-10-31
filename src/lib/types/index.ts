@@ -38,6 +38,15 @@ export interface PlatformFees {
   annual: number;
 }
 
+/**
+ * Percent off the platform fee, keyed by the member's relationship to their
+ * payer (memberships.payer_relationship). Example: { child: 50 }.
+ * Only applies to payer-managed memberships.
+ */
+export type PlatformFeeDiscounts = Partial<
+  Record<"child" | "parent" | "spouse" | "sibling" | "other", number>
+>;
+
 export interface Organization {
   id: string;
   name: string;
@@ -50,6 +59,7 @@ export interface Organization {
   stripeOnboarded: boolean;
   platformFees: PlatformFees; // Per-frequency platform fees
   passFeesToMember: boolean; // If true, gross-up charges so org receives full amount
+  platformFeeDiscounts: PlatformFeeDiscounts; // Percent off platform fee by payer relationship
   terminalLocationId: string | null; // Stripe Terminal Location ID for in-person payments
   twilioPhoneNumber: string | null;
   twilioBrandSid: string | null;
@@ -202,6 +212,8 @@ export interface Membership {
 
   // Third-party payer (another member pays for this membership)
   payerMemberId: string | null;
+  /** Who this member is to the payer (child/parent/spouse/sibling/other). Drives platform-fee discounts. */
+  payerRelationship: "child" | "parent" | "spouse" | "sibling" | "other" | null;
 
   createdAt: string;
   updatedAt: string;

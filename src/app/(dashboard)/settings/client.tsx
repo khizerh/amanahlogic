@@ -759,6 +759,26 @@ export function SettingsPageClient({
                             </div>
                           </div>
                         </div>
+                        {Object.entries(organization.platformFeeDiscounts || {}).filter(([, pct]) => (pct ?? 0) > 0).length > 0 && (
+                          <div className="flex justify-between items-center p-4">
+                            <div>
+                              <p className="font-medium">Sponsorship Discounts</p>
+                              <p className="text-sm text-muted-foreground">
+                                Platform fee reduced when a member pays for a relative
+                              </p>
+                            </div>
+                            <div className="text-right font-mono text-sm space-y-1">
+                              {Object.entries(organization.platformFeeDiscounts || {})
+                                .filter(([, pct]) => (pct ?? 0) > 0)
+                                .map(([rel, pct]) => (
+                                  <div key={rel} className="flex justify-between gap-4">
+                                    <span className="text-muted-foreground capitalize">{rel}</span>
+                                    <span>{pct}% off</span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Example Calculation - Dynamic based on setting, shown for monthly */}

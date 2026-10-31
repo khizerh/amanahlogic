@@ -33,6 +33,7 @@ export interface MemberDashboardData {
     timezone: string;
     platformFees: { monthly: number; biannual: number; annual: number };
     passFeesToMember: boolean;
+    platformFeeDiscounts: Organization["platformFeeDiscounts"];
   };
   stats: {
     paidMonths: number;
@@ -184,6 +185,7 @@ export class MemberPortalService {
         timezone: organization.timezone || "America/Los_Angeles",
         platformFees: organization.platformFees || { monthly: 0, biannual: 0, annual: 0 },
         passFeesToMember: organization.passFeesToMember || false,
+        platformFeeDiscounts: organization.platformFeeDiscounts || {},
       },
       stats: {
         paidMonths,
@@ -378,6 +380,7 @@ interface DbMembershipRow {
   subscription_status: string | null;
   payment_method: { type: string; last4: string; brand?: string; bankName?: string; expiryMonth?: number; expiryYear?: number } | null;
   payer_member_id: string | null;
+  payer_relationship: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -407,6 +410,7 @@ interface DbOrganizationRow {
   stripe_onboarded: boolean;
   platform_fees: { monthly: number; biannual: number; annual: number };
   pass_fees_to_member: boolean;
+  platform_fee_discounts: Organization["platformFeeDiscounts"] | null;
   terminal_location_id: string | null;
   created_at: string;
   updated_at: string;
@@ -492,6 +496,7 @@ function transformMembership(db: DbMembershipRow): Membership {
     subscriptionStatus: db.subscription_status as Membership["subscriptionStatus"],
     paymentMethod: db.payment_method as Membership["paymentMethod"],
     payerMemberId: db.payer_member_id || null,
+    payerRelationship: (db.payer_relationship as Membership["payerRelationship"]) || null,
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };
@@ -525,6 +530,7 @@ function transformOrganization(db: DbOrganizationRow): Organization {
     stripeOnboarded: db.stripe_onboarded,
     platformFees: db.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: db.pass_fees_to_member,
+    platformFeeDiscounts: db.platform_fee_discounts || {},
     terminalLocationId: db.terminal_location_id || null,
     twilioPhoneNumber: (db as { twilio_phone_number?: string | null }).twilio_phone_number ?? null,
     twilioBrandSid: (db as { twilio_brand_sid?: string | null }).twilio_brand_sid ?? null,

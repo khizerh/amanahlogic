@@ -99,6 +99,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPaymentMethodLabel } from "@/lib/utils/payment-method";
+import {
+  PAYER_RELATIONSHIPS,
+  PAYER_RELATIONSHIP_LABELS,
+  type PayerRelationship,
+} from "@/lib/billing/platform-fee";
 
 interface MemberDetailClientProps {
   initialMember: MemberWithMembership;
@@ -126,6 +131,7 @@ interface MemberDetailClientProps {
     paidMonths: number;
     autoPayEnabled: boolean;
     subscriptionStatus: string | null;
+    payerRelationship: string | null;
   }>;
   sponsoredPayments: Array<Payment & { forMemberName: string; forMemberId: string }>;
 }
@@ -184,6 +190,9 @@ export function MemberDetailClient({
 
   // State for sending portal link
   const [isSendingPortalLink, setIsSendingPortalLink] = useState(false);
+
+  // State for changing the payer relationship (reprices the Stripe sub if the fee moves)
+  const [isSavingRelationship, setIsSavingRelationship] = useState(false);
 
   // State for switching to manual payments
   const [isSwitchingToManual, setIsSwitchingToManual] = useState(false);
@@ -737,6 +746,34 @@ export function MemberDetailClient({
       toast.error(err instanceof Error ? err.message : "Failed to remove payer");
     } finally {
       setIsRemovingPayer(false);
+    }
+  }, [membership, router]);
+
+  // Change who this member is to their payer. The API reprices a live
+  // subscription when the platform fee changes, and refuses if Stripe fails.
+  const handleChangeRelationship = useCallback(async (value: PayerRelationship) => {
+    if (!membership || value === membership.payerRelationship) return;
+    setIsSavingRelationship(true);
+    try {
+      const response = await fetch(`/api/memberships/${membership.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payerRelationship: value }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update relationship");
+      }
+      toast.success(
+        result.stripeUpdated
+          ? "Relationship updated. New platform fee applies from the next billing cycle."
+          : "Relationship updated"
+      );
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update relationship");
+    } finally {
+      setIsSavingRelationship(false);
     }
   }, [membership, router]);
 
@@ -1679,12 +1716,33 @@ export function MemberDetailClient({
                 {/* Sponsor Indicator */}
                 {membership.payerMemberId && payerMember && (
                   <div className="mb-6 pb-6 border-b">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Shield className="h-4 w-4 text-blue-600" />
                       <span className="text-sm text-muted-foreground">Sponsored by</span>
                       <a href={`/members/${payerMember.id}`} className="font-medium text-blue-600 hover:underline">
                         {payerMember.firstName} {payerMember.middleName ? `${payerMember.middleName} ` : ''}{payerMember.lastName}
                       </a>
+                      <span className="text-sm text-muted-foreground">&middot; this member is their</span>
+                      <Select
+                        value={membership.payerRelationship ?? ""}
+                        onValueChange={(v) => handleChangeRelationship(v as PayerRelationship)}
+                        disabled={isSavingRelationship}
+                      >
+                        <SelectTrigger className="h-8 w-[130px]" title="Child sponsorships may get a reduced platform fee">
+                          <SelectValue placeholder="Not set" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYER_RELATIONSHIPS.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {PAYER_RELATIONSHIP_LABELS[r]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {isSavingRelationship && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
+                      {!membership.payerRelationship && (
+                        <span className="text-xs text-amber-700">Set the relationship so the right platform fee applies.</span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2102,6 +2160,14 @@ export function MemberDetailClient({
                           {item.firstName} {item.middleName ? `${item.middleName} ` : ""}{item.lastName}
                         </a>
                         <div className="flex items-center gap-2 mt-1">
+                          {item.payerRelationship && (
+                            <>
+                              <span className="text-xs text-muted-foreground">
+                                {PAYER_RELATIONSHIP_LABELS[item.payerRelationship as PayerRelationship] ?? item.payerRelationship}
+                              </span>
+                              <span className="text-xs text-muted-foreground">&middot;</span>
+                            </>
+                          )}
                           <span className="text-xs text-muted-foreground">{item.planName}</span>
                           <span className="text-xs text-muted-foreground">&middot;</span>
                           <span className="text-xs text-muted-foreground capitalize">{item.billingFrequency}</span>

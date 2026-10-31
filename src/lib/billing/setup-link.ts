@@ -23,8 +23,8 @@ import {
   createSetupIntent,
   calculateFees,
   calculateArrearsCharge,
-  getPlatformFee,
 } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
 import { monthsOwed, clampArrearsMonths, arrearsPeriodLabel } from "@/lib/billing/arrears";
 import type { BillingFrequency, Member, Membership, Organization, Plan } from "@/lib/types";
@@ -44,9 +44,11 @@ export interface ArrearsQuote {
 }
 
 export function quoteArrears(params: {
-  membership: Pick<Membership, "nextPaymentDue">;
+  membership: Pick<Membership, "nextPaymentDue"> &
+    Partial<Pick<Membership, "payerMemberId" | "payerRelationship">>;
   plan: Pick<Plan, "pricing">;
-  org: Pick<Organization, "platformFees" | "passFeesToMember" | "timezone">;
+  org: Pick<Organization, "platformFees" | "passFeesToMember" | "timezone"> &
+    Partial<Pick<Organization, "platformFeeDiscounts">>;
   requestedMonths?: number | null;
   today?: string;
 }): ArrearsQuote {
@@ -56,7 +58,15 @@ export function quoteArrears(params: {
   const arrearsMonths = clampArrearsMonths(requestedMonths, owedMonths);
 
   const monthlyDuesCents = Math.round((plan.pricing?.monthly || 0) * 100);
-  const platformFeeMonthlyDollars = getPlatformFee(org.platformFees, "monthly");
+  const platformFeeMonthlyDollars = resolvePlatformFee(
+    {
+      platformFees: org.platformFees,
+      platformFeeDiscounts: org.platformFeeDiscounts,
+      payerMemberId: membership.payerMemberId,
+      payerRelationship: membership.payerRelationship,
+    },
+    "monthly"
+  );
   const passFeesToMember = org.passFeesToMember || false;
 
   const charge = calculateArrearsCharge({
@@ -180,7 +190,16 @@ export async function createAutopaySetupLink(
         ? plan.pricing.annual
         : plan.pricing.monthly;
   const duesAmountCents = Math.round(priceAmount * 100);
-  const platformFeeDollars = getPlatformFee(org.platformFees, billingFrequency);
+  // Payer may arrive as a param (first link) or already be on the row (resend).
+  const platformFeeDollars = resolvePlatformFee(
+    {
+      platformFees: org.platformFees,
+      platformFeeDiscounts: org.platformFeeDiscounts,
+      payerMemberId: payerMemberId ?? membership.payerMemberId,
+      payerRelationship: membership.payerRelationship,
+    },
+    billingFrequency
+  );
   const passFeesToMember = org.passFeesToMember || false;
   const duesFees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
 

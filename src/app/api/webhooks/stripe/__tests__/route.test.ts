@@ -690,6 +690,132 @@ describe("Stripe Webhook Route POST", () => {
       });
     });
 
+    it("prices the fee split with the child-sponsorship discount from the membership row", async () => {
+      const event = createStripeEvent("invoice.created", {
+        id: "inv_child",
+        subscription: "sub_child",
+        amount_due: 2100,
+        application_fee_amount: null,
+        metadata: {},
+      });
+      mockConstructEvent.mockReturnValueOnce(event);
+
+      enqueueResult("stripe_webhook_events", { data: null });
+      enqueueResult("memberships", {
+        data: {
+          id: "mem_child",
+          organization_id: "org_connect",
+          billing_frequency: "monthly",
+          payer_member_id: "mem_dad",
+          payer_relationship: "child",
+        },
+      });
+      enqueueResult("organizations", {
+        data: {
+          stripe_connect_id: "acct_connect",
+          stripe_onboarded: true,
+          platform_fees: { monthly: 2, biannual: 9, annual: 12 },
+          pass_fees_to_member: false,
+          platform_fee_discounts: { child: 50 },
+        },
+      });
+
+      mockReverseCalculateBaseAmount.mockReturnValueOnce(2000);
+      mockCalculateFees.mockReturnValueOnce({
+        applicationFeeCents: 191,
+        platformFeeCents: 100,
+        stripeFeeCents: 91,
+        netAmountCents: 1909,
+      });
+      mockInvoicesUpdate.mockResolvedValueOnce({});
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      // $2 monthly fee halved to $1 for a child sponsorship
+      expect(mockReverseCalculateBaseAmount).toHaveBeenCalledWith(2100, 1, false);
+      expect(mockCalculateFees).toHaveBeenCalledWith(2000, 1, false);
+      expect(mockInvoicesUpdate).toHaveBeenCalledWith("inv_child", { application_fee_amount: 191 });
+    });
+
+    it("charges the full fee when a payer is set but no relationship is recorded", async () => {
+      const event = createStripeEvent("invoice.created", {
+        id: "inv_norel",
+        subscription: "sub_norel",
+        amount_due: 2200,
+        application_fee_amount: null,
+        metadata: {},
+      });
+      mockConstructEvent.mockReturnValueOnce(event);
+
+      enqueueResult("stripe_webhook_events", { data: null });
+      enqueueResult("memberships", {
+        data: {
+          id: "mem_norel",
+          organization_id: "org_connect",
+          billing_frequency: "monthly",
+          payer_member_id: "mem_dad",
+          payer_relationship: null,
+        },
+      });
+      enqueueResult("organizations", {
+        data: {
+          stripe_connect_id: "acct_connect",
+          stripe_onboarded: true,
+          platform_fees: { monthly: 2, biannual: 9, annual: 12 },
+          pass_fees_to_member: false,
+          platform_fee_discounts: { child: 50 },
+        },
+      });
+
+      mockReverseCalculateBaseAmount.mockReturnValueOnce(2000);
+      mockCalculateFees.mockReturnValueOnce({ applicationFeeCents: 294, platformFeeCents: 200, stripeFeeCents: 94, netAmountCents: 1906 });
+      mockInvoicesUpdate.mockResolvedValueOnce({});
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      expect(mockReverseCalculateBaseAmount).toHaveBeenCalledWith(2200, 2, false);
+    });
+
+    it("re-reads payer fields by id when the membership came from subscription metadata", async () => {
+      const event = createStripeEvent("invoice.created", {
+        id: "inv_meta",
+        subscription: "sub_meta",
+        amount_due: 2100,
+        application_fee_amount: null,
+        metadata: {},
+        subscription_details: {
+          metadata: { membership_id: "mem_meta", organization_id: "org_connect", billing_frequency: "monthly" },
+        },
+      });
+      mockConstructEvent.mockReturnValueOnce(event);
+
+      enqueueResult("stripe_webhook_events", { data: null });
+      // Lookup by stripe_subscription_id misses (race: id not written yet)
+      enqueueResult("memberships", { data: null });
+      // Re-read by id for payer fields
+      enqueueResult("memberships", { data: { payer_member_id: "mem_dad", payer_relationship: "child" } });
+      enqueueResult("organizations", {
+        data: {
+          stripe_connect_id: "acct_connect",
+          stripe_onboarded: true,
+          platform_fees: { monthly: 2, biannual: 9, annual: 12 },
+          pass_fees_to_member: false,
+          platform_fee_discounts: { child: 50 },
+        },
+      });
+
+      mockReverseCalculateBaseAmount.mockReturnValueOnce(2000);
+      mockCalculateFees.mockReturnValueOnce({ applicationFeeCents: 191, platformFeeCents: 100, stripeFeeCents: 91, netAmountCents: 1909 });
+      mockInvoicesUpdate.mockResolvedValueOnce({});
+      enqueueResult("stripe_webhook_events", { data: null, error: null });
+
+      await POST(createMockRequest());
+
+      expect(mockReverseCalculateBaseAmount).toHaveBeenCalledWith(2100, 1, false);
+    });
+
     it("should skip non-subscription invoices", async () => {
       const event = createStripeEvent("invoice.created", {
         id: "inv_no_sub",

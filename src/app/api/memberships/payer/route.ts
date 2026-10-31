@@ -13,15 +13,17 @@ import {
   createMembershipSubscription,
   createSetupIntent,
   calculateFees,
-  getPlatformFee,
   cancelSubscription,
 } from "@/lib/stripe";
+import { resolvePlatformFee, isPayerRelationship, PAYER_RELATIONSHIPS, type PayerRelationship } from "@/lib/billing/platform-fee";
 import { sendPaymentSetupEmail } from "@/lib/email";
 import type { BillingFrequency } from "@/lib/types";
 
 interface AssignPayerBody {
   membershipId: string;
   payerMemberId: string;
+  /** Who the beneficiary is to the payer. Drives the platform-fee discount. */
+  relationship: PayerRelationship;
 }
 
 interface RemovePayerBody {
@@ -42,11 +44,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const { membershipId, payerMemberId }: AssignPayerBody = await req.json();
+    const { membershipId, payerMemberId, relationship }: AssignPayerBody = await req.json();
 
     if (!membershipId || !payerMemberId) {
       return NextResponse.json(
         { error: "membershipId and payerMemberId are required" },
+        { status: 400 }
+      );
+    }
+    if (!isPayerRelationship(relationship)) {
+      return NextResponse.json(
+        { error: `relationship must be one of: ${PAYER_RELATIONSHIPS.join(", ")}` },
         { status: 400 }
       );
     }
@@ -178,7 +186,15 @@ export async function POST(req: Request) {
           duesAmountCents,
           billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
           passFeesToMember: org.passFeesToMember || false,
-          platformFeeDollars: getPlatformFee(org.platformFees, billingFrequency as BillingFrequency),
+          platformFeeDollars: resolvePlatformFee(
+            {
+              platformFees: org.platformFees,
+              platformFeeDiscounts: org.platformFeeDiscounts,
+              payerMemberId,
+              payerRelationship: relationship,
+            },
+            billingFrequency as BillingFrequency
+          ),
           stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
           stripeConnectOnboarded: org.stripeOnboarded,
           trialEnd,
@@ -200,6 +216,7 @@ export async function POST(req: Request) {
         await MembershipsService.update({
           id: membershipId,
           payerMemberId,
+          payerRelationship: relationship,
           stripeCustomerId: payerMembership.stripeCustomerId,
           stripeSubscriptionId: subscription.id,
           autoPayEnabled: true,
@@ -247,10 +264,13 @@ export async function POST(req: Request) {
         organizationId,
       });
 
-      // Save payer_member_id on beneficiary's membership (intentional "awaiting setup" state)
+      // Save payer_member_id on beneficiary's membership (intentional "awaiting setup" state).
+      // The relationship must land before the link is used: the setup page and the
+      // setup_intent.succeeded webhook read it from the row to price the fee.
       await MembershipsService.update({
         id: membershipId,
         payerMemberId,
+        payerRelationship: relationship,
         stripeCustomerId: payerCustomerId,
       });
 
@@ -284,7 +304,15 @@ export async function POST(req: Request) {
       // Send payment setup email to PAYER
       const fees = calculateFees(
         duesAmountCents,
-        getPlatformFee(org.platformFees, billingFrequency as BillingFrequency),
+        resolvePlatformFee(
+          {
+            platformFees: org.platformFees,
+            platformFeeDiscounts: org.platformFeeDiscounts,
+            payerMemberId,
+            payerRelationship: relationship,
+          },
+          billingFrequency as BillingFrequency
+        ),
         org.passFeesToMember || false
       );
 
@@ -357,6 +385,7 @@ export async function DELETE(req: Request) {
     await MembershipsService.update({
       id: membershipId,
       payerMemberId: null,
+      payerRelationship: null,
       stripeCustomerId: null,
       stripeSubscriptionId: null,
       autoPayEnabled: false,

@@ -4,7 +4,8 @@ import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
-import { calculateFees, getPlatformFee, isStripeConfigured } from "@/lib/stripe";
+import { calculateFees, isStripeConfigured } from "@/lib/stripe";
+import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { collectTerminalPayment } from "@/lib/stripe/terminal";
 import type { BillingFrequency, PlatformFees } from "@/lib/types";
 
@@ -62,8 +63,13 @@ export async function POST(req: Request) {
     const billingFrequency = (membership.billingFrequency || "monthly") as BillingFrequency;
     const duesAmount = plan.pricing[billingFrequency] || plan.pricing.monthly;
     const duesAmountCents = Math.round(duesAmount * 100);
-    const platformFeeDollars = getPlatformFee(
-      org.platformFees as PlatformFees | null,
+    const platformFeeDollars = resolvePlatformFee(
+      {
+        platformFees: org.platformFees as PlatformFees | null,
+        platformFeeDiscounts: org.platformFeeDiscounts,
+        payerMemberId: membership.payerMemberId,
+        payerRelationship: membership.payerRelationship,
+      },
       billingFrequency
     );
     const duesFees = calculateFees(duesAmountCents, platformFeeDollars, org.passFeesToMember);
