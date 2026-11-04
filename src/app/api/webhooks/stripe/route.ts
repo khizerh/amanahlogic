@@ -14,6 +14,7 @@ import {
   createMembershipSubscription,
   describePaymentMethod,
   recoverPastDueSubscriptions,
+  enrollmentPassesFeesFromMetadata,
 } from "@/lib/stripe";
 import { monthsOwed, clampArrearsMonths } from "@/lib/billing/arrears";
 import { chargeArrears } from "@/lib/billing/collect-arrears";
@@ -1513,8 +1514,14 @@ async function handleSetupIntentSucceeded(
 
   // Handle enrollment fee if applicable
   if (enrollmentFeeAmountCents > 0) {
-    // Platform fee applies to dues only — never to the enrollment fee
-    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, 0, passFeesToMember);
+    // Platform fee applies to dues only — never to the enrollment fee. The
+    // Stripe gross-up flag was frozen into the SetupIntent so the member is
+    // charged exactly what the setup page quoted.
+    const enrollmentFees = calculateFees(
+      enrollmentFeeAmountCents,
+      0,
+      enrollmentPassesFeesFromMetadata(metadata)
+    );
 
     try {
       const piParams: Stripe.PaymentIntentCreateParams = {

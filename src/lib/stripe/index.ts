@@ -253,6 +253,12 @@ export async function createSetupIntent(params: {
   enrollmentFeeAmountCents: number;
   billingFrequency: StripeBillingFrequency;
   passFeesToMember: boolean;
+  /**
+   * Whether the enrollment fee is grossed up for Stripe fees. Defaults to
+   * passFeesToMember. Frozen into metadata so the setup page and the webhook
+   * quote and charge the same amount even if the org setting changes later.
+   */
+  passFeesOnEnrollment?: boolean;
   stripeConnectAccountId?: string;
   memberIsCurrent?: boolean;
   nextPaymentDue?: string;
@@ -280,6 +286,7 @@ export async function createSetupIntent(params: {
     enrollmentFeeAmountCents,
     billingFrequency,
     passFeesToMember,
+    passFeesOnEnrollment = passFeesToMember,
     stripeConnectAccountId,
     memberIsCurrent,
     nextPaymentDue,
@@ -301,6 +308,7 @@ export async function createSetupIntent(params: {
       enrollment_fee_amount_cents: String(enrollmentFeeAmountCents),
       billing_frequency: billingFrequency,
       pass_fees_to_member: String(passFeesToMember),
+      enrollment_pass_fees: String(passFeesOnEnrollment),
       ...(stripeConnectAccountId && { stripe_connect_account_id: stripeConnectAccountId }),
       ...(memberIsCurrent && { member_is_current: "true" }),
       ...(nextPaymentDue && { next_payment_due: nextPaymentDue }),
@@ -591,6 +599,33 @@ export function getPlatformFee(
 ): number {
   if (!platformFees) return 0;
   return platformFees[frequency] || 0;
+}
+
+/**
+ * Whether the one-time enrollment fee is grossed up for Stripe processing.
+ *
+ * The platform fee never applies to enrollment. Stripe's fee is passed to the
+ * member only when the org passes fees in general AND hasn't opted enrollment
+ * out (pass_fees_on_enrollment). When opted out, the member pays the flat
+ * enrollment fee and the org absorbs Stripe's cut.
+ */
+export function enrollmentPassesFees(org: {
+  passFeesToMember?: boolean | null;
+  passFeesOnEnrollment?: boolean | null;
+}): boolean {
+  return Boolean(org.passFeesToMember) && org.passFeesOnEnrollment !== false;
+}
+
+/**
+ * Read the enrollment gross-up flag frozen into SetupIntent / PaymentIntent
+ * metadata. Falls back to pass_fees_to_member for intents created before the
+ * enrollment_pass_fees key existed.
+ */
+export function enrollmentPassesFeesFromMetadata(
+  metadata: Record<string, string | undefined> | null | undefined
+): boolean {
+  const raw = metadata?.enrollment_pass_fees ?? metadata?.pass_fees_to_member;
+  return raw === "true";
 }
 
 /**

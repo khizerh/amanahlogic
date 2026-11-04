@@ -5,7 +5,7 @@ import { OnboardingInvitesService } from "@/lib/database/onboarding-invites";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { MembersService } from "@/lib/database/members";
 import { sendPaymentSetupEmail } from "@/lib/email/send-payment-setup";
-import { stripe, isStripeConfigured, calculateFees } from "@/lib/stripe";
+import { stripe, isStripeConfigured, calculateFees, enrollmentPassesFees } from "@/lib/stripe";
 import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import type { BillingFrequency } from "@/lib/types";
 
@@ -146,17 +146,13 @@ export async function POST() {
         // Calculate enrollment fee for email if applicable
         let enrollmentFeeForEmail: number | undefined;
         if (invite.includesEnrollmentFee && invite.enrollmentFeeAmount > 0 && !invite.enrollmentFeePaidAt) {
-          if (org.passFeesToMember) {
-            // Platform fee applies to dues only — never to the enrollment fee
-            const enrollmentFees = calculateFees(
-              Math.round(invite.enrollmentFeeAmount * 100),
-              0,
-              true
-            );
-            enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
-          } else {
-            enrollmentFeeForEmail = invite.enrollmentFeeAmount;
-          }
+          // Platform fee applies to dues only — never to the enrollment fee
+          const enrollmentFees = calculateFees(
+            Math.round(invite.enrollmentFeeAmount * 100),
+            0,
+            enrollmentPassesFees(org)
+          );
+          enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
         }
 
         const emailResult = await sendPaymentSetupEmail({

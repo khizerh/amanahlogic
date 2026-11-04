@@ -242,30 +242,43 @@ export function SettingsPageClient({
 
 
   // Fee settings toggle handler
-  const handleTogglePassFees = async () => {
+  const updateFeeSettings = async (
+    body: { passFeesToMember?: boolean; passFeesOnEnrollment?: boolean },
+    successMessage: (org: Organization) => string
+  ) => {
     setSavingFeeSettings(true);
     try {
       const res = await fetch("/api/organizations/update-fee-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passFeesToMember: !organization.passFeesToMember }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error || "Failed to update fee settings");
       }
       setOrganization(json.organization);
-      toast.success(
-        json.organization.passFeesToMember
-          ? "Stripe processing fees will now be added to member payments"
-          : "Organization will now absorb Stripe processing fees"
-      );
+      toast.success(successMessage(json.organization));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update fee settings");
     } finally {
       setSavingFeeSettings(false);
     }
   };
+
+  const handleTogglePassFees = () =>
+    updateFeeSettings({ passFeesToMember: !organization.passFeesToMember }, (org) =>
+      org.passFeesToMember
+        ? "Stripe processing fees will now be added to member payments"
+        : "Organization will now absorb Stripe processing fees"
+    );
+
+  const handleTogglePassFeesOnEnrollment = () =>
+    updateFeeSettings({ passFeesOnEnrollment: !organization.passFeesOnEnrollment }, (org) =>
+      org.passFeesOnEnrollment
+        ? "Stripe processing fees will now be added to enrollment fees"
+        : "Enrollment fees will now be charged flat; your organization absorbs the Stripe fee"
+    );
 
   return (
     <>
@@ -725,6 +738,30 @@ export function SettingsPageClient({
                           />
                         </div>
                       </div>
+
+                      {/* Enrollment fee pass-through (only meaningful when fees are passed) */}
+                      {organization.passFeesToMember && (
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex-1">
+                            <p className="font-medium">Also pass Stripe processing fees on enrollment fees</p>
+                            <p className="text-sm text-muted-foreground">
+                              {organization.passFeesOnEnrollment
+                                ? "New members pay the enrollment fee plus Stripe's processing fee. The platform fee never applies to enrollment."
+                                : "New members pay the enrollment fee as a flat amount. Your organization absorbs Stripe's processing fee on it. The platform fee never applies to enrollment."}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            {savingFeeSettings && (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            )}
+                            <Switch
+                              checked={organization.passFeesOnEnrollment}
+                              onCheckedChange={handleTogglePassFeesOnEnrollment}
+                              disabled={savingFeeSettings}
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Fee Breakdown */}
                       <div className="border rounded-lg divide-y">

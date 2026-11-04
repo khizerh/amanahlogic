@@ -14,6 +14,7 @@ import {
   createSetupIntent,
   calculateFees,
   cancelSubscription,
+  enrollmentPassesFees,
 } from "@/lib/stripe";
 import { resolvePlatformFee, isPayerRelationship, PAYER_RELATIONSHIPS, type PayerRelationship } from "@/lib/billing/platform-fee";
 import { sendPaymentSetupEmail } from "@/lib/email";
@@ -294,6 +295,7 @@ export async function POST(req: Request) {
         enrollmentFeeAmountCents: includeEnrollmentFee ? Math.round(plan.enrollmentFee * 100) : 0,
         billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
         passFeesToMember: org.passFeesToMember || false,
+        passFeesOnEnrollment: enrollmentPassesFees(org),
         stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
         memberIsCurrent,
         nextPaymentDue: nextPaymentDue || undefined,

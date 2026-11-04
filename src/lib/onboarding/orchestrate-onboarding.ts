@@ -16,6 +16,7 @@ import {
   getOrCreateStripeCustomer,
   createSetupIntent,
   calculateFees,
+  enrollmentPassesFees,
 } from "@/lib/stripe";
 import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import type { Member, Membership, Plan, Organization, BillingFrequency } from "@/lib/types";
@@ -183,13 +184,9 @@ export async function orchestrateOnboarding(
         const enrollmentFeeBase = plan.enrollmentFee;
         const enrollmentFeeCents = Math.round(enrollmentFeeBase * 100);
 
-        if (org?.passFeesToMember) {
-          // Platform fee applies to dues only — never to the enrollment fee
-          const enrollmentFees = calculateFees(enrollmentFeeCents, 0, true);
-          enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
-        } else {
-          enrollmentFeeForEmail = enrollmentFeeBase;
-        }
+        // Platform fee applies to dues only — never to the enrollment fee
+        const enrollmentFees = calculateFees(enrollmentFeeCents, 0, org ? enrollmentPassesFees(org) : false);
+        enrollmentFeeForEmail = enrollmentFees.chargeAmountCents / 100;
       }
 
       // Set dues amount for email
@@ -206,6 +203,7 @@ export async function orchestrateOnboarding(
         enrollmentFeeAmountCents: includeEnrollmentFee ? Math.round(plan.enrollmentFee * 100) : 0,
         billingFrequency: billingFrequency as "monthly" | "biannual" | "annual",
         passFeesToMember: org?.passFeesToMember || false,
+        passFeesOnEnrollment: org ? enrollmentPassesFees(org) : false,
         stripeConnectAccountId: org?.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
       });
 

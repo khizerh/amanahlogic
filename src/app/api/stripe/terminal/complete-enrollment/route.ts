@@ -11,6 +11,8 @@ import {
   createMembershipSubscription,
   calculateFees,
   stripe,
+  enrollmentPassesFees,
+  enrollmentPassesFeesFromMetadata,
 } from "@/lib/stripe";
 import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { getReusablePaymentMethod } from "@/lib/stripe/terminal";
@@ -225,8 +227,15 @@ export async function POST(req: Request) {
 
     // Handle enrollment fee payment record if applicable
     if (includeEnrollmentFee && enrollmentFeeCents > 0) {
-      // Platform fee applies to dues only — never to the enrollment fee
-      const enrollFees = calculateFees(enrollmentFeeCents, 0, org.passFeesToMember);
+      // Platform fee applies to dues only — never to the enrollment fee. Use
+      // the gross-up flag recorded at charge time (collect-payment) so the
+      // payment row matches what the reader actually charged; older PIs
+      // without the key fall back to the org setting.
+      const passFeesOnEnrollment =
+        pi.metadata.enrollment_pass_fees !== undefined
+          ? enrollmentPassesFeesFromMetadata(pi.metadata)
+          : enrollmentPassesFees(org);
+      const enrollFees = calculateFees(enrollmentFeeCents, 0, passFeesOnEnrollment);
 
       await supabase.from("payments").insert({
         organization_id: organizationId,

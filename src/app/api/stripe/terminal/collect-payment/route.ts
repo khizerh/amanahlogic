@@ -4,7 +4,7 @@ import { MembershipsService } from "@/lib/database/memberships";
 import { PlansService } from "@/lib/database/plans";
 import { OrganizationsService } from "@/lib/database/organizations";
 import { getOrganizationId } from "@/lib/auth/get-organization-id";
-import { calculateFees, isStripeConfigured } from "@/lib/stripe";
+import { calculateFees, enrollmentPassesFees, isStripeConfigured } from "@/lib/stripe";
 import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { collectTerminalPayment } from "@/lib/stripe/terminal";
 import type { BillingFrequency, PlatformFees } from "@/lib/types";
@@ -74,17 +74,14 @@ export async function POST(req: Request) {
     );
     const duesFees = calculateFees(duesAmountCents, platformFeeDollars, org.passFeesToMember);
 
+    // Platform fee applies to dues only — never to the enrollment fee. Stripe's
+    // fee is passed through only if the org hasn't opted enrollment out.
+    const passFeesOnEnrollment = enrollmentPassesFees(org);
     let enrollmentFeeCents = 0;
     let enrollmentFeeChargeCents = 0;
     if (includeEnrollmentFee && membership.enrollmentFeeStatus === "unpaid") {
       enrollmentFeeCents = Math.round(plan.enrollmentFee * 100);
-      if (org.passFeesToMember) {
-        // Platform fee applies to dues only — never to the enrollment fee
-        const enrollmentFees = calculateFees(enrollmentFeeCents, 0, true);
-        enrollmentFeeChargeCents = enrollmentFees.chargeAmountCents;
-      } else {
-        enrollmentFeeChargeCents = enrollmentFeeCents;
-      }
+      enrollmentFeeChargeCents = calculateFees(enrollmentFeeCents, 0, passFeesOnEnrollment).chargeAmountCents;
     }
 
     const totalChargeCents = duesFees.chargeAmountCents + enrollmentFeeChargeCents;
@@ -109,7 +106,7 @@ export async function POST(req: Request) {
     if (org.stripeConnectId && org.stripeOnboarded) {
       applicationFeeCents = duesFees.applicationFeeCents;
       if (enrollmentFeeChargeCents > 0) {
-        const enrollFees = calculateFees(enrollmentFeeCents, 0, org.passFeesToMember);
+        const enrollFees = calculateFees(enrollmentFeeCents, 0, passFeesOnEnrollment);
         applicationFeeCents += enrollFees.applicationFeeCents;
       }
     }
@@ -128,6 +125,7 @@ export async function POST(req: Request) {
         dues_amount_cents: String(duesAmountCents),
         enrollment_fee_amount_cents: String(enrollmentFeeCents),
         include_enrollment_fee: String(includeEnrollmentFee && enrollmentFeeChargeCents > 0),
+        enrollment_pass_fees: String(passFeesOnEnrollment),
         type: "terminal_enrollment",
       },
       stripeConnectAccountId:

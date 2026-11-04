@@ -248,6 +248,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   twilio_messaging_service_sid text,
   legal_business_name text,
   platform_fee_discounts jsonb DEFAULT '{}'::jsonb NOT NULL,
+  pass_fees_on_enrollment boolean DEFAULT true NOT NULL,
   CONSTRAINT organizations_pkey PRIMARY KEY (id),
   CONSTRAINT organizations_slug_key UNIQUE (slug)
 );
@@ -958,6 +959,8 @@ COMMENT ON COLUMN public.organization_settings.billing_config IS 'JSON: {lapseDa
 COMMENT ON COLUMN public.organizations.address IS 'JSON object: {street, city, state, zip}';
 
 COMMENT ON COLUMN public.organizations.legal_business_name IS 'Registered legal entity name (for A2P 10DLC brand match); shown on public opt-in pages when set. May differ from display name.';
+
+COMMENT ON COLUMN public.organizations.pass_fees_on_enrollment IS 'When false, the one-time enrollment fee is charged flat and the org absorbs Stripe''s processing fee on it. Only meaningful when pass_fees_to_member is true. Platform fee never applies to enrollment.';
 
 COMMENT ON COLUMN public.organizations.platform_fee_discounts IS 'Percent off the platform fee keyed by payer_relationship, e.g. {"child": 50}. Only applies to payer-managed memberships.';
 

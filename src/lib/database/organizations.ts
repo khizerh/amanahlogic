@@ -26,6 +26,7 @@ export interface CreateOrganizationInput {
   stripeOnboarded?: boolean;
   platformFees?: PlatformFees;
   passFeesToMember?: boolean;
+  passFeesOnEnrollment?: boolean;
   platformFeeDiscounts?: PlatformFeeDiscounts;
 }
 
@@ -134,6 +135,7 @@ export class OrganizationsService {
         stripe_onboarded: input.stripeOnboarded || false,
         platform_fees: input.platformFees || { monthly: 0, biannual: 0, annual: 0 },
         pass_fees_to_member: input.passFeesToMember ?? false,
+        pass_fees_on_enrollment: input.passFeesOnEnrollment ?? true,
       })
       .select()
       .single();
@@ -214,6 +216,10 @@ export class OrganizationsService {
       dbUpdates.platform_fees = updates.platformFees;
     if (updates.passFeesToMember !== undefined)
       dbUpdates.pass_fees_to_member = updates.passFeesToMember;
+    // Not guarded by the active-subscription lock: enrollment fees are one-off
+    // charges, never baked into a Stripe subscription price.
+    if (updates.passFeesOnEnrollment !== undefined)
+      dbUpdates.pass_fees_on_enrollment = updates.passFeesOnEnrollment;
     if (updates.platformFeeDiscounts !== undefined)
       dbUpdates.platform_fee_discounts = updates.platformFeeDiscounts;
 
@@ -392,6 +398,7 @@ interface DbOrganizationRow {
   stripe_onboarded: boolean;
   platform_fees: PlatformFees | null;
   pass_fees_to_member: boolean | null;
+  pass_fees_on_enrollment: boolean | null;
   platform_fee_discounts: PlatformFeeDiscounts | null;
   terminal_location_id: string | null;
   twilio_phone_number: string | null;
@@ -428,6 +435,7 @@ function transformOrganization(dbOrg: DbOrganizationRow): Organization {
     stripeOnboarded: dbOrg.stripe_onboarded,
     platformFees: dbOrg.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: dbOrg.pass_fees_to_member || false,
+    passFeesOnEnrollment: dbOrg.pass_fees_on_enrollment ?? true,
     platformFeeDiscounts: dbOrg.platform_fee_discounts || {},
     terminalLocationId: dbOrg.terminal_location_id || null,
     twilioPhoneNumber: dbOrg.twilio_phone_number || null,

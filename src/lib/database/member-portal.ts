@@ -410,6 +410,7 @@ interface DbOrganizationRow {
   stripe_onboarded: boolean;
   platform_fees: { monthly: number; biannual: number; annual: number };
   pass_fees_to_member: boolean;
+  pass_fees_on_enrollment: boolean | null;
   platform_fee_discounts: Organization["platformFeeDiscounts"] | null;
   terminal_location_id: string | null;
   created_at: string;
@@ -530,6 +531,7 @@ function transformOrganization(db: DbOrganizationRow): Organization {
     stripeOnboarded: db.stripe_onboarded,
     platformFees: db.platform_fees || { monthly: 0, biannual: 0, annual: 0 },
     passFeesToMember: db.pass_fees_to_member,
+    passFeesOnEnrollment: db.pass_fees_on_enrollment ?? true,
     platformFeeDiscounts: db.platform_fee_discounts || {},
     terminalLocationId: db.terminal_location_id || null,
     twilioPhoneNumber: (db as { twilio_phone_number?: string | null }).twilio_phone_number ?? null,

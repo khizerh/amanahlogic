@@ -23,6 +23,7 @@ import {
   createSetupIntent,
   calculateFees,
   calculateArrearsCharge,
+  enrollmentPassesFees,
 } from "@/lib/stripe";
 import { resolvePlatformFee } from "@/lib/billing/platform-fee";
 import { getTodayInOrgTimezone } from "@/lib/billing/invoice-generator";
@@ -208,9 +209,11 @@ export async function createAutopaySetupLink(
       ? params.includeEnrollmentFee && membership.enrollmentFeeStatus === "unpaid"
       : membership.enrollmentFeeStatus === "unpaid";
   const enrollmentFeeCents = includesEnrollmentFee ? Math.round(plan.enrollmentFee * 100) : 0;
-  // Platform fee applies to dues only — never to the enrollment fee
+  // Platform fee applies to dues only — never to the enrollment fee. Stripe's
+  // fee is passed through only if the org hasn't opted enrollment out.
+  const passFeesOnEnrollment = enrollmentPassesFees(org);
   const enrollmentFeeChargeCents =
-    enrollmentFeeCents > 0 ? calculateFees(enrollmentFeeCents, 0, passFeesToMember).chargeAmountCents : 0;
+    enrollmentFeeCents > 0 ? calculateFees(enrollmentFeeCents, 0, passFeesOnEnrollment).chargeAmountCents : 0;
 
   const arrears = quoteArrears({
     membership,
@@ -229,6 +232,7 @@ export async function createAutopaySetupLink(
     enrollmentFeeAmountCents: enrollmentFeeCents,
     billingFrequency,
     passFeesToMember,
+    passFeesOnEnrollment,
     stripeConnectAccountId: org.stripeConnectId && org.stripeOnboarded ? org.stripeConnectId : undefined,
     memberIsCurrent,
     nextPaymentDue,

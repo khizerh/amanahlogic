@@ -59,6 +59,7 @@ export interface Organization {
   stripeOnboarded: boolean;
   platformFees: PlatformFees; // Per-frequency platform fees
   passFeesToMember: boolean; // If true, gross-up charges so org receives full amount
+  passFeesOnEnrollment: boolean; // If false, enrollment fee is charged flat; org absorbs Stripe's fee on it
   platformFeeDiscounts: PlatformFeeDiscounts; // Percent off platform fee by payer relationship
   terminalLocationId: string | null; // Stripe Terminal Location ID for in-person payments
   twilioPhoneNumber: string | null;

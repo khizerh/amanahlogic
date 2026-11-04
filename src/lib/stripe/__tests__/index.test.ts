@@ -149,6 +149,8 @@ import Stripe from "stripe";
 import {
   calculateFees,
   calculateArrearsCharge,
+  enrollmentPassesFees,
+  enrollmentPassesFeesFromMetadata,
   describePaymentMethod,
   reverseCalculateBaseAmount,
   isStripeConfigured,
@@ -197,6 +199,46 @@ function makeApiError(message: string) {
 describe("Stripe Integration", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  // --------------------------------------------------------------------------
+  // enrollmentPassesFees
+  // --------------------------------------------------------------------------
+  describe("enrollmentPassesFees", () => {
+    it("passes fees on enrollment by default when the org passes fees", () => {
+      expect(enrollmentPassesFees({ passFeesToMember: true })).toBe(true);
+      expect(enrollmentPassesFees({ passFeesToMember: true, passFeesOnEnrollment: true })).toBe(true);
+    });
+
+    it("charges enrollment flat when the org opts enrollment out", () => {
+      expect(enrollmentPassesFees({ passFeesToMember: true, passFeesOnEnrollment: false })).toBe(false);
+    });
+
+    it("never passes fees on enrollment when the org absorbs fees generally", () => {
+      expect(enrollmentPassesFees({ passFeesToMember: false, passFeesOnEnrollment: true })).toBe(false);
+      expect(enrollmentPassesFees({ passFeesToMember: null, passFeesOnEnrollment: null })).toBe(false);
+    });
+
+    it("flat enrollment fee charges exactly the base amount", () => {
+      const fees = calculateFees(50000, 0, enrollmentPassesFees({ passFeesToMember: true, passFeesOnEnrollment: false }));
+      expect(fees.chargeAmountCents).toBe(50000);
+      expect(fees.platformFeeCents).toBe(0);
+      expect(fees.netAmountCents).toBe(50000 - fees.stripeFeeCents);
+    });
+  });
+
+  describe("enrollmentPassesFeesFromMetadata", () => {
+    it("prefers enrollment_pass_fees over pass_fees_to_member", () => {
+      expect(enrollmentPassesFeesFromMetadata({ pass_fees_to_member: "true", enrollment_pass_fees: "false" })).toBe(false);
+      expect(enrollmentPassesFeesFromMetadata({ pass_fees_to_member: "false", enrollment_pass_fees: "true" })).toBe(true);
+    });
+
+    it("falls back to pass_fees_to_member for intents created before the key existed", () => {
+      expect(enrollmentPassesFeesFromMetadata({ pass_fees_to_member: "true" })).toBe(true);
+      expect(enrollmentPassesFeesFromMetadata({ pass_fees_to_member: "false" })).toBe(false);
+      expect(enrollmentPassesFeesFromMetadata({})).toBe(false);
+      expect(enrollmentPassesFeesFromMetadata(null)).toBe(false);
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -891,8 +933,30 @@ describe("Stripe Integration", () => {
           enrollment_fee_amount_cents: "500",
           billing_frequency: "monthly",
           pass_fees_to_member: "true",
+          enrollment_pass_fees: "true",
         },
       });
+    });
+
+    it("freezes the enrollment pass-fees flag separately when the org opts enrollment out", async () => {
+      mockSetupIntentsCreate.mockResolvedValueOnce({ id: "seti_flat", client_secret: "seti_flat_secret" });
+
+      await createSetupIntent({
+        customerId: "cus_123",
+        membershipId: "membership-1",
+        memberId: "member-1",
+        organizationId: "org-1",
+        planName: "Gold Plan",
+        duesAmountCents: 10000,
+        enrollmentFeeAmountCents: 50000,
+        billingFrequency: "monthly",
+        passFeesToMember: true,
+        passFeesOnEnrollment: false,
+      });
+
+      const metadata = mockSetupIntentsCreate.mock.calls[0][0].metadata;
+      expect(metadata.pass_fees_to_member).toBe("true");
+      expect(metadata.enrollment_pass_fees).toBe("false");
     });
 
     it("should include stripeConnectAccountId in metadata when provided", async () => {

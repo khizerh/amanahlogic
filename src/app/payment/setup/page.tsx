@@ -1,7 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 import { resolvePlatformFee } from "@/lib/billing/platform-fee";
-import { calculateFees } from "@/lib/stripe";
+import { calculateFees, enrollmentPassesFeesFromMetadata } from "@/lib/stripe";
 import { quoteArrears } from "@/lib/billing/setup-link";
 import type { PlatformFees, BillingFrequency, Membership, PlatformFeeDiscounts } from "@/lib/types";
 import { SetupClient } from "./SetupClient";
@@ -99,11 +99,12 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
   const duesFees = calculateFees(duesAmountCents, platformFeeDollars, passFeesToMember);
   const displayDues = memberIsCurrent ? 0 : duesFees.chargeAmountCents / 100;
 
-  // Enrollment fee — platform fee applies to dues only, so it's excluded here
+  // Enrollment fee — platform fee applies to dues only, so it's excluded here.
+  // Stripe gross-up follows the flag frozen in metadata (same as the webhook).
   const enrollmentFeeAmountCents = parseInt(metadata.enrollment_fee_amount_cents || "0", 10);
   let displayEnrollmentFee: number | undefined;
   if (enrollmentFeeAmountCents > 0 && !memberIsCurrent) {
-    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, 0, passFeesToMember);
+    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, 0, enrollmentPassesFeesFromMetadata(metadata));
     displayEnrollmentFee = enrollmentFees.chargeAmountCents / 100;
   }
 
