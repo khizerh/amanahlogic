@@ -239,6 +239,14 @@ describe("Stripe Integration", () => {
       expect(enrollmentPassesFeesFromMetadata({})).toBe(false);
       expect(enrollmentPassesFeesFromMetadata(null)).toBe(false);
     });
+
+    it("old intents follow the org's current setting when an org is supplied", () => {
+      const org = { passFeesToMember: true, passFeesOnEnrollment: false };
+      expect(enrollmentPassesFeesFromMetadata({ pass_fees_to_member: "true" }, org)).toBe(false);
+      expect(enrollmentPassesFeesFromMetadata({ pass_fees_to_member: "true" }, { passFeesToMember: true })).toBe(true);
+      // A frozen key still wins over the org
+      expect(enrollmentPassesFeesFromMetadata({ enrollment_pass_fees: "true" }, org)).toBe(true);
+    });
   });
 
   // --------------------------------------------------------------------------

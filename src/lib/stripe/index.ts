@@ -618,14 +618,18 @@ export function enrollmentPassesFees(org: {
 
 /**
  * Read the enrollment gross-up flag frozen into SetupIntent / PaymentIntent
- * metadata. Falls back to pass_fees_to_member for intents created before the
- * enrollment_pass_fees key existed.
+ * metadata. Intents created before the enrollment_pass_fees key existed follow
+ * the org's CURRENT setting when an org is supplied (so flipping the setting
+ * also covers links already sent), otherwise pass_fees_to_member.
  */
 export function enrollmentPassesFeesFromMetadata(
-  metadata: Record<string, string | undefined> | null | undefined
+  metadata: Record<string, string | undefined> | null | undefined,
+  org?: { passFeesToMember?: boolean | null; passFeesOnEnrollment?: boolean | null } | null
 ): boolean {
-  const raw = metadata?.enrollment_pass_fees ?? metadata?.pass_fees_to_member;
-  return raw === "true";
+  const frozen = metadata?.enrollment_pass_fees;
+  if (frozen !== undefined) return frozen === "true";
+  if (org) return enrollmentPassesFees(org);
+  return metadata?.pass_fees_to_member === "true";
 }
 
 /**

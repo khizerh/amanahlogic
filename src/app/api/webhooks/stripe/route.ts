@@ -1397,7 +1397,7 @@ async function handleSetupIntentSucceeded(
   // Get org for fee calculation
   const { data: org } = await supabase
     .from("organizations")
-    .select("timezone, platform_fees, stripe_connect_id, stripe_onboarded, pass_fees_to_member, platform_fee_discounts")
+    .select("timezone, platform_fees, stripe_connect_id, stripe_onboarded, pass_fees_to_member, pass_fees_on_enrollment, platform_fee_discounts")
     .eq("id", organizationId)
     .single();
 
@@ -1516,11 +1516,15 @@ async function handleSetupIntentSucceeded(
   if (enrollmentFeeAmountCents > 0) {
     // Platform fee applies to dues only — never to the enrollment fee. The
     // Stripe gross-up flag was frozen into the SetupIntent so the member is
-    // charged exactly what the setup page quoted.
+    // charged exactly what the setup page quoted; older intents follow the
+    // org's current setting (same as the setup page).
     const enrollmentFees = calculateFees(
       enrollmentFeeAmountCents,
       0,
-      enrollmentPassesFeesFromMetadata(metadata)
+      enrollmentPassesFeesFromMetadata(metadata, {
+        passFeesToMember: org?.pass_fees_to_member,
+        passFeesOnEnrollment: org?.pass_fees_on_enrollment,
+      })
     );
 
     try {

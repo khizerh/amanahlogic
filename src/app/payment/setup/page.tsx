@@ -57,7 +57,7 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
       .single(),
     supabase
       .from("organizations")
-      .select("id, name, platform_fees, pass_fees_to_member, platform_fee_discounts, timezone")
+      .select("id, name, platform_fees, pass_fees_to_member, pass_fees_on_enrollment, platform_fee_discounts, timezone")
       .eq("id", metadata.organization_id)
       .single(),
   ]);
@@ -104,7 +104,14 @@ export default async function PaymentSetupPage({ searchParams }: PageProps) {
   const enrollmentFeeAmountCents = parseInt(metadata.enrollment_fee_amount_cents || "0", 10);
   let displayEnrollmentFee: number | undefined;
   if (enrollmentFeeAmountCents > 0 && !memberIsCurrent) {
-    const enrollmentFees = calculateFees(enrollmentFeeAmountCents, 0, enrollmentPassesFeesFromMetadata(metadata));
+    const enrollmentFees = calculateFees(
+      enrollmentFeeAmountCents,
+      0,
+      enrollmentPassesFeesFromMetadata(metadata, {
+        passFeesToMember: org.pass_fees_to_member,
+        passFeesOnEnrollment: org.pass_fees_on_enrollment,
+      })
+    );
     displayEnrollmentFee = enrollmentFees.chargeAmountCents / 100;
   }
 

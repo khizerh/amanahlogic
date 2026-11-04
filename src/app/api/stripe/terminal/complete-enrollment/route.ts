@@ -11,7 +11,6 @@ import {
   createMembershipSubscription,
   calculateFees,
   stripe,
-  enrollmentPassesFees,
   enrollmentPassesFeesFromMetadata,
 } from "@/lib/stripe";
 import { resolvePlatformFee } from "@/lib/billing/platform-fee";
@@ -231,10 +230,7 @@ export async function POST(req: Request) {
       // the gross-up flag recorded at charge time (collect-payment) so the
       // payment row matches what the reader actually charged; older PIs
       // without the key fall back to the org setting.
-      const passFeesOnEnrollment =
-        pi.metadata.enrollment_pass_fees !== undefined
-          ? enrollmentPassesFeesFromMetadata(pi.metadata)
-          : enrollmentPassesFees(org);
+      const passFeesOnEnrollment = enrollmentPassesFeesFromMetadata(pi.metadata, org);
       const enrollFees = calculateFees(enrollmentFeeCents, 0, passFeesOnEnrollment);
 
       await supabase.from("payments").insert({
