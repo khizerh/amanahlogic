@@ -105,6 +105,13 @@ export default function MemberLoginPage() {
         <p className="text-center text-sm text-muted-foreground">
           Need help? Contact your organization administrator.
         </p>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Organization admin?{" "}
+          <Link href="/login" className="text-brand-teal hover:underline">
+            Sign in here
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -78,7 +78,9 @@ export async function middleware(request: NextRequest) {
                         pathname === "/privacy" ||
                         pathname === "/terms" ||
                         pathname === "/sms" ||
-                        pathname === "/contact";
+                        pathname === "/join" ||
+                        pathname === "/request-demo" ||
+                        pathname === "/api/request-demo";
 
   // ==========================================================================
   // Public Routes - Allow through immediately

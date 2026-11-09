@@ -184,14 +184,6 @@ export default async function JoinPage({ params, searchParams }: PageProps) {
         plans={plans}
         returning={false}
       />
-
-      {/* Existing member login link */}
-      <p className="mt-10 text-center text-sm text-gray-400">
-        Already a member?{" "}
-        <a href="/portal/login" className="text-brand-teal font-medium hover:underline">
-          Log in to your portal
-        </a>
-      </p>
     </>
   );
 }

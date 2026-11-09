@@ -64,6 +64,22 @@ CREATE TABLE IF NOT EXISTS public.agreements (
   CONSTRAINT agreements_pkey PRIMARY KEY (id)
 );
 
+CREATE TABLE IF NOT EXISTS public.demo_requests (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  organization_name text NOT NULL,
+  contact_name text NOT NULL,
+  role text NOT NULL,
+  email text NOT NULL,
+  phone text NOT NULL,
+  membership_size text NOT NULL,
+  notes text,
+  ip_address text,
+  user_agent text,
+  email_sent boolean DEFAULT false NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT demo_requests_pkey PRIMARY KEY (id)
+);
+
 CREATE TABLE IF NOT EXISTS public.email_logs (
   id uuid DEFAULT gen_random_uuid() NOT NULL,
   organization_id uuid NOT NULL,
@@ -720,6 +736,8 @@ ALTER TABLE public.agreement_templates ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.agreements ENABLE ROW LEVEL SECURITY;
 
+ALTER TABLE public.demo_requests ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.email_templates ENABLE ROW LEVEL SECURITY;
@@ -983,6 +1001,8 @@ COMMENT ON COLUMN public.returning_applications.sms_opted_in_at IS 'Timestamp th
 COMMENT ON COLUMN public.stripe_webhook_events.event_id IS 'Stripe event ID (evt_xxx) - unique constraint prevents double processing';
 
 COMMENT ON TABLE public.agreements IS 'E-signature records for membership agreements';
+
+COMMENT ON TABLE public.demo_requests IS 'Request-a-Demo submissions from the public site (/request-demo). Service-role only: RLS on, no policies. email_sent = whether the notification email went out.';
 
 COMMENT ON TABLE public.email_logs IS 'Email delivery history for all member communications';
 

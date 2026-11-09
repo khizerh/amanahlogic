@@ -6,6 +6,9 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
+  async redirects() {
+    return [{ source: '/contact', destination: '/request-demo', permanent: true }];
+  },
   images: {
     remotePatterns: [
       {

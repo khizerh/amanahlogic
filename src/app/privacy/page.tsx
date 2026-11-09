@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
+import { SiteNav } from "@/components/marketing/site-nav";
+import { SiteFooter } from "@/components/marketing/site-footer";
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -12,27 +12,7 @@ const fadeIn = {
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Navbar */}
-      <motion.nav
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/">
-            <Image src="/logos/logo-new.svg" alt="Amanah Logic" width={100} height={30} />
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link href="/portal/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
-              Member Login
-            </Link>
-            <Link href="/login" className="text-sm font-medium text-white bg-[#111827] hover:bg-[#1f2937] rounded-lg px-4 py-2 transition-colors">
-              Admin Login
-            </Link>
-          </div>
-        </div>
-      </motion.nav>
+      <SiteNav />
 
       {/* Header */}
       <div className="bg-gray-50 pt-8 pb-12">
@@ -98,7 +78,7 @@ export default function PrivacyPolicyPage() {
               <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-6">
                 <li>Member and dependent information (names, dates of birth, contact details)</li>
                 <li>Membership status and plan details</li>
-                <li>Plot assignments and burial benefit records</li>
+                <li>Burial benefit records</li>
                 <li>Signed agreements and documents</li>
                 <li>Payment history and invoices</li>
               </ul>
@@ -119,7 +99,6 @@ export default function PrivacyPolicyPage() {
               <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-6">
                 <li>Manage your membership and dependent records</li>
                 <li>Process dues and payment transactions</li>
-                <li>Assign and track burial plots</li>
                 <li>Generate agreements and membership documents</li>
               </ul>
               <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Communications</h3>
@@ -246,22 +225,7 @@ export default function PrivacyPolicyPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex flex-col items-center md:items-start gap-1">
-              <Image src="/logos/logo-icon-white.svg" alt="Amanah Logic" width={100} height={31} />
-              <p className="text-sm mt-2">&copy; {new Date().getFullYear()} Amanah Logic. All rights reserved.</p>
-            </div>
-            <div className="flex items-center gap-6 text-sm">
-              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-              <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
