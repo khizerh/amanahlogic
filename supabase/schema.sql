@@ -972,7 +972,7 @@ COMMENT ON COLUMN public.onboarding_invites.planned_amount IS 'Monthly amount at
 
 COMMENT ON COLUMN public.onboarding_invites.status IS 'pending = link sent, completed = member enrolled, expired = link expired, canceled = manually canceled';
 
-COMMENT ON COLUMN public.organization_settings.billing_config IS 'JSON: {lapseDays, cancelMonths, reminderSchedule[], maxReminders, sendInvoiceReminders, eligibilityMonths}';
+COMMENT ON COLUMN public.organization_settings.billing_config IS 'JSON: {lapseDays, cancelMonths, autoLapse, reminderSchedule[], maxReminders, sendInvoiceReminders, eligibilityMonths}. Muhajireen: lapseDays=180 + autoLapse=true since 2026-11-09 per revised bylaws (suspension after 6 months unpaid).';
 
 COMMENT ON COLUMN public.organizations.address IS 'JSON object: {street, city, state, zip}';
 
